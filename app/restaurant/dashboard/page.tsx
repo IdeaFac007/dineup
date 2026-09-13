@@ -25,7 +25,7 @@ export default function RestaurantDashboard() {
             <h1>Royal Awadh Kitchen</h1>
             <p className="muted">Lucknow • Awadhi • Fine Dining</p>
           </div>
-          <button className="primary-btn">Increase visibility ↑</button>
+          <Link href="/restaurant/bid" className="primary-btn">   Increase visibility ↑ </Link>
         </div>
 
         <div className="stats-grid">
