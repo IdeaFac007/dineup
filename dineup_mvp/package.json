@@ -1,0 +1,15 @@
+{
+  "name": "dineup_mvp",
+  "version": "1.0.0",
+  "description": "A frontend-only website prototype for the DineUp restaurant visibility marketplace.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@vercel/speed-insights": "^2.0.0"
+  }
+}
