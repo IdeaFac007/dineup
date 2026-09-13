@@ -1,29 +1,33 @@
-# DineUp Functional MVP
+# DineUp Phase 2 — Real MVP Starter
 
-This is a browser-based functional prototype for DineUp — "Where Restaurants Rise."
+This upgrades the static demo into a production-ready architecture.
 
 Included:
-- Customer leaderboard
-- Search and category filtering
-- Restaurant profile
-- Restaurant onboarding
-- Demo restaurant dashboard
-- Live bid/outbid logic
-- Rank recalculation
-- Local persistence with localStorage
-- Call button on restaurant profile
+- Next.js 16.2.6 + React 19
+- Supabase browser client
+- Magic-link restaurant login UI
+- Supabase/Postgres schema with RLS
+- Restaurants, campaigns and bids tables
+- Public leaderboard UI
+- Secure architecture notes for server-side bidding/payment
+- Razorpay environment placeholders
 
-Important:
-- This version is NOT production backend.
-- Payments are simulated; no money is charged.
-- Authentication, PostgreSQL/Supabase, Razorpay, Maps, notifications and admin authentication still need production integration.
+Setup:
+1. Create a Supabase project.
+2. Run `supabase/schema.sql` in Supabase SQL Editor.
+3. Copy `.env.example` to `.env.local`.
+4. Fill Supabase URL and anon key.
+5. Configure Supabase Auth email provider/redirect URL.
+6. `npm install`
+7. `npm run dev`
+8. Add Razorpay keys only after server-side order creation + webhook routes are implemented.
 
-Suggested production stack:
-Next.js + PostgreSQL/Supabase + Razorpay + Google Maps + Vercel.
-
-To test:
-1. Open index.html in a browser.
-2. Click "List Your Restaurant".
-3. Add a restaurant.
-4. Use "Restaurant Login" to open its dashboard.
-5. Increase the bid and watch the leaderboard reorder.
+This package intentionally does NOT pretend to take real money yet. Do not expose Razorpay secret keys in browser code. The next production implementation should add:
+- `/api/bids` server route with transaction/row locking
+- `/api/razorpay/order`
+- `/api/razorpay/webhook`
+- owner dashboard
+- admin approval
+- campaign start/end rules
+- payment reconciliation
+- rate limiting and audit logs
