@@ -1,249 +1,101 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 
-function BidPageContent() {
+export default function RestaurantLogin() {
   const supabase = createClient();
-  const searchParams = useSearchParams();
+  const router = useRouter();
 
-  const [bid, setBid] = useState("");
-  const [currentBid, setCurrentBid] = useState(0);
-  const [submitted, setSubmitted] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [restaurantName, setRestaurantName] = useState("");
-  const [restaurantId, setRestaurantId] = useState<number | null>(null);
 
-  useEffect(() => {
-    // If URL has ?id=..., use it.
-    // Otherwise default to Royal Awadh Kitchen (ID 3) for MVP.
-    const urlId = Number(searchParams.get("id"));
-    const id = urlId || 3;
-
-    setRestaurantId(id);
-
-    async function loadRestaurant() {
-      const { data, error } = await supabase
-        .from("restaurants")
-        .select("name, current_bid")
-        .eq("id", id)
-        .single();
-
-      if (error) {
-        setError(error.message);
-        return;
-      }
-
-      const amount = Number(data?.current_bid || 0);
-
-      setRestaurantName(data?.name || "Restaurant");
-      setCurrentBid(amount);
-      setBid(String(amount + 1));
-    }
-
-    loadRestaurant();
-  }, [searchParams]);
-
-  const minimumBid = currentBid + 1;
-
-  const handleBid = async () => {
+  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     setError("");
+    setLoading(true);
 
-    if (!restaurantId) {
-      setError("Restaurant not found.");
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setError(error.message);
+      setLoading(false);
       return;
     }
 
-    const amount = Number(bid);
-
-    if (!amount || amount <= currentBid) {
-      setError(
-        `Your bid must be higher than ₹${currentBid.toLocaleString("en-IN")}.`
-      );
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      const { error: bidError } = await supabase.rpc("place_bid", {
-        p_restaurant_id: restaurantId,
-        p_amount: amount,
-      });
-
-      if (bidError) {
-        throw new Error(bidError.message);
-      }
-
-      setCurrentBid(amount);
-      setSubmitted(true);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Something went wrong."
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
+    router.push("/restaurant/dashboard");
+    router.refresh();
+  }
 
   return (
     <main className="auth-page">
       <div className="auth-card">
-
-        <Link href="/restaurant/dashboard" className="back-link">
-          ← Back to dashboard
+        <Link href="/" className="brand">
+          Dine<span>Up</span>
         </Link>
 
-        <div className="eyebrow">DINEUP • VISIBILITY</div>
+        <div className="eyebrow">RESTAURANT PARTNER</div>
 
-        <h1>Increase your visibility.</h1>
+        <h1>Grow your restaurant’s visibility.</h1>
 
         <p className="muted">
-          Place a higher bid to move{" "}
-          {restaurantName || "this restaurant"} up the Lucknow leaderboard.
+          Login to manage your profile, promotion and leaderboard position.
         </p>
 
-        <div className="panel" style={{ marginTop: 28 }}>
-          <div className="panel-title">Current campaign</div>
+        <form className="auth-form" onSubmit={handleLogin}>
+          <label>
+            Email
+            <input
+              type="email"
+              placeholder="owner@restaurant.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </label>
 
-          <div className="bid-row">
-            <span>Current top bid</span>
-            <strong>
-              ₹{currentBid.toLocaleString("en-IN")}
-            </strong>
-          </div>
+          <label>
+            Password
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </label>
 
-          <div className="bid-row">
-            <span>Minimum new bid</span>
-            <strong>
-              ₹{minimumBid.toLocaleString("en-IN")}
-            </strong>
-          </div>
+          {error && (
+            <p style={{ color: "crimson", marginTop: 8 }}>
+              {error}
+            </p>
+          )}
+
+          <button
+            className="primary-btn"
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? "Logging in..." : "Login to dashboard →"}
+          </button>
+        </form>
+
+        <div className="demo-note">
+          <strong>Secure login:</strong> Your account is authenticated by
+          Supabase.
         </div>
 
-        {!submitted ? (
-          <>
-            <label
-              htmlFor="bid"
-              style={{
-                display: "block",
-                marginTop: 24,
-                marginBottom: 8,
-                fontWeight: 700,
-              }}
-            >
-              Your new bid
-            </label>
-
-            <input
-              id="bid"
-              type="number"
-              min={minimumBid}
-              value={bid}
-              onChange={(e) => setBid(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "15px 16px",
-                border: "1px solid #ddd",
-                borderRadius: 9,
-                fontSize: 18,
-                boxSizing: "border-box",
-              }}
-            />
-
-            <p className="muted" style={{ marginTop: 10 }}>
-              Minimum bid: ₹{minimumBid.toLocaleString("en-IN")}
-            </p>
-
-            {error && (
-              <p
-                style={{
-                  color: "crimson",
-                  marginTop: 12,
-                  lineHeight: 1.5,
-                }}
-              >
-                {error}
-              </p>
-            )}
-
-            <button
-              type="button"
-              className="primary-btn full"
-              onClick={handleBid}
-              disabled={saving || !restaurantId}
-              style={{ marginTop: 14 }}
-            >
-              {saving ? "Saving bid..." : "Place bid →"}
-            </button>
-
-            <div className="demo-note" style={{ marginTop: 18 }}>
-              MVP demo: No real payment is processed yet.
-              Razorpay will be connected in the next phase.
-            </div>
-          </>
-        ) : (
-          <div
-            className="panel"
-            style={{
-              marginTop: 24,
-              textAlign: "center",
-              padding: 28,
-            }}
-          >
-            <div className="eyebrow">BID SUBMITTED</div>
-
-            <h2 style={{ margin: "10px 0" }}>
-              You are moving up!
-            </h2>
-
-            <p className="muted">
-              {restaurantName}
-            </p>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 12,
-                marginTop: 22,
-              }}
-            >
-              <div className="stat-card">
-                <span>New bid</span>
-                <strong>
-                  ₹{Number(bid).toLocaleString("en-IN")}
-                </strong>
-              </div>
-
-              <div className="stat-card">
-                <span>Status</span>
-                <strong>LIVE</strong>
-              </div>
-            </div>
-
-            <Link
-              href="/restaurant/dashboard"
-              className="primary-btn full"
-              style={{ marginTop: 22 }}
-            >
-              Back to dashboard →
-            </Link>
-          </div>
-        )}
-
+        <p className="back-link">
+          <Link href="/">← Back to DineUp</Link>
+        </p>
       </div>
     </main>
-  );
-}
-
-export default function BidPage() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <BidPageContent />
-    </Suspense>
   );
 }
