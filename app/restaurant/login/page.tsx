@@ -14,8 +14,9 @@ export default function RestaurantLogin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
     setError("");
     setLoading(true);
 
@@ -37,44 +38,63 @@ export default function RestaurantLogin() {
   return (
     <main className="auth-page">
       <div className="auth-card">
+
         <Link href="/" className="brand">
           Dine<span>Up</span>
         </Link>
 
-        <div className="eyebrow">RESTAURANT PARTNER</div>
+        <div className="eyebrow">
+          RESTAURANT PARTNER
+        </div>
 
-        <h1>Grow your restaurant’s visibility.</h1>
+        <h1>
+          Grow your restaurant’s visibility.
+        </h1>
 
         <p className="muted">
-          Login to manage your restaurant profile, promotion and leaderboard
-          position.
+          Login to manage your restaurant profile,
+          promotion and leaderboard position.
         </p>
 
-        <form onSubmit={handleLogin} className="auth-form">
+        <form
+          onSubmit={handleLogin}
+          className="auth-form"
+        >
           <label>
             Email
+
             <input
               type="email"
+              name="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="owner@restaurant.com"
+              autoComplete="email"
               required
             />
           </label>
 
           <label>
             Password
+
             <input
               type="password"
+              name="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
+              autoComplete="current-password"
               required
             />
           </label>
 
           {error && (
-            <p style={{ color: "crimson", marginTop: 8 }}>
+            <p
+              style={{
+                color: "crimson",
+                marginTop: 8,
+              }}
+            >
               {error}
             </p>
           )}
@@ -84,18 +104,24 @@ export default function RestaurantLogin() {
             type="submit"
             disabled={loading}
           >
-            {loading ? "Signing in..." : "Login to dashboard →"}
+            {loading
+              ? "Signing in..."
+              : "Login to dashboard →"}
           </button>
         </form>
 
         <div className="demo-note">
-          <strong>Secure login:</strong> Your credentials are handled by
+          <strong>Secure login:</strong>{" "}
+          Your credentials are handled by
           Supabase Authentication.
         </div>
 
         <p className="back-link">
-          <Link href="/">← Back to DineUp</Link>
+          <Link href="/">
+            ← Back to DineUp
+          </Link>
         </p>
+
       </div>
     </main>
   );
