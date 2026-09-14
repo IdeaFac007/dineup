@@ -11,6 +11,14 @@ declare global {
   }
 }
 
+type Restaurant = {
+  id: number;
+  name: string;
+  city: string;
+  category: string;
+  current_bid: number;
+};
+
 function BidPageContent() {
   const supabase = createClient();
   const router = useRouter();
@@ -18,93 +26,94 @@ function BidPageContent() {
 
   const restaurantId = Number(searchParams.get("id"));
 
-  const [restaurant, setRestaurant] = useState<{
-    id: number;
-    name: string;
-    city: string;
-    category: string;
-    current_bid: number;
-  } | null>(null);
-
-  const [amount, setAmount] = useState("");
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  const [userEmail, setUserEmail] = useState("");
+  const [bidAmount, setBidAmount] = useState("");
   const [loading, setLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState(false);
-  const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const loadRazorpay = () => {
+      if (document.getElementById("razorpay-checkout-script")) {
+        return;
+      }
+
+      const script = document.createElement("script");
+
+      script.id = "razorpay-checkout-script";
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+
+      document.body.appendChild(script);
+    };
+
+    loadRazorpay();
+  }, []);
 
   useEffect(() => {
     async function loadRestaurant() {
       setLoading(true);
       setError("");
 
-      if (!restaurantId) {
-        setError("Restaurant information is missing.");
-        setLoading(false);
-        return;
-      }
+      try {
+        if (!restaurantId) {
+          throw new Error("Restaurant ID is missing.");
+        }
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
 
-      if (!user) {
-        router.push("/restaurant/login");
-        return;
-      }
+        if (userError || !user) {
+          router.push("/restaurant/login");
+          return;
+        }
 
-      const { data, error: restaurantError } = await supabase
-        .from("restaurants")
-        .select("id, name, city, category, current_bid")
-        .eq("id", restaurantId)
-        .eq("owner_id", user.id)
-        .eq("is_active", true)
-        .single();
+        setUserEmail(user.email || "");
 
-      if (restaurantError || !data) {
+        const { data, error: restaurantError } = await supabase
+          .from("restaurants")
+          .select("id, name, city, category, current_bid")
+          .eq("id", restaurantId)
+          .eq("owner_id", user.id)
+          .eq("is_active", true)
+          .single();
+
+        if (restaurantError || !data) {
+          throw new Error(
+            "Restaurant not found or you are not authorized to manage it."
+          );
+        }
+
+        const currentBid = Number(data.current_bid || 0);
+
+        setRestaurant({
+          id: Number(data.id),
+          name: data.name,
+          city: data.city,
+          category: data.category,
+          current_bid: currentBid,
+        });
+
+        setBidAmount(String(currentBid + 1));
+      } catch (err) {
         setError(
-          "Restaurant not found or this account is not authorized to manage it."
+          err instanceof Error
+            ? err.message
+            : "Unable to load restaurant."
         );
+      } finally {
         setLoading(false);
-        return;
       }
-
-      setRestaurant(data);
-      setAmount(String(Number(data.current_bid || 0) + 1));
-      setLoading(false);
     }
 
     loadRestaurant();
   }, [restaurantId, router, supabase]);
 
-  function loadRazorpayScript(): Promise<boolean> {
-    return new Promise((resolve) => {
-      if (window.Razorpay) {
-        resolve(true);
-        return;
-      }
-
-      const existingScript = document.querySelector(
-        'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
-      );
-
-      if (existingScript) {
-        existingScript.addEventListener("load", () => resolve(true));
-        existingScript.addEventListener("error", () => resolve(false));
-        return;
-      }
-
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.async = true;
-
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-
-      document.body.appendChild(script);
-    });
-  }
-
-  async function handleIncreaseVisibility() {
+  async function handlePayment() {
     setError("");
     setMessage("");
 
@@ -113,18 +122,25 @@ function BidPageContent() {
       return;
     }
 
-    const bidAmount = Number(amount);
+    const amount = Number(bidAmount);
 
-    if (!Number.isFinite(bidAmount) || bidAmount <= 0) {
+    if (!amount || amount <= 0) {
       setError("Please enter a valid bid amount.");
       return;
     }
 
-    if (bidAmount <= Number(restaurant.current_bid)) {
+    if (amount <= restaurant.current_bid) {
       setError(
-        `Your bid must be higher than ₹${Number(
-          restaurant.current_bid
-        ).toLocaleString("en-IN")}.`
+        `Your bid must be higher than ₹${restaurant.current_bid.toLocaleString(
+          "en-IN"
+        )}.`
+      );
+      return;
+    }
+
+    if (!window.Razorpay) {
+      setError(
+        "Razorpay Checkout is still loading. Please wait a moment and try again."
       );
       return;
     }
@@ -132,61 +148,76 @@ function BidPageContent() {
     setPaymentLoading(true);
 
     try {
-      const scriptLoaded = await loadRazorpayScript();
+      /*
+       * Step 1:
+       * Ask our server to create a pending bid
+       * and a Razorpay order.
+       */
+      const orderResponse = await fetch(
+        "/api/health/razorpay/create-order",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            restaurantId: restaurant.id,
+            amount,
+          }),
+        }
+      );
 
-      if (!scriptLoaded) {
+      const orderData = await orderResponse.json();
+
+      if (!orderResponse.ok || !orderData.success) {
         throw new Error(
-          "Unable to load Razorpay Checkout. Please refresh and try again."
+          orderData.error || "Unable to create Razorpay order."
         );
       }
 
-      const response = await fetch("/api/health/razorpay/create-order", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          restaurantId: restaurant.id,
-          amount: bidAmount,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(
-          data.error || "Unable to create Razorpay payment order."
-        );
-      }
-
+      /*
+       * Step 2:
+       * Open Razorpay Checkout.
+       */
       const options = {
-        key: data.keyId,
-        amount: data.amount,
-        currency: data.currency,
+        key: orderData.keyId,
+        amount: orderData.amount,
+        currency: orderData.currency,
         name: "DineUp",
-        description: `Restaurant visibility bid for ${restaurant.name}`,
-        order_id: data.orderId,
+        description: `Leaderboard promotion for ${restaurant.name}`,
+        order_id: orderData.orderId,
 
         prefill: {
-          name: restaurant.name,
+          email: userEmail,
         },
 
         notes: {
-          bid_id: String(data.bidId),
-          restaurant_id: String(data.restaurantId),
+          bid_id: String(orderData.bidId),
+          restaurant_id: String(restaurant.id),
         },
 
         theme: {
-          color: "#171717",
+          color: "#111111",
         },
 
-        handler: async function (paymentResponse: {
-          razorpay_payment_id: string;
-          razorpay_order_id: string;
-          razorpay_signature: string;
-        }) {
+        modal: {
+          ondismiss: () => {
+            setPaymentLoading(false);
+            setMessage("Payment cancelled.");
+          },
+        },
+
+        /*
+         * Step 3:
+         * Razorpay returns payment details here.
+         *
+         * We DO NOT update Supabase directly from the browser.
+         * Instead we send the details to our secure server route.
+         */
+        handler: async function (response: any) {
           try {
             setMessage("Payment received. Verifying payment...");
+            setError("");
 
             const verifyResponse = await fetch(
               "/api/health/razorpay/verify-payment",
@@ -196,13 +227,10 @@ function BidPageContent() {
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                  bidId: data.bidId,
-                  razorpay_payment_id:
-                    paymentResponse.razorpay_payment_id,
-                  razorpay_order_id:
-                    paymentResponse.razorpay_order_id,
-                  razorpay_signature:
-                    paymentResponse.razorpay_signature,
+                  bidId: orderData.bidId,
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
                 }),
               }
             );
@@ -216,79 +244,52 @@ function BidPageContent() {
             }
 
             setMessage(
-              `Payment successful. Your bid of ₹${bidAmount.toLocaleString(
-                "en-IN"
-              )} is now active.`
+              "Payment successful! Your bid has been updated. 🚀"
             );
 
             setTimeout(() => {
               router.push("/restaurant/dashboard");
               router.refresh();
             }, 1200);
-          } catch (verificationError) {
+          } catch (err) {
             setError(
-              verificationError instanceof Error
-                ? verificationError.message
+              err instanceof Error
+                ? err.message
                 : "Payment verification failed."
             );
             setMessage("");
             setPaymentLoading(false);
           }
         },
-
-        modal: {
-          ondismiss: function () {
-            setPaymentLoading(false);
-            setMessage("");
-            setError("Payment was cancelled.");
-          },
-        },
       };
 
       const razorpay = new window.Razorpay(options);
 
-      razorpay.on(
-        "payment.failed",
-        function (response: {
-          error?: {
-            description?: string;
-          };
-        }) {
-          setPaymentLoading(false);
-          setError(
-            response?.error?.description ||
-              "Payment failed. Please try again."
-          );
-          setMessage("");
-        }
-      );
+      razorpay.on("payment.failed", function (response: any) {
+        console.error("Razorpay payment failed:", response);
+
+        setError(
+          response?.error?.description ||
+            "Payment failed. Please try again."
+        );
+
+        setMessage("");
+        setPaymentLoading(false);
+      });
 
       razorpay.open();
-    } catch (paymentError) {
-      setPaymentLoading(false);
-
+    } catch (err) {
       setError(
-        paymentError instanceof Error
-          ? paymentError.message
+        err instanceof Error
+          ? err.message
           : "Unable to start payment."
       );
+
+      setPaymentLoading(false);
     }
   }
 
   if (loading) {
-    return (
-      <main className="auth-page">
-        <div className="auth-card">
-          <div className="brand">
-            Dine<span>Up</span>
-          </div>
-          <p className="muted">Loading restaurant...</p>
-        </div>
-      </main>
-    );
-  }
-
-  if (error && !restaurant) {
     return (
       <main className="auth-page">
         <div className="auth-card">
@@ -298,17 +299,44 @@ function BidPageContent() {
 
           <div className="eyebrow">RESTAURANT PARTNER</div>
 
-          <h1>Unable to open bidding.</h1>
+          <h1>Loading campaign...</h1>
 
-          <p
-            style={{
-              color: "#b42318",
-              marginTop: 12,
-              lineHeight: 1.5,
-            }}
-          >
-            {error}
+          <p className="muted">
+            Please wait while we load your restaurant campaign.
           </p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!restaurant) {
+    return (
+      <main className="auth-page">
+        <div className="auth-card">
+          <Link href="/" className="brand">
+            Dine<span>Up</span>
+          </Link>
+
+          <div className="eyebrow">CAMPAIGN ERROR</div>
+
+          <h1>Unable to load campaign.</h1>
+
+          {error && (
+            <div
+              style={{
+                marginTop: 16,
+                padding: "12px 14px",
+                borderRadius: 10,
+                background: "#fff1f1",
+                border: "1px solid #ffd1d1",
+                color: "#b42318",
+                fontSize: 14,
+                lineHeight: 1.5,
+              }}
+            >
+              {error}
+            </div>
+          )}
 
           <p className="back-link">
             <Link href="/restaurant/dashboard">
@@ -320,56 +348,53 @@ function BidPageContent() {
     );
   }
 
-  if (!restaurant) {
-    return null;
-  }
-
-  const minimumBid = Number(restaurant.current_bid || 0) + 1;
+  const minimumBid = restaurant.current_bid + 1;
 
   return (
     <main className="auth-page">
       <div
         className="auth-card"
         style={{
-          maxWidth: 620,
+          maxWidth: 560,
         }}
       >
-        <Link href="/restaurant/dashboard" className="brand">
+        <Link href="/" className="brand">
           Dine<span>Up</span>
         </Link>
 
-        <div className="eyebrow">INCREASE VISIBILITY</div>
+        <div className="eyebrow">BOOST YOUR VISIBILITY</div>
 
-        <h1>Rise higher on the leaderboard.</h1>
+        <h1>Move up the leaderboard.</h1>
 
         <p className="muted">
-          Place a higher verified campaign bid to move your restaurant
-          above the restaurant currently ahead of you.
+          Increase your restaurant&apos;s position by placing a higher
+          bid. Payment is securely processed through Razorpay.
         </p>
 
         <div
           style={{
             marginTop: 24,
-            padding: 18,
-            border: "1px solid #e8e8e8",
+            padding: 20,
             borderRadius: 14,
-            background: "#fafafa",
+            background: "#f7f7f7",
+            border: "1px solid #e5e5e5",
           }}
         >
           <div
             style={{
-              fontSize: 14,
-              color: "#666",
+              fontSize: 13,
+              color: "#777",
               marginBottom: 6,
             }}
           >
-            Restaurant
+            RESTAURANT
           </div>
 
           <div
             style={{
               fontSize: 22,
               fontWeight: 800,
+              color: "#111",
             }}
           >
             {restaurant.name}
@@ -377,9 +402,9 @@ function BidPageContent() {
 
           <div
             style={{
-              marginTop: 8,
-              fontSize: 14,
+              marginTop: 6,
               color: "#666",
+              fontSize: 14,
             }}
           >
             {restaurant.city} • {restaurant.category}
@@ -388,50 +413,60 @@ function BidPageContent() {
 
         <div
           style={{
-            marginTop: 18,
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
             gap: 12,
+            marginTop: 16,
           }}
         >
           <div
             style={{
               padding: 16,
-              border: "1px solid #e8e8e8",
               borderRadius: 12,
+              border: "1px solid #e5e5e5",
             }}
           >
-            <div style={{ fontSize: 13, color: "#777" }}>
+            <div
+              style={{
+                fontSize: 13,
+                color: "#777",
+              }}
+            >
               Current bid
             </div>
 
             <strong
               style={{
                 display: "block",
-                marginTop: 6,
-                fontSize: 21,
+                marginTop: 4,
+                fontSize: 22,
               }}
             >
-              ₹{Number(restaurant.current_bid).toLocaleString("en-IN")}
+              ₹{restaurant.current_bid.toLocaleString("en-IN")}
             </strong>
           </div>
 
           <div
             style={{
               padding: 16,
-              border: "1px solid #e8e8e8",
               borderRadius: 12,
+              border: "1px solid #e5e5e5",
             }}
           >
-            <div style={{ fontSize: 13, color: "#777" }}>
+            <div
+              style={{
+                fontSize: 13,
+                color: "#777",
+              }}
+            >
               Minimum next bid
             </div>
 
             <strong
               style={{
                 display: "block",
-                marginTop: 6,
-                fontSize: 21,
+                marginTop: 4,
+                fontSize: 22,
               }}
             >
               ₹{minimumBid.toLocaleString("en-IN")}
@@ -439,24 +474,18 @@ function BidPageContent() {
           </div>
         </div>
 
-        <form
-          className="auth-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            handleIncreaseVisibility();
-          }}
-          style={{ marginTop: 22 }}
-        >
+        <div className="auth-form" style={{ marginTop: 20 }}>
           <label>
-            Your new bid
+            New bid amount
             <input
               type="number"
               min={minimumBid}
-              step="1"
-              value={amount}
-              onChange={(event) => setAmount(event.target.value)}
+              value={bidAmount}
+              onChange={(event) => setBidAmount(event.target.value)}
+              placeholder={`Minimum ₹${minimumBid.toLocaleString(
+                "en-IN"
+              )}`}
               disabled={paymentLoading}
-              required
             />
           </label>
 
@@ -481,9 +510,9 @@ function BidPageContent() {
               style={{
                 padding: "12px 14px",
                 borderRadius: 10,
-                background: "#f0fdf4",
-                border: "1px solid #bbf7d0",
-                color: "#166534",
+                background: "#f1fff5",
+                border: "1px solid #c9efd6",
+                color: "#147a3d",
                 fontSize: 14,
                 lineHeight: 1.5,
               }}
@@ -494,29 +523,27 @@ function BidPageContent() {
 
           <button
             className="primary-btn"
-            type="submit"
+            type="button"
+            onClick={handlePayment}
             disabled={paymentLoading}
             style={{
-              opacity: paymentLoading ? 0.65 : 1,
+              width: "100%",
+              opacity: paymentLoading ? 0.7 : 1,
               cursor: paymentLoading ? "not-allowed" : "pointer",
             }}
           >
             {paymentLoading
-              ? "Opening secure payment..."
-              : `Pay ₹${Number(amount || 0).toLocaleString(
+              ? "Processing payment..."
+              : `Pay ₹${Number(bidAmount || 0).toLocaleString(
                   "en-IN"
-                )} & increase visibility →`}
+                )} & increase rank →`}
           </button>
-        </form>
+        </div>
 
-        <div
-          className="demo-note"
-          style={{
-            marginTop: 18,
-          }}
-        >
-          <strong>Secure payment:</strong> Your bid is not added to
-          the live leaderboard until the Razorpay payment is verified.
+        <div className="demo-note">
+          <strong>Secure payment:</strong> Your payment is processed
+          through Razorpay Test Mode. DineUp verifies the payment on
+          the server before updating your leaderboard position.
         </div>
 
         <p className="back-link">
@@ -529,16 +556,23 @@ function BidPageContent() {
   );
 }
 
-export default function RestaurantBidPage() {
+export default function BidPage() {
   return (
     <Suspense
       fallback={
         <main className="auth-page">
           <div className="auth-card">
-            <div className="brand">
+            <Link href="/" className="brand">
               Dine<span>Up</span>
-            </div>
-            <p className="muted">Loading...</p>
+            </Link>
+
+            <div className="eyebrow">DINEUP</div>
+
+            <h1>Loading...</h1>
+
+            <p className="muted">
+              Please wait.
+            </p>
           </div>
         </main>
       }
