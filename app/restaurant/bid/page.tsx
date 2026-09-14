@@ -18,12 +18,10 @@ function BidPageContent() {
   const [restaurantId, setRestaurantId] = useState<number | null>(null);
 
   useEffect(() => {
-    const id = Number(searchParams.get("id"));
-
-    if (!id) {
-      setError("Restaurant not found.");
-      return;
-    }
+    // If URL has ?id=..., use it.
+    // Otherwise default to Royal Awadh Kitchen (ID 3) for MVP.
+    const urlId = Number(searchParams.get("id"));
+    const id = urlId || 3;
 
     setRestaurantId(id);
 
@@ -95,8 +93,8 @@ function BidPageContent() {
     <main className="auth-page">
       <div className="auth-card">
 
-        <Link href="/" className="back-link">
-          ← Back to leaderboard
+        <Link href="/restaurant/dashboard" className="back-link">
+          ← Back to dashboard
         </Link>
 
         <div className="eyebrow">DINEUP • VISIBILITY</div>
@@ -113,7 +111,6 @@ function BidPageContent() {
 
           <div className="bid-row">
             <span>Current top bid</span>
-
             <strong>
               ₹{currentBid.toLocaleString("en-IN")}
             </strong>
@@ -121,7 +118,6 @@ function BidPageContent() {
 
           <div className="bid-row">
             <span>Minimum new bid</span>
-
             <strong>
               ₹{minimumBid.toLocaleString("en-IN")}
             </strong>
@@ -218,7 +214,6 @@ function BidPageContent() {
             >
               <div className="stat-card">
                 <span>New bid</span>
-
                 <strong>
                   ₹{Number(bid).toLocaleString("en-IN")}
                 </strong>
@@ -226,7 +221,6 @@ function BidPageContent() {
 
               <div className="stat-card">
                 <span>Status</span>
-
                 <strong>LIVE</strong>
               </div>
             </div>
@@ -240,6 +234,7 @@ function BidPageContent() {
             </Link>
           </div>
         )}
+
       </div>
     </main>
   );
