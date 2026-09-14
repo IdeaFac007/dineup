@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 
 const stats = [
@@ -9,56 +10,96 @@ const stats = [
   ["Customer actions", "86", "calls + directions"],
 ];
 
+type Restaurant = {
+  id: number;
+  name: string;
+  current_bid: number | null;
+  owner_id: string | null;
+};
+
 export default function RestaurantDashboard() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
 
   const [currentBid, setCurrentBid] = useState(0);
   const [newBid, setNewBid] = useState("");
   const [rank, setRank] = useState(0);
   const [nextRank, setNextRank] = useState<number | null>(null);
   const [nextBid, setNextBid] = useState<number | null>(null);
+
+  const [restaurantId, setRestaurantId] = useState<number | null>(null);
+  const [restaurantName, setRestaurantName] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-
-  const restaurantId = 3;
-  const restaurantName = "Royal Awadh Kitchen";
+  const [messageType, setMessageType] = useState<"success" | "error">(
+    "success"
+  );
 
   const loadRestaurant = useCallback(async () => {
     setLoading(true);
+    setMessage("");
 
+    // Get currently logged-in user
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      setMessage("Your session has expired. Please login again.");
+      setMessageType("error");
+      setLoading(false);
+      return;
+    }
+
+    // Get all active Lucknow restaurants for leaderboard ranking
     const { data: restaurants, error } = await supabase
       .from("restaurants")
-      .select("id, name, current_bid")
+      .select("id, name, current_bid, owner_id")
       .eq("is_active", true)
       .eq("city", "Lucknow")
       .order("current_bid", { ascending: false });
 
     if (error) {
       setMessage(error.message);
+      setMessageType("error");
       setLoading(false);
       return;
     }
 
-    const list = restaurants || [];
+    const list = (restaurants || []) as Restaurant[];
 
+    // Find restaurant belonging to logged-in user
     const myIndex = list.findIndex(
-      (restaurant) => restaurant.id === restaurantId
+      (restaurant) => restaurant.owner_id === user.id
     );
 
-    if (myIndex >= 0) {
-      const myBid = Number(list[myIndex].current_bid || 0);
+    if (myIndex === -1) {
+      setMessage(
+        "No restaurant is linked to this account. Please contact DineUp admin."
+      );
+      setMessageType("error");
+      setLoading(false);
+      return;
+    }
 
-      setCurrentBid(myBid);
-      setRank(myIndex + 1);
+    const myRestaurant = list[myIndex];
+    const myBid = Number(myRestaurant.current_bid || 0);
 
-      if (myIndex > 0) {
-        setNextRank(myIndex);
-        setNextBid(Number(list[myIndex - 1].current_bid || 0));
-      } else {
-        setNextRank(null);
-        setNextBid(null);
-      }
+    setRestaurantId(myRestaurant.id);
+    setRestaurantName(myRestaurant.name);
+    setCurrentBid(myBid);
+    setRank(myIndex + 1);
+
+    // Find next position
+    if (myIndex > 0) {
+      setNextRank(myIndex);
+      setNextBid(Number(list[myIndex - 1].current_bid || 0));
+    } else {
+      setNextRank(null);
+      setNextBid(null);
     }
 
     setLoading(false);
@@ -83,10 +124,17 @@ export default function RestaurantDashboard() {
   async function handleBid() {
     setMessage("");
 
+    if (!restaurantId) {
+      setMessage("Restaurant not found.");
+      setMessageType("error");
+      return;
+    }
+
     const amount = Number(newBid);
 
     if (!amount || amount <= 0) {
       setMessage("Please enter a valid bid amount.");
+      setMessageType("error");
       return;
     }
 
@@ -94,42 +142,44 @@ export default function RestaurantDashboard() {
       setMessage(
         `New bid must be higher than ₹${currentBid.toLocaleString("en-IN")}.`
       );
+      setMessageType("error");
       return;
     }
 
     setSaving(true);
 
-    const { error: bidError } = await supabase.from("bids").insert({
-      restaurant_id: restaurantId,
-      amount,
-      status: "active",
-    });
+    try {
+      // Atomic bid placement through Supabase RPC
+      const { error } = await supabase.rpc("place_bid", {
+        p_restaurant_id: restaurantId,
+        p_amount: amount,
+      });
 
-    if (bidError) {
-      setMessage(bidError.message);
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      setNewBid("");
+      setMessage("Bid updated successfully! 🚀");
+      setMessageType("success");
+
+      await loadRestaurant();
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to update bid."
+      );
+      setMessageType("error");
+    } finally {
       setSaving(false);
-      return;
     }
+  }
 
-    const { error: restaurantError } = await supabase
-      .from("restaurants")
-      .update({
-        current_bid: amount,
-      })
-      .eq("id", restaurantId);
-
-    if (restaurantError) {
-      setMessage(restaurantError.message);
-      setSaving(false);
-      return;
-    }
-
-    setNewBid("");
-    setMessage("Bid updated successfully! 🚀");
-
-    await loadRestaurant();
-
-    setSaving(false);
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.push("/restaurant/login");
+    router.refresh();
   }
 
   return (
@@ -145,6 +195,20 @@ export default function RestaurantDashboard() {
           <Link href="/" className="text-link">
             View marketplace
           </Link>
+
+          <button
+            type="button"
+            className="text-link"
+            onClick={handleLogout}
+            style={{
+              background: "none",
+              border: 0,
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            Logout
+          </button>
         </div>
       </header>
 
@@ -153,14 +217,23 @@ export default function RestaurantDashboard() {
           <div>
             <div className="eyebrow">RESTAURANT DASHBOARD</div>
 
-            <h1>{restaurantName}</h1>
+            <h1>
+              {loading ? "Loading..." : restaurantName}
+            </h1>
 
             <p className="muted">
               Lucknow • Awadhi • Fine Dining
             </p>
           </div>
 
-          <Link href="/restaurant/bid" className="primary-btn">
+          <Link
+            href={
+              restaurantId
+                ? `/restaurant/bid?id=${restaurantId}`
+                : "/restaurant/bid"
+            }
+            className="primary-btn"
+          >
             Increase visibility ↑
           </Link>
         </div>
@@ -262,21 +335,27 @@ export default function RestaurantDashboard() {
                 ).toLocaleString("en-IN")}`}
                 value={newBid}
                 onChange={(e) => setNewBid(e.target.value)}
+                disabled={loading || saving}
               />
             </label>
 
             <button
               className="primary-btn full"
               onClick={handleBid}
-              disabled={saving || loading}
+              disabled={saving || loading || !restaurantId}
             >
               {saving ? "Updating..." : "Set new bid ↑"}
             </button>
 
             {message && (
               <p
-                className="muted"
-                style={{ marginTop: "12px" }}
+                style={{
+                  marginTop: "12px",
+                  color:
+                    messageType === "error"
+                      ? "crimson"
+                      : "inherit",
+                }}
               >
                 {message}
               </p>
@@ -346,7 +425,9 @@ export default function RestaurantDashboard() {
               {loading ? "..." : `#${rank}`}
             </span>
 
-            <strong>{restaurantName}</strong>
+            <strong>
+              {loading ? "Loading..." : restaurantName}
+            </strong>
 
             <span>
               ₹{currentBid.toLocaleString("en-IN")}
