@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "../lib/supabase/server";
+
 export default async function Home() {
   const supabase = await createClient();
 
@@ -9,9 +10,7 @@ export default async function Home() {
     .eq("is_active", true)
     .eq("city", "Lucknow")
     .order("current_bid", { ascending: false });
-if (error) {
-  console.error("DineUp Supabase error:", error);
-}
+
   return (
     <main>
       <nav className="nav">
@@ -60,14 +59,16 @@ if (error) {
         </div>
 
         <div className="board">
-         {error ? (
-           <div className="muted">
-             Supabase Error: {error.message}
-          </div>
-          )
+          {error ? (
+            <div className="muted">
+              Supabase Error: {error.message}
+            </div>
           ) : restaurants && restaurants.length > 0 ? (
             restaurants.map((restaurant, index) => (
-              <div className="restaurant-row" key={`${restaurant.name}-${restaurant.address}`}>
+              <div
+                className="restaurant-row"
+                key={`${restaurant.name}-${restaurant.address}`}
+              >
                 <span className="rank">
                   {String(index + 1).padStart(2, "0")}
                 </span>
