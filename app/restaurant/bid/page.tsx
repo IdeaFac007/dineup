@@ -1,27 +1,99 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { createClient } from "../../../lib/supabase/client";
 
 export default function BidPage() {
-  const [bid, setBid] = useState(2600);
+  const supabase = createClient();
+
+  const [bid, setBid] = useState("");
+  const [currentBid, setCurrentBid] = useState(0);
   const [submitted, setSubmitted] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  const currentBid = 2500;
-  const nextPosition = 6;
+  const restaurantId = 3;
+  const restaurantName = "Royal Awadh Kitchen";
 
-  const handleBid = () => {
-    if (bid <= currentBid) {
-      alert(`Your bid must be higher than ₹${currentBid.toLocaleString("en-IN")}.`);
+  useEffect(() => {
+    async function loadRestaurant() {
+      const { data, error } = await supabase
+        .from("restaurants")
+        .select("current_bid")
+        .eq("id", restaurantId)
+        .single();
+
+      if (error) {
+        setError(error.message);
+        return;
+      }
+
+      const amount = Number(data?.current_bid || 0);
+      setCurrentBid(amount);
+      setBid(String(amount + 1));
+    }
+
+    loadRestaurant();
+  }, []);
+
+  const minimumBid = currentBid + 1;
+
+  const handleBid = async () => {
+    setError("");
+
+    const amount = Number(bid);
+
+    if (!amount || amount < minimumBid) {
+      setError(
+        `Your bid must be at least ₹${minimumBid.toLocaleString("en-IN")}.`
+      );
       return;
     }
 
-    setSubmitted(true);
+    setSaving(true);
+
+    try {
+      // Save bid
+      const { error: bidError } = await supabase
+        .from("bids")
+        .insert({
+          restaurant_id: restaurantId,
+          amount,
+          status: "active",
+        });
+
+      if (bidError) {
+        throw new Error(bidError.message);
+      }
+
+      // Update restaurant's current bid
+      const { error: restaurantError } = await supabase
+        .from("restaurants")
+        .update({
+          current_bid: amount,
+        })
+        .eq("id", restaurantId);
+
+      if (restaurantError) {
+        throw new Error(restaurantError.message);
+      }
+
+      setCurrentBid(amount);
+      setSubmitted(true);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Something went wrong."
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <main className="auth-page">
       <div className="auth-card">
+
         <Link href="/restaurant/dashboard" className="back-link">
           ← Back to dashboard
         </Link>
@@ -31,7 +103,7 @@ export default function BidPage() {
         <h1>Increase your visibility.</h1>
 
         <p className="muted">
-          Place a higher bid to move Royal Awadh Kitchen up the Lucknow
+          Place a higher bid to move {restaurantName} up the Lucknow
           leaderboard.
         </p>
 
@@ -39,18 +111,17 @@ export default function BidPage() {
           <div className="panel-title">Current campaign</div>
 
           <div className="bid-row">
-            <span>Current position</span>
-            <strong>#7</strong>
-          </div>
-
-          <div className="bid-row">
             <span>Current top bid</span>
-            <strong>₹2,500</strong>
+            <strong>
+              ₹{currentBid.toLocaleString("en-IN")}
+            </strong>
           </div>
 
           <div className="bid-row">
-            <span>Next position</span>
-            <strong>#6</strong>
+            <span>Minimum new bid</span>
+            <strong>
+              ₹{minimumBid.toLocaleString("en-IN")}
+            </strong>
           </div>
         </div>
 
@@ -71,9 +142,9 @@ export default function BidPage() {
             <input
               id="bid"
               type="number"
-              min={currentBid + 1}
+              min={minimumBid}
               value={bid}
-              onChange={(e) => setBid(Number(e.target.value))}
+              onChange={(e) => setBid(e.target.value)}
               style={{
                 width: "100%",
                 padding: "15px 16px",
@@ -85,16 +156,23 @@ export default function BidPage() {
             />
 
             <p className="muted" style={{ marginTop: 10 }}>
-              Minimum bid: ₹2,501
+              Minimum bid: ₹{minimumBid.toLocaleString("en-IN")}
             </p>
+
+            {error && (
+              <p style={{ color: "crimson", marginTop: 12 }}>
+                {error}
+              </p>
+            )}
 
             <button
               type="button"
               className="primary-btn full"
               onClick={handleBid}
+              disabled={saving}
               style={{ marginTop: 14 }}
             >
-              Place bid →
+              {saving ? "Saving bid..." : "Place bid →"}
             </button>
 
             <div className="demo-note" style={{ marginTop: 18 }}>
@@ -117,9 +195,7 @@ export default function BidPage() {
               You are moving up!
             </h2>
 
-            <p className="muted">
-              Royal Awadh Kitchen
-            </p>
+            <p className="muted">{restaurantName}</p>
 
             <div
               style={{
@@ -132,13 +208,13 @@ export default function BidPage() {
               <div className="stat-card">
                 <span>New bid</span>
                 <strong>
-                  ₹{bid.toLocaleString("en-IN")}
+                  ₹{Number(bid).toLocaleString("en-IN")}
                 </strong>
               </div>
 
               <div className="stat-card">
-                <span>New position</span>
-                <strong>#{nextPosition}</strong>
+                <span>Status</span>
+                <strong>LIVE</strong>
               </div>
             </div>
 
@@ -151,6 +227,7 @@ export default function BidPage() {
             </Link>
           </div>
         )}
+
       </div>
     </main>
   );
