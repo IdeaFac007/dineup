@@ -23,11 +23,31 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { id: "overview", label: "Overview", icon: "⌂" },
-  { id: "restaurants", label: "Restaurants", icon: "◉" },
-  { id: "leaderboard", label: "Leaderboard", icon: "♛" },
-  { id: "bids", label: "Bids", icon: "↗" },
-  { id: "payments", label: "Payments", icon: "₹" },
+  {
+    id: "overview",
+    label: "Overview",
+    icon: "⌂",
+  },
+  {
+    id: "restaurants",
+    label: "Restaurants",
+    icon: "◉",
+  },
+  {
+    id: "leaderboard",
+    label: "Leaderboard",
+    icon: "♛",
+  },
+  {
+    id: "bids",
+    label: "Bids",
+    icon: "↗",
+  },
+  {
+    id: "payments",
+    label: "Payments",
+    icon: "₹",
+  },
 ];
 
 export default function AdminDashboardPage() {
@@ -94,7 +114,10 @@ export default function AdminDashboardPage() {
           });
 
       if (restaurantError) {
-        console.error("Restaurant loading error:", restaurantError);
+        console.error(
+          "Restaurant loading error:",
+          restaurantError
+        );
 
         setError(
           restaurantError.message ||
@@ -104,7 +127,9 @@ export default function AdminDashboardPage() {
         return;
       }
 
-      setRestaurants((restaurantData || []) as Restaurant[]);
+      setRestaurants(
+        (restaurantData || []) as Restaurant[]
+      );
     } catch (err) {
       console.error("Dashboard error:", err);
 
@@ -132,16 +157,21 @@ export default function AdminDashboardPage() {
     const total = restaurants.length;
 
     const active = restaurants.filter(
-      (restaurant) => restaurant.is_active !== false
+      (restaurant) =>
+        restaurant.is_active !== false
     ).length;
 
     const claimed = restaurants.filter(
-      (restaurant) => restaurant.is_claimed === true
+      (restaurant) =>
+        restaurant.is_claimed === true
     ).length;
 
     const totalBidValue = restaurants.reduce(
       (sum, restaurant) =>
-        sum + Number(restaurant.current_bid || 0),
+        sum +
+        Number(
+          restaurant.current_bid || 0
+        ),
       0
     );
 
@@ -149,13 +179,17 @@ export default function AdminDashboardPage() {
       restaurants.length > 0
         ? Math.max(
             ...restaurants.map((restaurant) =>
-              Number(restaurant.current_bid || 0)
+              Number(
+                restaurant.current_bid || 0
+              )
             )
           )
         : 0;
 
     const cities = new Set(
-      restaurants.map((restaurant) => restaurant.city)
+      restaurants.map(
+        (restaurant) => restaurant.city
+      )
     ).size;
 
     return {
@@ -175,32 +209,49 @@ export default function AdminDashboardPage() {
       return restaurants;
     }
 
-    return restaurants.filter((restaurant) => {
-      return (
-        restaurant.name.toLowerCase().includes(query) ||
-        restaurant.city.toLowerCase().includes(query) ||
-        restaurant.category.toLowerCase().includes(query) ||
-        (restaurant.address || "")
-          .toLowerCase()
-          .includes(query)
-      );
-    });
+    return restaurants.filter(
+      (restaurant) => {
+        return (
+          restaurant.name
+            .toLowerCase()
+            .includes(query) ||
+          restaurant.city
+            .toLowerCase()
+            .includes(query) ||
+          restaurant.category
+            .toLowerCase()
+            .includes(query) ||
+          (restaurant.address || "")
+            .toLowerCase()
+            .includes(query)
+        );
+      }
+    );
   }, [restaurants, search]);
 
-  const topRestaurants = restaurants.slice(0, 5);
+  const topRestaurants =
+    restaurants.slice(0, 5);
 
   if (loading) {
     return (
       <>
         <div className="loadingScreen">
-          <div className="loadingLogo">D</div>
+          <div className="loadingLogo">
+            D
+          </div>
+
           <div>
-            <strong>DineUp Admin</strong>
-            <span>Loading dashboard...</span>
+            <strong>
+              DineUp Admin
+            </strong>
+
+            <span>
+              Loading dashboard...
+            </span>
           </div>
         </div>
 
-        <style jsx>{`
+        <style jsx global>{`
           .loadingScreen {
             min-height: 100vh;
             display: flex;
@@ -209,7 +260,10 @@ export default function AdminDashboardPage() {
             gap: 14px;
             background: #f6f7f9;
             color: #171717;
-            font-family: Arial, Helvetica, sans-serif;
+            font-family:
+              Arial,
+              Helvetica,
+              sans-serif;
           }
 
           .loadingLogo {
@@ -246,12 +300,20 @@ export default function AdminDashboardPage() {
 
         {/* SIDEBAR */}
         <aside className="sidebar">
+
           <div className="brand">
-            <div className="brandMark">D</div>
+            <div className="brandMark">
+              D
+            </div>
 
             <div>
-              <div className="brandName">DineUp</div>
-              <div className="brandSub">ADMIN PANEL</div>
+              <div className="brandName">
+                DineUp
+              </div>
+
+              <div className="brandSub">
+                ADMIN PANEL
+              </div>
             </div>
           </div>
 
@@ -268,21 +330,36 @@ export default function AdminDashboardPage() {
                     ? "navItem active"
                     : "navItem"
                 }
-                onClick={() => setActiveNav(item.id)}
+                onClick={() =>
+                  setActiveNav(item.id)
+                }
               >
-                <span className="navIcon">{item.icon}</span>
-                <span>{item.label}</span>
+                <span className="navIcon">
+                  {item.icon}
+                </span>
+
+                <span>
+                  {item.label}
+                </span>
               </button>
             ))}
           </nav>
 
           <div className="sidebarBottom">
+
             <div className="adminMini">
-              <div className="adminAvatar">A</div>
+              <div className="adminAvatar">
+                A
+              </div>
 
               <div className="adminMiniText">
-                <strong>Administrator</strong>
-                <span>{adminEmail}</span>
+                <strong>
+                  Administrator
+                </strong>
+
+                <span>
+                  {adminEmail}
+                </span>
               </div>
             </div>
 
@@ -293,14 +370,16 @@ export default function AdminDashboardPage() {
               <span>↪</span>
               Logout
             </button>
+
           </div>
         </aside>
 
-        {/* MAIN */}
+        {/* MAIN AREA */}
         <div className="mainArea">
 
           {/* TOP BAR */}
           <header className="topbar">
+
             <div>
               <div className="breadcrumb">
                 DineUp / Admin
@@ -310,12 +389,14 @@ export default function AdminDashboardPage() {
                 {activeNav === "overview"
                   ? "Dashboard"
                   : navItems.find(
-                      (item) => item.id === activeNav
+                      (item) =>
+                        item.id === activeNav
                     )?.label}
               </h1>
             </div>
 
             <div className="topActions">
+
               <div className="liveStatus">
                 <span className="liveDot" />
                 System Live
@@ -323,11 +404,16 @@ export default function AdminDashboardPage() {
 
               <button
                 className="refreshButton"
-                onClick={() => loadDashboard(true)}
+                onClick={() =>
+                  loadDashboard(true)
+                }
                 disabled={refreshing}
               >
-                {refreshing ? "Refreshing..." : "↻ Refresh"}
+                {refreshing
+                  ? "Refreshing..."
+                  : "↻ Refresh"}
               </button>
+
             </div>
           </header>
 
@@ -335,8 +421,13 @@ export default function AdminDashboardPage() {
 
             {error && (
               <div className="errorBox">
-                <strong>Dashboard Error</strong>
-                <span>{error}</span>
+                <strong>
+                  Dashboard Error
+                </strong>
+
+                <span>
+                  {error}
+                </span>
               </div>
             )}
 
@@ -344,6 +435,7 @@ export default function AdminDashboardPage() {
             {activeNav === "overview" && (
               <>
                 <section className="welcomeCard">
+
                   <div>
                     <span className="eyebrow">
                       DINEUP CONTROL CENTER
@@ -354,17 +446,22 @@ export default function AdminDashboardPage() {
                     </h2>
 
                     <p>
-                      Monitor restaurants, bids and
-                      marketplace activity from one place.
+                      Monitor restaurants,
+                      bids and marketplace
+                      activity from one place.
                     </p>
                   </div>
 
                   <div className="welcomeBadge">
-                    <span>LIVE</span>
+                    <span>
+                      LIVE
+                    </span>
+
                     <strong>
                       {stats.total} Restaurants
                     </strong>
                   </div>
+
                 </section>
 
                 {/* STATS */}
@@ -404,28 +501,36 @@ export default function AdminDashboardPage() {
 
                 </section>
 
-                {/* CONTENT GRID */}
+                {/* DASHBOARD GRID */}
                 <section className="dashboardGrid">
 
                   {/* LEADERBOARD */}
                   <div className="panel largePanel">
 
                     <div className="panelHeader">
+
                       <div>
-                        <h3>Live Leaderboard</h3>
+                        <h3>
+                          Live Leaderboard
+                        </h3>
+
                         <p>
-                          Restaurants ranked by current bid
+                          Restaurants ranked
+                          by current bid
                         </p>
                       </div>
 
                       <button
                         className="textButton"
                         onClick={() =>
-                          setActiveNav("leaderboard")
+                          setActiveNav(
+                            "leaderboard"
+                          )
                         }
                       >
                         View all →
                       </button>
+
                     </div>
 
                     <div className="leaderboard">
@@ -434,11 +539,17 @@ export default function AdminDashboardPage() {
                         <EmptyState />
                       ) : (
                         topRestaurants.map(
-                          (restaurant, index) => (
+                          (
+                            restaurant,
+                            index
+                          ) => (
                             <div
                               className="leaderRow"
-                              key={restaurant.id}
+                              key={
+                                restaurant.id
+                              }
                             >
+
                               <div
                                 className={
                                   index === 0
@@ -456,29 +567,40 @@ export default function AdminDashboardPage() {
                               </div>
 
                               <div className="restaurantInfo">
+
                                 <strong>
                                   {restaurant.name}
                                 </strong>
 
                                 <span>
-                                  {restaurant.category}
+                                  {
+                                    restaurant.category
+                                  }
                                   {" • "}
-                                  {restaurant.city}
+                                  {
+                                    restaurant.city
+                                  }
                                 </span>
+
                               </div>
 
                               <div className="bidAmount">
                                 ₹
                                 {Number(
-                                  restaurant.current_bid || 0
-                                ).toLocaleString("en-IN")}
+                                  restaurant.current_bid ||
+                                    0
+                                ).toLocaleString(
+                                  "en-IN"
+                                )}
                               </div>
 
                               <div className="statusPill">
-                                {restaurant.is_active !== false
+                                {restaurant.is_active !==
+                                false
                                   ? "Active"
                                   : "Inactive"}
                               </div>
+
                             </div>
                           )
                         )
@@ -491,10 +613,18 @@ export default function AdminDashboardPage() {
                   <div className="panel">
 
                     <div className="panelHeader">
+
                       <div>
-                        <h3>Market Snapshot</h3>
-                        <p>Current marketplace overview</p>
+                        <h3>
+                          Market Snapshot
+                        </h3>
+
+                        <p>
+                          Current marketplace
+                          overview
+                        </p>
                       </div>
+
                     </div>
 
                     <div className="snapshotList">
@@ -512,7 +642,8 @@ export default function AdminDashboardPage() {
                       <SnapshotRow
                         label="Unclaimed Restaurants"
                         value={(
-                          stats.total - stats.claimed
+                          stats.total -
+                          stats.claimed
                         ).toString()}
                       />
 
@@ -523,7 +654,9 @@ export default function AdminDashboardPage() {
                             ? `₹${Math.round(
                                 stats.totalBidValue /
                                   stats.total
-                              ).toLocaleString("en-IN")}`
+                              ).toLocaleString(
+                                "en-IN"
+                              )}`
                             : "₹0"
                         }
                       />
@@ -531,7 +664,10 @@ export default function AdminDashboardPage() {
                     </div>
 
                     <div className="marketMessage">
-                      <span className="messageIcon">↗</span>
+
+                      <span className="messageIcon">
+                        ↗
+                      </span>
 
                       <div>
                         <strong>
@@ -539,10 +675,12 @@ export default function AdminDashboardPage() {
                         </strong>
 
                         <p>
-                          Restaurants can compete for
-                          higher visibility.
+                          Restaurants can
+                          compete for higher
+                          visibility.
                         </p>
                       </div>
+
                     </div>
 
                   </div>
@@ -553,13 +691,19 @@ export default function AdminDashboardPage() {
                 <section className="quickSection">
 
                   <div className="sectionTitle">
+
                     <div>
-                      <h3>Quick Management</h3>
+                      <h3>
+                        Quick Management
+                      </h3>
+
                       <p>
-                        Jump directly to important admin
+                        Jump directly to
+                        important admin
                         sections.
                       </p>
                     </div>
+
                   </div>
 
                   <div className="quickGrid">
@@ -569,7 +713,9 @@ export default function AdminDashboardPage() {
                       title="Restaurants"
                       description="Manage restaurant listings"
                       onClick={() =>
-                        setActiveNav("restaurants")
+                        setActiveNav(
+                          "restaurants"
+                        )
                       }
                     />
 
@@ -578,7 +724,9 @@ export default function AdminDashboardPage() {
                       title="Leaderboard"
                       description="Monitor ranking positions"
                       onClick={() =>
-                        setActiveNav("leaderboard")
+                        setActiveNav(
+                          "leaderboard"
+                        )
                       }
                     />
 
@@ -596,7 +744,9 @@ export default function AdminDashboardPage() {
                       title="Payments"
                       description="Review payment activity"
                       onClick={() =>
-                        setActiveNav("payments")
+                        setActiveNav(
+                          "payments"
+                        )
                       }
                     />
 
@@ -611,11 +761,16 @@ export default function AdminDashboardPage() {
               <section className="panel fullPanel">
 
                 <div className="panelHeader">
+
                   <div>
-                    <h3>Restaurant Management</h3>
+                    <h3>
+                      Restaurant Management
+                    </h3>
+
                     <p>
-                      All restaurants currently listed
-                      on DineUp.
+                      All restaurants
+                      currently listed on
+                      DineUp.
                     </p>
                   </div>
 
@@ -623,14 +778,19 @@ export default function AdminDashboardPage() {
                     className="searchInput"
                     value={search}
                     onChange={(event) =>
-                      setSearch(event.target.value)
+                      setSearch(
+                        event.target.value
+                      )
                     }
                     placeholder="Search restaurant..."
                   />
+
                 </div>
 
                 <RestaurantTable
-                  restaurants={filteredRestaurants}
+                  restaurants={
+                    filteredRestaurants
+                  }
                 />
 
               </section>
@@ -641,10 +801,15 @@ export default function AdminDashboardPage() {
               <section className="panel fullPanel">
 
                 <div className="panelHeader">
+
                   <div>
-                    <h3>Live Leaderboard</h3>
+                    <h3>
+                      Live Leaderboard
+                    </h3>
+
                     <p>
-                      Current restaurant ranking by bid.
+                      Current restaurant
+                      ranking by bid.
                     </p>
                   </div>
 
@@ -652,10 +817,13 @@ export default function AdminDashboardPage() {
                     <span className="liveDot" />
                     Live
                   </div>
+
                 </div>
 
                 <RestaurantTable
-                  restaurants={restaurants}
+                  restaurants={
+                    restaurants
+                  }
                   showRank
                 />
 
@@ -666,33 +834,48 @@ export default function AdminDashboardPage() {
             {activeNav === "bids" && (
               <section className="emptyFeature">
 
-                <div className="featureIcon">↗</div>
+                <div className="featureIcon">
+                  ↗
+                </div>
 
-                <h2>Bid Management</h2>
+                <h2>
+                  Bid Management
+                </h2>
 
                 <p>
-                  Bid monitoring and bid history will be
-                  connected to the admin panel next.
+                  Bid monitoring and bid
+                  history will be connected
+                  to the admin panel next.
                 </p>
 
                 <div className="featureStats">
+
                   <div>
-                    <span>Highest Bid</span>
+                    <span>
+                      Highest Bid
+                    </span>
+
                     <strong>
-                      ₹{stats.highestBid.toLocaleString(
+                      ₹
+                      {stats.highestBid.toLocaleString(
                         "en-IN"
                       )}
                     </strong>
                   </div>
 
                   <div>
-                    <span>Total Bid Value</span>
+                    <span>
+                      Total Bid Value
+                    </span>
+
                     <strong>
-                      ₹{stats.totalBidValue.toLocaleString(
+                      ₹
+                      {stats.totalBidValue.toLocaleString(
                         "en-IN"
                       )}
                     </strong>
                   </div>
+
                 </div>
 
               </section>
@@ -702,18 +885,25 @@ export default function AdminDashboardPage() {
             {activeNav === "payments" && (
               <section className="emptyFeature">
 
-                <div className="featureIcon">₹</div>
+                <div className="featureIcon">
+                  ₹
+                </div>
 
-                <h2>Payment Management</h2>
+                <h2>
+                  Payment Management
+                </h2>
 
                 <p>
-                  Razorpay payment monitoring will be
-                  connected here in the next phase.
+                  Razorpay payment
+                  monitoring will be
+                  connected here in the
+                  next phase.
                 </p>
 
                 <div className="paymentNotice">
-                  Razorpay integration is currently
-                  running in TEST MODE.
+                  Razorpay integration is
+                  currently running in TEST
+                  MODE.
                 </div>
 
               </section>
@@ -722,21 +912,49 @@ export default function AdminDashboardPage() {
           </main>
 
           <footer className="footer">
+
             <span>
-              DineUp Admin • Where Restaurants Rise
+              DineUp Admin • Where
+              Restaurants Rise
             </span>
 
             <span>
               Production Dashboard
             </span>
+
           </footer>
 
         </div>
       </div>
 
-      <style jsx>{`
+      {/* IMPORTANT:
+          global is intentional.
+          StatCard / SnapshotRow /
+          QuickAction / RestaurantTable
+          are separate components.
+      */}
+      <style jsx global>{`
+
         * {
           box-sizing: border-box;
+        }
+
+        html,
+        body {
+          margin: 0;
+          padding: 0;
+        }
+
+        body {
+          background: #f5f6f8;
+        }
+
+        button,
+        input {
+          font-family:
+            Arial,
+            Helvetica,
+            sans-serif;
         }
 
         .adminShell {
@@ -744,8 +962,13 @@ export default function AdminDashboardPage() {
           display: flex;
           background: #f5f6f8;
           color: #171717;
-          font-family: Arial, Helvetica, sans-serif;
+          font-family:
+            Arial,
+            Helvetica,
+            sans-serif;
         }
+
+        /* SIDEBAR */
 
         .sidebar {
           width: 255px;
@@ -759,6 +982,7 @@ export default function AdminDashboardPage() {
           left: 0;
           top: 0;
           bottom: 0;
+          z-index: 20;
         }
 
         .brand {
@@ -911,6 +1135,8 @@ export default function AdminDashboardPage() {
           margin-right: 8px;
         }
 
+        /* MAIN */
+
         .mainArea {
           width: calc(100% - 255px);
           margin-left: 255px;
@@ -989,6 +1215,8 @@ export default function AdminDashboardPage() {
           margin: 0 auto;
         }
 
+        /* ERROR */
+
         .errorBox {
           background: #fff1f1;
           border: 1px solid #f0c9c9;
@@ -1008,6 +1236,8 @@ export default function AdminDashboardPage() {
           margin-top: 4px;
         }
 
+        /* WELCOME */
+
         .welcomeCard {
           background: #171717;
           color: white;
@@ -1021,12 +1251,13 @@ export default function AdminDashboardPage() {
           position: relative;
         }
 
-        .welcomeCard:after {
+        .welcomeCard::after {
           content: "";
           position: absolute;
           width: 280px;
           height: 280px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
+          border: 1px solid
+            rgba(255, 255, 255, 0.08);
           border-radius: 50%;
           right: 80px;
           top: -170px;
@@ -1075,9 +1306,12 @@ export default function AdminDashboardPage() {
           font-size: 15px;
         }
 
+        /* STATS */
+
         .statsGrid {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns:
+            repeat(4, 1fr);
           gap: 14px;
           margin-bottom: 20px;
         }
@@ -1128,9 +1362,13 @@ export default function AdminDashboardPage() {
           font-size: 10px;
         }
 
+        /* PANELS */
+
         .dashboardGrid {
           display: grid;
-          grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr);
+          grid-template-columns:
+            minmax(0, 1.7fr)
+            minmax(300px, 1fr);
           gap: 20px;
           margin-bottom: 22px;
         }
@@ -1180,6 +1418,8 @@ export default function AdminDashboardPage() {
           cursor: pointer;
         }
 
+        /* LEADERBOARD */
+
         .leaderboard {
           padding: 6px 20px 10px;
         }
@@ -1187,7 +1427,12 @@ export default function AdminDashboardPage() {
         .leaderRow {
           min-height: 65px;
           display: grid;
-          grid-template-columns: 34px 38px minmax(0, 1fr) auto auto;
+          grid-template-columns:
+            34px
+            38px
+            minmax(0, 1fr)
+            auto
+            auto;
           align-items: center;
           gap: 12px;
           border-bottom: 1px solid #f0f0f1;
@@ -1262,7 +1507,11 @@ export default function AdminDashboardPage() {
           font-size: 8px;
           font-weight: 900;
           white-space: nowrap;
+          display: inline-flex;
+          align-items: center;
         }
+
+        /* SNAPSHOT */
 
         .snapshotList {
           padding: 6px 22px;
@@ -1308,6 +1557,7 @@ export default function AdminDashboardPage() {
           align-items: center;
           justify-content: center;
           font-size: 11px;
+          flex-shrink: 0;
         }
 
         .marketMessage strong {
@@ -1320,6 +1570,8 @@ export default function AdminDashboardPage() {
           font-size: 9px;
           line-height: 1.5;
         }
+
+        /* QUICK */
 
         .quickSection {
           margin-top: 4px;
@@ -1342,7 +1594,8 @@ export default function AdminDashboardPage() {
 
         .quickGrid {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns:
+            repeat(4, 1fr);
           gap: 14px;
         }
 
@@ -1359,7 +1612,9 @@ export default function AdminDashboardPage() {
         .quickAction:hover {
           transform: translateY(-2px);
           border-color: #cfd1d5;
-          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+          box-shadow:
+            0 8px 25px
+            rgba(0, 0, 0, 0.05);
         }
 
         .quickIcon {
@@ -1388,6 +1643,8 @@ export default function AdminDashboardPage() {
           font-size: 9px;
         }
 
+        /* SEARCH */
+
         .searchInput {
           width: 220px;
           border: 1px solid #dedfe2;
@@ -1395,11 +1652,15 @@ export default function AdminDashboardPage() {
           padding: 9px 11px;
           outline: none;
           font-size: 10px;
+          background: white;
+          color: #171717;
         }
 
         .searchInput:focus {
           border-color: #777;
         }
+
+        /* TABLE */
 
         .restaurantTable {
           width: 100%;
@@ -1421,6 +1682,7 @@ export default function AdminDashboardPage() {
           padding: 15px 20px;
           border-bottom: 1px solid #f0f0f1;
           font-size: 10px;
+          vertical-align: middle;
         }
 
         .restaurantTable tr:last-child td {
@@ -1443,6 +1705,7 @@ export default function AdminDashboardPage() {
           justify-content: center;
           font-weight: 900;
           font-size: 10px;
+          flex-shrink: 0;
         }
 
         .tableRestaurant strong {
@@ -1468,6 +1731,7 @@ export default function AdminDashboardPage() {
           border-radius: 999px;
           font-size: 8px;
           font-weight: 800;
+          display: inline-flex;
         }
 
         .claimNo {
@@ -1477,7 +1741,10 @@ export default function AdminDashboardPage() {
           border-radius: 999px;
           font-size: 8px;
           font-weight: 800;
+          display: inline-flex;
         }
+
+        /* EMPTY */
 
         .emptyState {
           padding: 45px 20px;
@@ -1562,6 +1829,8 @@ export default function AdminDashboardPage() {
           font-weight: 700;
         }
 
+        /* FOOTER */
+
         .footer {
           padding: 20px 38px 28px;
           display: flex;
@@ -1570,7 +1839,10 @@ export default function AdminDashboardPage() {
           font-size: 9px;
         }
 
+        /* RESPONSIVE */
+
         @media (max-width: 1050px) {
+
           .sidebar {
             width: 210px;
           }
@@ -1582,7 +1854,8 @@ export default function AdminDashboardPage() {
 
           .statsGrid,
           .quickGrid {
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns:
+              repeat(2, 1fr);
           }
 
           .dashboardGrid {
@@ -1591,6 +1864,7 @@ export default function AdminDashboardPage() {
         }
 
         @media (max-width: 760px) {
+
           .sidebar {
             position: static;
             width: 100%;
@@ -1608,7 +1882,8 @@ export default function AdminDashboardPage() {
 
           .navigation {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns:
+              repeat(2, 1fr);
           }
 
           .sidebarBottom {
@@ -1643,7 +1918,11 @@ export default function AdminDashboardPage() {
           }
 
           .leaderRow {
-            grid-template-columns: 30px 34px minmax(0, 1fr) auto;
+            grid-template-columns:
+              30px
+              34px
+              minmax(0, 1fr)
+              auto;
           }
 
           .statusPill {
@@ -1669,10 +1948,13 @@ export default function AdminDashboardPage() {
             gap: 5px;
           }
         }
+
       `}</style>
     </>
   );
 }
+
+/* STAT CARD */
 
 function StatCard({
   label,
@@ -1687,17 +1969,32 @@ function StatCard({
 }) {
   return (
     <div className="statCard">
+
       <div className="statTop">
-        <span className="statLabel">{label}</span>
-        <span className="statIcon">{icon}</span>
+
+        <span className="statLabel">
+          {label}
+        </span>
+
+        <span className="statIcon">
+          {icon}
+        </span>
+
       </div>
 
-      <div className="statValue">{value}</div>
+      <div className="statValue">
+        {value}
+      </div>
 
-      <div className="statNote">{note}</div>
+      <div className="statNote">
+        {note}
+      </div>
+
     </div>
   );
 }
+
+/* SNAPSHOT ROW */
 
 function SnapshotRow({
   label,
@@ -1708,11 +2005,20 @@ function SnapshotRow({
 }) {
   return (
     <div className="snapshotRow">
-      <span>{label}</span>
-      <strong>{value}</strong>
+
+      <span>
+        {label}
+      </span>
+
+      <strong>
+        {value}
+      </strong>
+
     </div>
   );
 }
+
+/* QUICK ACTION */
 
 function QuickAction({
   icon,
@@ -1726,13 +2032,28 @@ function QuickAction({
   onClick: () => void;
 }) {
   return (
-    <button className="quickAction" onClick={onClick}>
-      <div className="quickIcon">{icon}</div>
-      <strong>{title}</strong>
-      <span>{description}</span>
+    <button
+      className="quickAction"
+      onClick={onClick}
+    >
+
+      <div className="quickIcon">
+        {icon}
+      </div>
+
+      <strong>
+        {title}
+      </strong>
+
+      <span>
+        {description}
+      </span>
+
     </button>
   );
 }
+
+/* EMPTY */
 
 function EmptyState() {
   return (
@@ -1741,6 +2062,8 @@ function EmptyState() {
     </div>
   );
 }
+
+/* RESTAURANT TABLE */
 
 function RestaurantTable({
   restaurants,
@@ -1754,87 +2077,151 @@ function RestaurantTable({
   }
 
   return (
-    <div style={{ overflowX: "auto" }}>
+    <div
+      style={{
+        overflowX: "auto",
+      }}
+    >
+
       <table className="restaurantTable">
+
         <thead>
           <tr>
-            {showRank && <th>Rank</th>}
-            <th>Restaurant</th>
-            <th>City</th>
-            <th>Category</th>
-            <th>Current Bid</th>
-            <th>Status</th>
-            <th>Claim</th>
+
+            {showRank && (
+              <th>
+                Rank
+              </th>
+            )}
+
+            <th>
+              Restaurant
+            </th>
+
+            <th>
+              City
+            </th>
+
+            <th>
+              Category
+            </th>
+
+            <th>
+              Current Bid
+            </th>
+
+            <th>
+              Status
+            </th>
+
+            <th>
+              Claim
+            </th>
+
           </tr>
         </thead>
 
         <tbody>
-          {restaurants.map((restaurant, index) => (
-            <tr key={restaurant.id}>
 
-              {showRank && (
+          {restaurants.map(
+            (
+              restaurant,
+              index
+            ) => (
+              <tr
+                key={restaurant.id}
+              >
+
+                {showRank && (
+                  <td>
+                    <strong>
+                      #{index + 1}
+                    </strong>
+                  </td>
+                )}
+
                 <td>
-                  <strong>#{index + 1}</strong>
+
+                  <div className="tableRestaurant">
+
+                    <div className="tableAvatar">
+                      {restaurant.name
+                        .charAt(0)
+                        .toUpperCase()}
+                    </div>
+
+                    <div>
+
+                      <strong>
+                        {restaurant.name}
+                      </strong>
+
+                      <span>
+                        {restaurant.address ||
+                          "Address not added"}
+                      </span>
+
+                    </div>
+
+                  </div>
+
                 </td>
-              )}
 
-              <td>
-                <div className="tableRestaurant">
-                  <div className="tableAvatar">
-                    {restaurant.name
-                      .charAt(0)
-                      .toUpperCase()}
-                  </div>
+                <td>
+                  {restaurant.city}
+                </td>
 
-                  <div>
-                    <strong>{restaurant.name}</strong>
+                <td>
+                  {restaurant.category}
+                </td>
 
-                    <span>
-                      {restaurant.address || "Address not added"}
+                <td className="tableBid">
+                  ₹
+                  {Number(
+                    restaurant.current_bid ||
+                      0
+                  ).toLocaleString(
+                    "en-IN"
+                  )}
+                </td>
+
+                <td>
+
+                  {restaurant.is_active !==
+                  false ? (
+                    <span className="statusPill">
+                      Active
                     </span>
-                  </div>
-                </div>
-              </td>
+                  ) : (
+                    <span className="claimNo">
+                      Inactive
+                    </span>
+                  )}
 
-              <td>{restaurant.city}</td>
+                </td>
 
-              <td>{restaurant.category}</td>
+                <td>
 
-              <td className="tableBid">
-                ₹
-                {Number(
-                  restaurant.current_bid || 0
-                ).toLocaleString("en-IN")}
-              </td>
+                  {restaurant.is_claimed ? (
+                    <span className="claimYes">
+                      Claimed
+                    </span>
+                  ) : (
+                    <span className="claimNo">
+                      Unclaimed
+                    </span>
+                  )}
 
-              <td>
-                {restaurant.is_active !== false ? (
-                  <span className="statusPill">
-                    Active
-                  </span>
-                ) : (
-                  <span className="claimNo">
-                    Inactive
-                  </span>
-                )}
-              </td>
+                </td>
 
-              <td>
-                {restaurant.is_claimed ? (
-                  <span className="claimYes">
-                    Claimed
-                  </span>
-                ) : (
-                  <span className="claimNo">
-                    Unclaimed
-                  </span>
-                )}
-              </td>
+              </tr>
+            )
+          )}
 
-            </tr>
-          ))}
         </tbody>
+
       </table>
+
     </div>
   );
 }
