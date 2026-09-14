@@ -13,6 +13,7 @@ export default function BidPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  // MVP: Royal Awadh Kitchen
   const restaurantId = 3;
   const restaurantName = "Royal Awadh Kitchen";
 
@@ -30,6 +31,7 @@ export default function BidPage() {
       }
 
       const amount = Number(data?.current_bid || 0);
+
       setCurrentBid(amount);
       setBid(String(amount + 1));
     }
@@ -44,9 +46,9 @@ export default function BidPage() {
 
     const amount = Number(bid);
 
-    if (!amount || amount < minimumBid) {
+    if (!amount || amount <= currentBid) {
       setError(
-        `Your bid must be at least ₹${minimumBid.toLocaleString("en-IN")}.`
+        `Your bid must be higher than ₹${currentBid.toLocaleString("en-IN")}.`
       );
       return;
     }
@@ -54,29 +56,14 @@ export default function BidPage() {
     setSaving(true);
 
     try {
-      // Save bid
-      const { error: bidError } = await supabase
-        .from("bids")
-        .insert({
-          restaurant_id: restaurantId,
-          amount,
-          status: "active",
-        });
+      // Secure database bidding function
+      const { error: bidError } = await supabase.rpc("place_bid", {
+        p_restaurant_id: restaurantId,
+        p_amount: amount,
+      });
 
       if (bidError) {
         throw new Error(bidError.message);
-      }
-
-      // Update restaurant's current bid
-      const { error: restaurantError } = await supabase
-        .from("restaurants")
-        .update({
-          current_bid: amount,
-        })
-        .eq("id", restaurantId);
-
-      if (restaurantError) {
-        throw new Error(restaurantError.message);
       }
 
       setCurrentBid(amount);
@@ -112,6 +99,7 @@ export default function BidPage() {
 
           <div className="bid-row">
             <span>Current top bid</span>
+
             <strong>
               ₹{currentBid.toLocaleString("en-IN")}
             </strong>
@@ -119,6 +107,7 @@ export default function BidPage() {
 
           <div className="bid-row">
             <span>Minimum new bid</span>
+
             <strong>
               ₹{minimumBid.toLocaleString("en-IN")}
             </strong>
@@ -160,7 +149,13 @@ export default function BidPage() {
             </p>
 
             {error && (
-              <p style={{ color: "crimson", marginTop: 12 }}>
+              <p
+                style={{
+                  color: "crimson",
+                  marginTop: 12,
+                  lineHeight: 1.5,
+                }}
+              >
                 {error}
               </p>
             )}
@@ -175,9 +170,12 @@ export default function BidPage() {
               {saving ? "Saving bid..." : "Place bid →"}
             </button>
 
-            <div className="demo-note" style={{ marginTop: 18 }}>
-              MVP demo: No real payment is processed yet. Razorpay will be
-              connected in the next phase.
+            <div
+              className="demo-note"
+              style={{ marginTop: 18 }}
+            >
+              MVP demo: No real payment is processed yet.
+              Razorpay will be connected in the next phase.
             </div>
           </>
         ) : (
@@ -195,7 +193,9 @@ export default function BidPage() {
               You are moving up!
             </h2>
 
-            <p className="muted">{restaurantName}</p>
+            <p className="muted">
+              {restaurantName}
+            </p>
 
             <div
               style={{
@@ -207,6 +207,7 @@ export default function BidPage() {
             >
               <div className="stat-card">
                 <span>New bid</span>
+
                 <strong>
                   ₹{Number(bid).toLocaleString("en-IN")}
                 </strong>
@@ -214,6 +215,7 @@ export default function BidPage() {
 
               <div className="stat-card">
                 <span>Status</span>
+
                 <strong>LIVE</strong>
               </div>
             </div>
