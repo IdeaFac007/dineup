@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 
-export default function BidPage() {
+function BidPageContent() {
   const supabase = createClient();
   const searchParams = useSearchParams();
 
@@ -104,8 +104,8 @@ export default function BidPage() {
         <h1>Increase your visibility.</h1>
 
         <p className="muted">
-          Place a higher bid to move {restaurantName || "this restaurant"} up
-          the Lucknow leaderboard.
+          Place a higher bid to move{" "}
+          {restaurantName || "this restaurant"} up the Lucknow leaderboard.
         </p>
 
         <div className="panel" style={{ marginTop: 28 }}>
@@ -113,6 +113,7 @@ export default function BidPage() {
 
           <div className="bid-row">
             <span>Current top bid</span>
+
             <strong>
               ₹{currentBid.toLocaleString("en-IN")}
             </strong>
@@ -120,6 +121,7 @@ export default function BidPage() {
 
           <div className="bid-row">
             <span>Minimum new bid</span>
+
             <strong>
               ₹{minimumBid.toLocaleString("en-IN")}
             </strong>
@@ -216,6 +218,7 @@ export default function BidPage() {
             >
               <div className="stat-card">
                 <span>New bid</span>
+
                 <strong>
                   ₹{Number(bid).toLocaleString("en-IN")}
                 </strong>
@@ -223,21 +226,29 @@ export default function BidPage() {
 
               <div className="stat-card">
                 <span>Status</span>
+
                 <strong>LIVE</strong>
               </div>
             </div>
 
             <Link
-              href="/"
+              href="/restaurant/dashboard"
               className="primary-btn full"
               style={{ marginTop: 22 }}
             >
-              Back to leaderboard →
+              Back to dashboard →
             </Link>
           </div>
         )}
-
       </div>
     </main>
+  );
+}
+
+export default function BidPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <BidPageContent />
+    </Suspense>
   );
 }
