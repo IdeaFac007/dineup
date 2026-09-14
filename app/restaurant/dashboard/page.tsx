@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createClient } from "../../../lib/supabase/client";
 
 const stats = [
@@ -24,7 +24,7 @@ export default function RestaurantDashboard() {
   const restaurantId = 3;
   const restaurantName = "Royal Awadh Kitchen";
 
-  async function loadRestaurant() {
+  const loadRestaurant = useCallback(async () => {
     setLoading(true);
 
     const { data: restaurants, error } = await supabase
@@ -62,11 +62,23 @@ export default function RestaurantDashboard() {
     }
 
     setLoading(false);
-  }
+  }, [supabase]);
 
   useEffect(() => {
     loadRestaurant();
-  }, []);
+
+    const refreshDashboard = () => {
+      loadRestaurant();
+    };
+
+    window.addEventListener("focus", refreshDashboard);
+    window.addEventListener("pageshow", refreshDashboard);
+
+    return () => {
+      window.removeEventListener("focus", refreshDashboard);
+      window.removeEventListener("pageshow", refreshDashboard);
+    };
+  }, [loadRestaurant]);
 
   async function handleBid() {
     setMessage("");
@@ -79,19 +91,19 @@ export default function RestaurantDashboard() {
     }
 
     if (amount <= currentBid) {
-      setMessage(`New bid must be higher than ₹${currentBid.toLocaleString("en-IN")}.`);
+      setMessage(
+        `New bid must be higher than ₹${currentBid.toLocaleString("en-IN")}.`
+      );
       return;
     }
 
     setSaving(true);
 
-    const { error: bidError } = await supabase
-      .from("bids")
-      .insert({
-        restaurant_id: restaurantId,
-        amount,
-        status: "active",
-      });
+    const { error: bidError } = await supabase.from("bids").insert({
+      restaurant_id: restaurantId,
+      amount,
+      status: "active",
+    });
 
     if (bidError) {
       setMessage(bidError.message);
@@ -129,6 +141,7 @@ export default function RestaurantDashboard() {
 
         <div className="dash-right">
           <span className="partner-pill">Restaurant Partner</span>
+
           <Link href="/" className="text-link">
             View marketplace
           </Link>
@@ -136,12 +149,15 @@ export default function RestaurantDashboard() {
       </header>
 
       <section className="dashboard-shell">
-
         <div className="dash-heading">
           <div>
             <div className="eyebrow">RESTAURANT DASHBOARD</div>
+
             <h1>{restaurantName}</h1>
-            <p className="muted">Lucknow • Awadhi • Fine Dining</p>
+
+            <p className="muted">
+              Lucknow • Awadhi • Fine Dining
+            </p>
           </div>
 
           <Link href="/restaurant/bid" className="primary-btn">
@@ -150,49 +166,53 @@ export default function RestaurantDashboard() {
         </div>
 
         <div className="stats-grid">
-
           <div className="stat-card">
             <span>Current rank</span>
+
             <strong>
               {loading ? "..." : `#${rank}`}
             </strong>
+
             <small>in Lucknow</small>
           </div>
 
           <div className="stat-card">
             <span>Current bid</span>
+
             <strong>
               {loading
                 ? "..."
                 : `₹${currentBid.toLocaleString("en-IN")}`}
             </strong>
+
             <small>today</small>
           </div>
 
           {stats.map(([label, value, note]) => (
             <div className="stat-card" key={label}>
               <span>{label}</span>
+
               <strong>{value}</strong>
+
               <small>{note}</small>
             </div>
           ))}
-
         </div>
 
         <div className="dashboard-grid">
-
           <section className="panel">
-
             <div className="panel-title">
               <div>
                 <span className="live-dot" /> Live campaign
               </div>
+
               <span className="status">ACTIVE</span>
             </div>
 
             <div className="rank-box">
               <div>
                 <small>Your position</small>
+
                 <strong>
                   {loading ? "..." : `#${rank}`}
                 </strong>
@@ -202,6 +222,7 @@ export default function RestaurantDashboard() {
 
               <div>
                 <small>Next position</small>
+
                 <strong>
                   {nextRank ? `#${nextRank}` : "TOP"}
                 </strong>
@@ -210,6 +231,7 @@ export default function RestaurantDashboard() {
 
             <div className="bid-row">
               <span>Current bid</span>
+
               <strong>
                 ₹{currentBid.toLocaleString("en-IN")}
               </strong>
@@ -231,10 +253,13 @@ export default function RestaurantDashboard() {
 
             <label>
               New bid amount
+
               <input
                 type="number"
                 min={currentBid + 1}
-                placeholder={`Minimum ₹${(currentBid + 1).toLocaleString("en-IN")}`}
+                placeholder={`Minimum ₹${(
+                  currentBid + 1
+                ).toLocaleString("en-IN")}`}
                 value={newBid}
                 onChange={(e) => setNewBid(e.target.value)}
               />
@@ -249,21 +274,23 @@ export default function RestaurantDashboard() {
             </button>
 
             {message && (
-              <p className="muted" style={{ marginTop: "12px" }}>
+              <p
+                className="muted"
+                style={{ marginTop: "12px" }}
+              >
                 {message}
               </p>
             )}
-
           </section>
 
           <section className="panel">
-
             <div className="panel-title">
               <div>Campaign settings</div>
             </div>
 
             <label>
               City
+
               <select defaultValue="Lucknow">
                 <option>Lucknow</option>
                 <option>Delhi</option>
@@ -273,6 +300,7 @@ export default function RestaurantDashboard() {
 
             <label>
               Category
+
               <select defaultValue="Fine Dining">
                 <option>Fine Dining</option>
                 <option>North Indian</option>
@@ -283,19 +311,21 @@ export default function RestaurantDashboard() {
 
             <label>
               Daily budget
-              <input defaultValue="5000" type="number" min="100" />
+
+              <input
+                defaultValue="5000"
+                type="number"
+                min="100"
+              />
             </label>
 
             <button className="secondary-btn full">
               Save campaign
             </button>
-
           </section>
-
         </div>
 
         <section className="panel table-panel">
-
           <div className="panel-title">
             <div>Leaderboard preview</div>
 
@@ -324,9 +354,7 @@ export default function RestaurantDashboard() {
 
             <span>You</span>
           </div>
-
         </section>
-
       </section>
     </main>
   );
