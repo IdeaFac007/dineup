@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
-import { createClient } from "../../../lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { createClient } from "../../../lib/supabase/client";
 
 export default function RestaurantLogin() {
   const supabase = createClient();
@@ -49,7 +49,7 @@ export default function RestaurantLogin() {
           Login to manage your profile, promotion and leaderboard position.
         </p>
 
-        <form onSubmit={handleLogin} className="auth-form">
+        <form className="auth-form" onSubmit={handleLogin}>
           <label>
             Email
             <input
@@ -88,8 +88,8 @@ export default function RestaurantLogin() {
         </form>
 
         <div className="demo-note">
-          <strong>Secure login:</strong> Your restaurant account is
-          authenticated through Supabase.
+          <strong>Secure login:</strong> Your account is authenticated using
+          Supabase.
         </div>
 
         <p className="back-link">
