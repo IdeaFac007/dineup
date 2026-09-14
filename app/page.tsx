@@ -60,10 +60,11 @@ if (error) {
         </div>
 
         <div className="board">
-          {error ? (
-            <div className="muted">
-              Unable to load restaurants right now.
-            </div>
+         {error ? (
+  <div className="muted">
+    Supabase Error: {error.message}
+  </div>
+)
           ) : restaurants && restaurants.length > 0 ? (
             restaurants.map((restaurant, index) => (
               <div className="restaurant-row" key={`${restaurant.name}-${restaurant.address}`}>
