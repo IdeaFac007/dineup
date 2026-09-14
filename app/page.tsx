@@ -9,7 +9,9 @@ export default async function Home() {
     .eq("is_active", true)
     .eq("city", "Lucknow")
     .order("current_bid", { ascending: false });
-
+if (error) {
+  console.error("DineUp Supabase error:", error);
+}
   return (
     <main>
       <nav className="nav">
