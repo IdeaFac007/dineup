@@ -5,7 +5,7 @@ export default async function Home() {
 
   const { data: restaurants, error } = await supabase
     .from("restaurants")
-    .select("id, name, city, category, address, current_bid")
+    .select("name, city, category, address, current_bid, is_active")
     .eq("is_active", true)
     .eq("city", "Lucknow")
     .order("current_bid", { ascending: false });
@@ -64,7 +64,7 @@ export default async function Home() {
             </div>
           ) : restaurants && restaurants.length > 0 ? (
             restaurants.map((restaurant, index) => (
-              <div className="restaurant-row" key={restaurant.id}>
+              <div className="restaurant-row" key={`${restaurant.name}-${restaurant.address}`}>
                 <span className="rank">
                   {String(index + 1).padStart(2, "0")}
                 </span>
