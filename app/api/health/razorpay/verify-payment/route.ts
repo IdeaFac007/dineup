@@ -7,7 +7,7 @@ import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 export async function POST(request: Request) {
   try {
     // --------------------------------------------------
-    // 1. Verify logged-in restaurant user
+    // 1. Verify logged-in user
     // --------------------------------------------------
     const supabase = await createClient();
 
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 2. Read payment verification details
+    // 2. Read payment details
     // --------------------------------------------------
     const body = await request.json();
 
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 3. Razorpay server credentials
+    // 3. Razorpay credentials
     // --------------------------------------------------
     const razorpayKeyId =
       process.env.RAZORPAY_KEY_ID;
@@ -67,10 +67,6 @@ export async function POST(request: Request) {
       process.env.RAZORPAY_KEY_SECRET;
 
     if (!razorpayKeyId || !razorpayKeySecret) {
-      console.error(
-        "Razorpay environment variables are missing."
-      );
-
       return NextResponse.json(
         {
           error:
@@ -91,7 +87,7 @@ export async function POST(request: Request) {
 
     if (!supabaseUrl || !supabaseSecretKey) {
       console.error(
-        "Supabase secret key configuration is missing."
+        "Supabase secret configuration missing."
       );
 
       return NextResponse.json(
@@ -119,39 +115,86 @@ export async function POST(request: Request) {
       );
 
     // --------------------------------------------------
-    // 6. Get bid
+    // 6. Find bid
+    //
+    // First try bidId.
+    // If that fails, find it by Razorpay order ID.
     // --------------------------------------------------
-    const {
-      data: bid,
-      error: bidError,
-    } = await supabaseAdmin
-      .from("bids")
-      .select(
-        `
-        id,
-        restaurant_id,
-        amount,
-        status,
-        payment_status,
-        razorpay_order_id,
-        razorpay_payment_id
-        `
-      )
-      .eq("id", bidId)
-      .single();
+    let bid: any = null;
 
-    if (bidError || !bid) {
-      console.error(
-        "Bid lookup error:",
-        bidError
-      );
+    const { data: bidById, error: bidByIdError } =
+      await supabaseAdmin
+        .from("bids")
+        .select(
+          `
+          id,
+          restaurant_id,
+          amount,
+          status,
+          payment_status,
+          razorpay_order_id,
+          razorpay_payment_id
+          `
+        )
+        .eq("id", bidId)
+        .maybeSingle();
 
-      return NextResponse.json(
+    if (bidById) {
+      bid = bidById;
+    } else {
+      console.warn(
+        "Bid ID lookup failed. Trying Razorpay order ID.",
         {
-          error: "Bid not found.",
-        },
-        { status: 404 }
+          bidId,
+          razorpayOrderId,
+          error: bidByIdError,
+        }
       );
+
+      const {
+        data: bidByOrder,
+        error: bidByOrderError,
+      } = await supabaseAdmin
+        .from("bids")
+        .select(
+          `
+          id,
+          restaurant_id,
+          amount,
+          status,
+          payment_status,
+          razorpay_order_id,
+          razorpay_payment_id
+          `
+        )
+        .eq(
+          "razorpay_order_id",
+          razorpayOrderId
+        )
+        .maybeSingle();
+
+      if (bidByOrderError || !bidByOrder) {
+        console.error(
+          "Bid lookup failed completely:",
+          {
+            bidId,
+            razorpayOrderId,
+            bidByIdError,
+            bidByOrderError,
+          }
+        );
+
+        return NextResponse.json(
+          {
+            error: "Bid not found.",
+            bidId,
+            razorpayOrderId,
+          },
+          { status: 404 }
+        );
+      }
+
+      bid = bidByOrder;
     }
 
     // --------------------------------------------------
@@ -166,12 +209,9 @@ export async function POST(request: Request) {
         "id, name, owner_id, is_active"
       )
       .eq("id", bid.restaurant_id)
-      .single();
+      .maybeSingle();
 
-    if (
-      restaurantError ||
-      !restaurant
-    ) {
+    if (restaurantError || !restaurant) {
       console.error(
         "Restaurant lookup error:",
         restaurantError
@@ -192,8 +232,7 @@ export async function POST(request: Request) {
       console.error(
         "Owner mismatch:",
         {
-          restaurantOwner:
-            restaurant.owner_id,
+          restaurantOwner: restaurant.owner_id,
           loggedInUser: user.id,
         }
       );
@@ -220,14 +259,14 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 10. Verify Razorpay order ID
+    // 10. Razorpay order must match database
     // --------------------------------------------------
     if (
       bid.razorpay_order_id !==
       razorpayOrderId
     ) {
       console.error(
-        "Order mismatch:",
+        "Razorpay order mismatch:",
         {
           databaseOrder:
             bid.razorpay_order_id,
@@ -298,8 +337,7 @@ export async function POST(request: Request) {
     const razorpay =
       new Razorpay({
         key_id: razorpayKeyId,
-        key_secret:
-          razorpayKeySecret,
+        key_secret: razorpayKeySecret,
       });
 
     const payment =
@@ -329,7 +367,7 @@ export async function POST(request: Request) {
         {
           paymentOrder:
             payment.order_id,
-          expectedOrder:
+          receivedOrder:
             razorpayOrderId,
         }
       );
@@ -346,10 +384,7 @@ export async function POST(request: Request) {
     // --------------------------------------------------
     // 14. Payment must be captured
     // --------------------------------------------------
-    if (
-      payment.status !==
-      "captured"
-    ) {
+    if (payment.status !== "captured") {
       return NextResponse.json(
         {
           error:
@@ -362,7 +397,6 @@ export async function POST(request: Request) {
     // --------------------------------------------------
     // 15. Verify payment amount
     // --------------------------------------------------
-    // Razorpay amount is stored in paise.
     const expectedAmountPaise =
       Math.round(
         Number(bid.amount) * 100
@@ -375,8 +409,7 @@ export async function POST(request: Request) {
       console.error(
         "Payment amount mismatch:",
         {
-          databaseAmount:
-            expectedAmountPaise,
+          expectedAmountPaise,
           razorpayAmount:
             payment.amount,
         }
@@ -392,7 +425,7 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 16. Prevent duplicate payment confirmation
+    // 16. Duplicate payment protection
     // --------------------------------------------------
     if (
       bid.payment_status ===
@@ -409,7 +442,7 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 17. Confirm bid using server-only RPC
+    // 17. Confirm bid through server-only RPC
     // --------------------------------------------------
     const {
       data: confirmedBid,
@@ -418,7 +451,7 @@ export async function POST(request: Request) {
       await supabaseAdmin.rpc(
         "confirm_paid_bid",
         {
-          p_bid_id: bidId,
+          p_bid_id: bid.id,
           p_razorpay_order_id:
             razorpayOrderId,
           p_razorpay_payment_id:
@@ -440,7 +473,11 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Payment was verified, but bid confirmation failed. Please contact support.",
+            "Payment was verified, but bid confirmation failed.",
+          code:
+            confirmError?.code || null,
+          message:
+            confirmError?.message || null,
         },
         { status: 500 }
       );
@@ -456,7 +493,7 @@ export async function POST(request: Request) {
       bid: confirmedBid,
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error(
       "Razorpay verify payment error:",
       error
@@ -465,9 +502,8 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Unable to verify Razorpay payment.",
+          error?.message ||
+          "Unable to verify Razorpay payment.",
       },
       { status: 500 }
     );
