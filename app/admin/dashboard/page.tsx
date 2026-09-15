@@ -28,10 +28,26 @@ type Bid = {
   created_at: string;
 };
 
+type Application = {
+  id: number;
+  owner_id: string;
+  email: string;
+  restaurant_name: string;
+  phone: string | null;
+  city: string;
+  category: string;
+  address: string | null;
+  status: "pending" | "approved" | "rejected";
+  admin_note: string | null;
+  created_at: string;
+  reviewed_at: string | null;
+};
+
 type NavItem = { id: string; label: string; icon: string };
 
 const navItems: NavItem[] = [
   { id: "overview", label: "Overview", icon: "⌂" },
+  { id: "applications", label: "Applications", icon: "✓" },
   { id: "restaurants", label: "Restaurants", icon: "◉" },
   { id: "leaderboard", label: "Leaderboard", icon: "♛" },
   { id: "bids", label: "Bids", icon: "↗" },
@@ -44,6 +60,9 @@ export default function AdminDashboardPage() {
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [bids, setBids] = useState<Bid[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
+  const [rejectNote, setRejectNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -51,9 +70,6 @@ export default function AdminDashboardPage() {
   const [search, setSearch] = useState("");
   const [activeNav, setActiveNav] = useState("overview");
   const [actionLoading, setActionLoading] = useState<number | null>(null);
-  const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
-  const [editingRestaurant, setEditingRestaurant] = useState(false);
-  const [editForm, setEditForm] = useState({ name: "", city: "", category: "", address: "" });
 
   async function loadDashboard(showRefresh = false) {
     if (showRefresh) setRefreshing(true);
@@ -86,7 +102,7 @@ export default function AdminDashboardPage() {
         return;
       }
 
-      const [restaurantResult, bidResult] = await Promise.all([
+      const [restaurantResult, bidResult, applicationResult] = await Promise.all([
         supabase
           .from("restaurants")
           .select("id, name, city, category, address, current_bid, is_claimed, is_active, created_at, owner_id")
@@ -94,6 +110,10 @@ export default function AdminDashboardPage() {
         supabase
           .from("bids")
           .select("id, restaurant_id, amount, status, payment_status, razorpay_order_id, razorpay_payment_id, created_at")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("restaurant_applications")
+          .select("id, owner_id, email, restaurant_name, phone, city, category, address, status, admin_note, created_at, reviewed_at")
           .order("created_at", { ascending: false }),
       ]);
 
@@ -105,9 +125,14 @@ export default function AdminDashboardPage() {
         setError(bidResult.error.message || "Unable to load bid data. Check the admin bids policy.");
         return;
       }
+      if (applicationResult.error) {
+        setError(applicationResult.error.message || "Unable to load restaurant applications. Check the admin applications policy.");
+        return;
+      }
 
       setRestaurants((restaurantResult.data || []) as Restaurant[]);
       setBids((bidResult.data || []) as Bid[]);
+      setApplications((applicationResult.data || []) as Application[]);
     } catch (err) {
       console.error(err);
       setError("Something went wrong while loading the dashboard.");
@@ -125,58 +150,88 @@ export default function AdminDashboardPage() {
     router.refresh();
   }
 
-  function openRestaurantDetails(restaurant: Restaurant) {
-    setSelectedRestaurant(restaurant);
-    setEditingRestaurant(false);
-    setEditForm({
-      name: restaurant.name,
-      city: restaurant.city,
-      category: restaurant.category,
-      address: restaurant.address || "",
-    });
-  }
-
-  function closeRestaurantDetails() {
-    setSelectedRestaurant(null);
-    setEditingRestaurant(false);
-  }
-
-  async function saveRestaurantProfile() {
-    if (!selectedRestaurant) return;
-    const name = editForm.name.trim();
-    const city = editForm.city.trim();
-    const category = editForm.category.trim();
-    const address = editForm.address.trim();
-
-    if (!name || !city || !category) {
-      setError("Restaurant name, city and category are required.");
-      return;
-    }
-
-    setActionLoading(selectedRestaurant.id);
+  async function approveApplication(application: Application) {
+    if (application.status !== "pending") return;
+    setActionLoading(application.id);
     setError("");
 
     try {
-      const { data, error: updateError } = await supabase
-        .from("restaurants")
-        .update({ name, city, category, address: address || null })
-        .eq("id", selectedRestaurant.id)
-        .select("id, name, city, category, address, current_bid, is_claimed, is_active, created_at, owner_id")
-        .single();
+      const { data, error: rpcError } = await supabase.rpc(
+        "approve_restaurant_application",
+        { p_application_id: application.id }
+      );
 
-      if (updateError) {
-        setError(updateError.message || "Unable to save restaurant profile.");
+      if (rpcError) {
+        setError(rpcError.message || "Unable to approve application.");
         return;
       }
 
+      setApplications((current) =>
+        current.map((item) =>
+          item.id === application.id
+            ? { ...item, status: "approved", reviewed_at: new Date().toISOString() }
+            : item
+        )
+      );
+
       if (data) {
-        setRestaurants((current) => current.map((r) => r.id === data.id ? data as Restaurant : r));
-        setSelectedRestaurant(data as Restaurant);
+        setRestaurants((current) => {
+          const created = data as Restaurant;
+          return [...current, created].sort(
+            (a, b) => Number(b.current_bid || 0) - Number(a.current_bid || 0)
+          );
+        });
       }
-      setEditingRestaurant(false);
+
+      setSelectedApplication(null);
+      setRejectNote("");
     } catch (err) {
       console.error(err);
-      setError("Something went wrong while saving the restaurant profile.");
+      setError("Something went wrong while approving the application.");
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function rejectApplication(application: Application) {
+    if (application.status !== "pending") return;
+    setActionLoading(application.id);
+    setError("");
+
+    try {
+      const { data, error: rpcError } = await supabase.rpc(
+        "reject_restaurant_application",
+        {
+          p_application_id: application.id,
+          p_admin_note: rejectNote.trim() || null,
+        }
+      );
+
+      if (rpcError) {
+        setError(rpcError.message || "Unable to reject application.");
+        return;
+      }
+
+      const updated = data as Application | null;
+
+      setApplications((current) =>
+        current.map((item) =>
+          item.id === application.id
+            ? {
+                ...item,
+                status: "rejected",
+                admin_note: updated?.admin_note ?? (rejectNote.trim() || null),
+                reviewed_at: updated?.reviewed_at ?? new Date().toISOString(),
+              }
+            : item
+        )
+      );
+
+      setSelectedApplication(null);
+      setRejectNote("");
+    } catch (err) {
+      console.error(err);
+      setError("Something went wrong while rejecting the application.");
     } finally {
       setActionLoading(null);
     }
@@ -225,9 +280,27 @@ export default function AdminDashboardPage() {
     const cities = new Set(restaurants.map((r) => r.city)).size;
     const captured = bids.filter((b) => b.payment_status === "captured");
     const pending = bids.filter((b) => b.payment_status !== "captured");
+    const pendingApplications = applications.filter((a) => a.status === "pending").length;
     const capturedAmount = captured.reduce((sum, b) => sum + Number(b.amount || 0), 0);
-    return { total, active, claimed, totalBidValue, highestBid, cities, totalBids: bids.length, capturedPayments: captured.length, pendingPayments: pending.length, capturedAmount };
-  }, [restaurants, bids]);
+    return { total, active, claimed, totalBidValue, highestBid, cities, totalBids: bids.length, capturedPayments: captured.length, pendingPayments: pending.length, capturedAmount, pendingApplications };
+  }, [restaurants, bids, applications]);
+
+  const filteredApplications = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return applications;
+    return applications.filter((a) =>
+      [
+        String(a.id),
+        a.restaurant_name,
+        a.email,
+        a.phone || "",
+        a.city,
+        a.category,
+        a.address || "",
+        a.status,
+      ].some((v) => v.toLowerCase().includes(q))
+    );
+  }, [applications, search]);
 
   const filteredRestaurants = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -293,14 +366,40 @@ export default function AdminDashboardPage() {
                 <div className="panel"><div className="panelHeader"><div><h3>Live Leaderboard</h3><p>Restaurants ranked by current bid</p></div><button className="textButton" onClick={() => setActiveNav("leaderboard")}>View all →</button></div><div className="leaderboard">{topRestaurants.length ? topRestaurants.map((r, i) => <div className="leaderRow" key={r.id}><div className={i === 0 ? "rank first" : "rank"}>{i + 1}</div><div className="restaurantAvatar">{r.name.charAt(0).toUpperCase()}</div><div className="restaurantInfo"><strong>{r.name}</strong><span>{r.category} • {r.city}</span></div><div className="bidAmount">₹{Number(r.current_bid || 0).toLocaleString("en-IN")}</div><div className="statusPill">{r.is_active !== false ? "Active" : "Inactive"}</div></div>) : <EmptyState/>}</div></div>
                 <div className="panel"><div className="panelHeader"><div><h3>Market Snapshot</h3><p>Current marketplace overview</p></div></div><div className="snapshotList"><SnapshotRow label="Cities" value={String(stats.cities)}/><SnapshotRow label="Claimed Restaurants" value={String(stats.claimed)}/><SnapshotRow label="Unclaimed Restaurants" value={String(stats.total - stats.claimed)}/><SnapshotRow label="Total Bids" value={String(stats.totalBids)}/><SnapshotRow label="Captured Payments" value={String(stats.capturedPayments)}/><SnapshotRow label="Paid Amount" value={`₹${stats.capturedAmount.toLocaleString("en-IN")}`}/></div><div className="marketMessage"><span className="messageIcon">↗</span><div><strong>Marketplace is active</strong><p>Restaurants can compete for higher visibility.</p></div></div></div>
               </section>
-              <section className="quickSection"><div className="sectionTitle"><h3>Quick Management</h3><p>Jump directly to important admin sections.</p></div><div className="quickGrid"><QuickAction icon="◉" title="Restaurants" description="Manage restaurant listings" onClick={() => setActiveNav("restaurants")}/><QuickAction icon="♛" title="Leaderboard" description="Monitor ranking positions" onClick={() => setActiveNav("leaderboard")}/><QuickAction icon="↗" title="Bids" description={`${stats.totalBids} bids recorded`} onClick={() => setActiveNav("bids")}/><QuickAction icon="₹" title="Payments" description={`${stats.capturedPayments} captured`} onClick={() => setActiveNav("payments")}/></div></section>
+              <section className="quickSection"><div className="sectionTitle"><h3>Quick Management</h3><p>Jump directly to important admin sections.</p></div><div className="quickGrid"><QuickAction icon="✓" title="Applications" description={`${stats.pendingApplications} pending review`} onClick={() => setActiveNav("applications")}/><QuickAction icon="◉" title="Restaurants" description="Manage restaurant listings" onClick={() => setActiveNav("restaurants")}/><QuickAction icon="♛" title="Leaderboard" description="Monitor ranking positions" onClick={() => setActiveNav("leaderboard")}/><QuickAction icon="↗" title="Bids" description={`${stats.totalBids} bids recorded`} onClick={() => setActiveNav("bids")}/><QuickAction icon="₹" title="Payments" description={`${stats.capturedPayments} captured`} onClick={() => setActiveNav("payments")}/></div></section>
             </>}
+
+            {activeNav === "applications" && (
+              <section className="panel fullPanel">
+                <PanelHeader
+                  title="Restaurant Applications"
+                  subtitle="Review new restaurant partners before they go live."
+                  search={search}
+                  setSearch={setSearch}
+                  placeholder="Search applications..."
+                />
+                <div className="applicationSummary">
+                  <MiniStat label="Pending" value={stats.pendingApplications}/>
+                  <MiniStat label="Approved" value={applications.filter((a) => a.status === "approved").length}/>
+                  <MiniStat label="Rejected" value={applications.filter((a) => a.status === "rejected").length}/>
+                  <MiniStat label="Total Applications" value={applications.length}/>
+                </div>
+                <ApplicationList
+                  applications={filteredApplications}
+                  actionLoading={actionLoading}
+                  onView={(application) => {
+                    setSelectedApplication(application);
+                    setRejectNote(application.admin_note || "");
+                  }}
+                />
+              </section>
+            )}
 
             {activeNav === "restaurants" && <section className="panel fullPanel"><PanelHeader title="Restaurant Management" subtitle="All restaurants currently listed on DineUp." search={search} setSearch={setSearch} placeholder="Search restaurant..."/><div className="managementNote">
               <div><strong>Admin controls</strong><span>Manage listing status and claim state. Changes are protected by the admin-only Supabase policy.</span></div>
               <span className="securityBadge">🔒 Admin only</span>
             </div>
-            <RestaurantTable restaurants={filteredRestaurants} bids={bids} actionLoading={actionLoading} onToggleActive={(r) => updateRestaurant(r.id, "is_active", r.is_active === false)} onToggleClaim={(r) => updateRestaurant(r.id, "is_claimed", !r.is_claimed)} onView={openRestaurantDetails}/></section>}
+            <RestaurantTable restaurants={filteredRestaurants} bids={bids} actionLoading={actionLoading} onToggleActive={(r) => updateRestaurant(r.id, "is_active", r.is_active === false)} onToggleClaim={(r) => updateRestaurant(r.id, "is_claimed", !r.is_claimed)}/></section>}
 
             {activeNav === "leaderboard" && <section className="panel fullPanel"><div className="panelHeader"><div><h3>Live Leaderboard</h3><p>Current restaurant ranking by bid.</p></div><div className="liveStatus"><span className="liveDot"/>Live</div></div><RestaurantTable restaurants={restaurants} showRank/></section>}
 
@@ -311,55 +410,23 @@ export default function AdminDashboardPage() {
           <footer className="footer"><span>DineUp Admin • Where Restaurants Rise</span><span>Production Dashboard</span></footer>
         </div>
       </div>
-
-      {selectedRestaurant && (
-        <div className="modalBackdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) closeRestaurantDetails(); }}>
-          <div className="restaurantModal" role="dialog" aria-modal="true" aria-label="Restaurant details">
-            <div className="modalHeader">
-              <div>
-                <span className="eyebrow">RESTAURANT PROFILE</span>
-                <h2>{editingRestaurant ? "Edit restaurant" : selectedRestaurant.name}</h2>
-                <p>{selectedRestaurant.city} • {selectedRestaurant.category}</p>
-              </div>
-              <button className="modalClose" onClick={closeRestaurantDetails}>×</button>
-            </div>
-
-            {!editingRestaurant ? (
-              <>
-                <div className="detailGrid">
-                  <div className="detailItem"><span>Restaurant name</span><strong>{selectedRestaurant.name}</strong></div>
-                  <div className="detailItem"><span>Category</span><strong>{selectedRestaurant.category}</strong></div>
-                  <div className="detailItem"><span>City</span><strong>{selectedRestaurant.city}</strong></div>
-                  <div className="detailItem"><span>Address</span><strong>{selectedRestaurant.address || "Not added"}</strong></div>
-                  <div className="detailItem"><span>Current bid</span><strong>₹{Number(selectedRestaurant.current_bid || 0).toLocaleString("en-IN")}</strong></div>
-                  <div className="detailItem"><span>Owner</span><strong>{selectedRestaurant.owner_id ? "Linked" : "Unlinked"}</strong><small>{selectedRestaurant.owner_id ? selectedRestaurant.owner_id : "No owner linked"}</small></div>
-                  <div className="detailItem"><span>Status</span><strong>{selectedRestaurant.is_active !== false ? "Active" : "Inactive"}</strong></div>
-                  <div className="detailItem"><span>Claim</span><strong>{selectedRestaurant.is_claimed ? "Claimed" : "Unclaimed"}</strong></div>
-                </div>
-                <div className="modalActions">
-                  <button className="tableAction secondary" onClick={closeRestaurantDetails}>Close</button>
-                  <button className="tableAction" onClick={() => setEditingRestaurant(true)}>Edit profile</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="editForm">
-                  <label>Restaurant name<input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} /></label>
-                  <div className="editTwoCol">
-                    <label>City<input value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} /></label>
-                    <label>Category<input value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} /></label>
-                  </div>
-                  <label>Address<input value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} /></label>
-                </div>
-                <div className="modalActions">
-                  <button className="tableAction secondary" onClick={() => setEditingRestaurant(false)} disabled={actionLoading === selectedRestaurant.id}>Cancel</button>
-                  <button className="tableAction" onClick={saveRestaurantProfile} disabled={actionLoading === selectedRestaurant.id}>{actionLoading === selectedRestaurant.id ? "Saving..." : "Save changes"}</button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+      {selectedApplication && (
+        <ApplicationModal
+          application={selectedApplication}
+          rejectNote={rejectNote}
+          setRejectNote={setRejectNote}
+          busy={actionLoading === selectedApplication.id}
+          onClose={() => {
+            if (!actionLoading) {
+              setSelectedApplication(null);
+              setRejectNote("");
+            }
+          }}
+          onApprove={() => approveApplication(selectedApplication)}
+          onReject={() => rejectApplication(selectedApplication)}
+        />
       )}
+
       <style jsx global>{styles}</style>
     </>
   );
@@ -410,7 +477,6 @@ function RestaurantTable({
   actionLoading = null,
   onToggleActive,
   onToggleClaim,
-  onView,
 }: {
   restaurants: Restaurant[];
   bids?: Bid[];
@@ -418,7 +484,6 @@ function RestaurantTable({
   actionLoading?: number | null;
   onToggleActive?: (restaurant: Restaurant) => void;
   onToggleClaim?: (restaurant: Restaurant) => void;
-  onView?: (restaurant: Restaurant) => void;
 }) {
   if (!restaurants.length) return <EmptyState/>;
 
@@ -463,7 +528,6 @@ function RestaurantTable({
 
             {!showRank && (
               <div className="restaurantCardActions">
-                <button className="tableAction secondary" disabled={busy} onClick={() => onView?.(r)}>View</button>
                 <button className="tableAction" disabled={busy} onClick={() => onToggleActive?.(r)}>
                   {busy ? "Updating..." : r.is_active !== false ? "Deactivate" : "Activate"}
                 </button>
@@ -479,13 +543,149 @@ function RestaurantTable({
   );
 }
 
+function ApplicationList({
+  applications,
+  actionLoading,
+  onView,
+}: {
+  applications: Application[];
+  actionLoading: number | null;
+  onView: (application: Application) => void;
+}) {
+  if (!applications.length) return <EmptyState/>;
+
+  return (
+    <div className="applicationList">
+      {applications.map((application) => {
+        const busy = actionLoading === application.id;
+        return (
+          <article className="applicationCard" key={application.id}>
+            <div className="applicationIdentity">
+              <div className="tableAvatar largeAvatar">
+                {application.restaurant_name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <strong>{application.restaurant_name}</strong>
+                <span>{application.category} • {application.city}</span>
+                <small>{application.email}{application.phone ? ` • ${application.phone}` : ""}</small>
+              </div>
+            </div>
+
+            <div className="applicationMeta">
+              <div>
+                <span>Submitted</span>
+                <strong>{formatDate(application.created_at)}</strong>
+              </div>
+              <div>
+                <span>Status</span>
+                <StatusBadge value={application.status}/>
+              </div>
+            </div>
+
+            <button className="tableAction" disabled={busy} onClick={() => onView(application)}>
+              {busy ? "Updating..." : "View details →"}
+            </button>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function ApplicationModal({
+  application,
+  rejectNote,
+  setRejectNote,
+  busy,
+  onClose,
+  onApprove,
+  onReject,
+}: {
+  application: Application;
+  rejectNote: string;
+  setRejectNote: (value: string) => void;
+  busy: boolean;
+  onClose: () => void;
+  onApprove: () => void;
+  onReject: () => void;
+}) {
+  return (
+    <div className="modalBackdrop" onMouseDown={onClose}>
+      <div className="applicationModal" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="modalHeader">
+          <div>
+            <span className="eyebrow">APPLICATION #{application.id}</span>
+            <h2>{application.restaurant_name}</h2>
+            <p>{application.category} • {application.city}</p>
+          </div>
+          <button className="modalClose" onClick={onClose} disabled={busy}>×</button>
+        </div>
+
+        <div className="applicationDetails">
+          <DetailItem label="Email" value={application.email}/>
+          <DetailItem label="Phone" value={application.phone || "Not provided"}/>
+          <DetailItem label="City" value={application.city}/>
+          <DetailItem label="Category" value={application.category}/>
+          <DetailItem label="Address" value={application.address || "Not provided"}/>
+          <DetailItem label="Owner ID" value={application.owner_id}/>
+          <DetailItem label="Submitted" value={formatDate(application.created_at)}/>
+          <DetailItem label="Status" value={application.status.toUpperCase()}/>
+        </div>
+
+        {application.admin_note && (
+          <div className="existingNote">
+            <strong>Admin note</strong>
+            <p>{application.admin_note}</p>
+          </div>
+        )}
+
+        {application.status === "pending" ? (
+          <div className="reviewArea">
+            <label>Rejection note <span>(optional)</span></label>
+            <textarea
+              value={rejectNote}
+              onChange={(e) => setRejectNote(e.target.value)}
+              placeholder="Reason for rejection, if applicable..."
+              rows={3}
+              disabled={busy}
+            />
+            <div className="reviewActions">
+              <button className="rejectButton" onClick={onReject} disabled={busy}>
+                {busy ? "Processing..." : "Reject application"}
+              </button>
+              <button className="approveButton" onClick={onApprove} disabled={busy}>
+                {busy ? "Processing..." : "Approve & Go Live ✓"}
+              </button>
+            </div>
+            <p className="reviewHint">
+              Approving creates the restaurant listing, links it to this owner, and makes it active on the marketplace.
+            </p>
+          </div>
+        ) : (
+          <div className="reviewedBanner">
+            This application has already been <strong>{application.status}</strong>.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="detailItem">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
 const loadingCss = `
 .loadingScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;gap:14px;background:#f6f7f9;color:#171717;font-family:Arial,Helvetica,sans-serif}.loadingLogo{width:44px;height:44px;border-radius:12px;background:#171717;color:white;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800}.loadingScreen strong,.loadingScreen span{display:block}.loadingScreen span{margin-top:4px;color:#777;font-size:13px}`;
 
 const styles = `
-*{box-sizing:border-box}html,body{margin:0;padding:0}body{background:#f5f6f8;color:#171717;font-family:Arial,Helvetica,sans-serif}button,input{font-family:Arial,Helvetica,sans-serif}.adminShell{min-height:100vh;display:flex;background:#f5f6f8}.sidebar{width:255px;min-height:100vh;background:#111214;color:white;display:flex;flex-direction:column;padding:24px 16px;position:fixed;left:0;top:0;bottom:0;z-index:20}.brand{display:flex;align-items:center;gap:12px;padding:4px 10px 30px}.brandMark{width:40px;height:40px;background:white;color:#111214;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:900}.brandName{color:#fff;font-size:20px;font-weight:800;letter-spacing:-.5px}.brandSub{margin-top:2px;color:#777b82;font-size:9px;font-weight:700;letter-spacing:1.6px}.sideSectionTitle{color:#666a71;font-size:9px;font-weight:800;letter-spacing:1.5px;padding:0 12px 10px}.navigation{display:flex;flex-direction:column;gap:4px}.navItem{width:100%;border:0;background:transparent;color:#9da1a8;border-radius:10px;padding:12px;display:flex;align-items:center;gap:12px;text-align:left;font-size:13px;font-weight:600;cursor:pointer;transition:.2s}.navItem:hover{background:#1b1d20;color:white}.navItem.active{background:white;color:#111214}.navIcon{width:22px;text-align:center;font-size:16px}.sidebarBottom{margin-top:auto;border-top:1px solid #292b2f;padding-top:18px}.adminMini{display:flex;align-items:center;gap:10px;padding:8px}.adminAvatar{width:34px;height:34px;border-radius:50%;background:#2a2d32;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}.adminMiniText{min-width:0}.adminMiniText strong,.adminMiniText span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.adminMiniText strong{font-size:11px}.adminMiniText span{margin-top:3px;color:#777b82;font-size:9px}.logoutButton{width:100%;border:1px solid #2b2d31;background:transparent;color:#aaaeb4;border-radius:9px;padding:10px;margin-top:12px;cursor:pointer;font-size:12px;font-weight:700}.logoutButton:hover{background:#1b1d20;color:white}.mainArea{width:calc(100% - 255px);margin-left:255px;min-height:100vh}.topbar{height:94px;background:white;border-bottom:1px solid #e7e8eb;display:flex;align-items:center;justify-content:space-between;padding:0 38px}.breadcrumb{color:#9a9da3;font-size:10px;font-weight:700;margin-bottom:6px}.topbar h1{margin:0;font-size:25px;letter-spacing:-.7px}.topActions{display:flex;align-items:center;gap:12px}.liveStatus{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid #e4e5e8;border-radius:9px;color:#555960;background:white;font-size:11px;font-weight:700;white-space:nowrap}.liveDot{width:7px;height:7px;border-radius:50%;background:#21a366;display:inline-block}.refreshButton{border:0;background:#171717;color:white;border-radius:9px;padding:10px 14px;font-size:11px;font-weight:800;cursor:pointer}.refreshButton:disabled{opacity:.55;cursor:not-allowed}.content{padding:30px 38px 50px;max-width:1550px;margin:0 auto}.errorBox{background:#fff1f1;border:1px solid #f0c9c9;color:#9b2929;border-radius:12px;padding:14px 16px;margin-bottom:20px;font-size:12px}.errorBox strong,.errorBox span{display:block}.errorBox span{margin-top:4px}.welcomeCard{background:#171717;color:white;border-radius:18px;padding:30px 32px;display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;overflow:hidden;position:relative}.welcomeCard:after{content:"";position:absolute;width:280px;height:280px;border:1px solid rgba(255,255,255,.08);border-radius:50%;right:80px;top:-170px}.eyebrow{color:#8d9299;font-size:9px;font-weight:800;letter-spacing:1.8px}.welcomeCard h2{margin:9px 0 6px;font-size:28px;letter-spacing:-1px}.welcomeCard p{margin:0;color:#a4a8ad;font-size:12px}.welcomeBadge{min-width:160px;border:1px solid #303237;background:#202124;border-radius:13px;padding:14px 16px;position:relative;z-index:1}.welcomeBadge span{display:inline-block;color:#62c98a;font-size:8px;font-weight:900;letter-spacing:1.5px;margin-bottom:7px}.welcomeBadge strong{display:block;font-size:15px}.statsGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}.statCard{background:white;border:1px solid #e6e7e9;border-radius:15px;padding:20px}.statTop{display:flex;justify-content:space-between;align-items:center}.statIcon{width:32px;height:32px;border-radius:9px;background:#f0f1f3;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900}.statLabel{color:#7d8086;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px}.statValue{margin-top:15px;font-size:25px;font-weight:800;letter-spacing:-.7px}.statNote{margin-top:4px;color:#999ca2;font-size:10px}.dashboardGrid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(300px,1fr);gap:20px;margin-bottom:22px}.panel{background:white;border:1px solid #e6e7e9;border-radius:16px;overflow:hidden}.fullPanel{min-height:500px}.panelHeader{padding:21px 22px;border-bottom:1px solid #ececef;display:flex;align-items:center;justify-content:space-between;gap:15px}.panelHeader h3{margin:0;font-size:15px;letter-spacing:-.2px}.panelHeader p{margin:5px 0 0;color:#92959a;font-size:10px}.textButton{border:0;background:transparent;color:#171717;font-size:10px;font-weight:800;cursor:pointer}.leaderboard{padding:6px 20px 10px}.leaderRow{min-height:65px;display:grid;grid-template-columns:34px 38px minmax(0,1fr) auto auto;align-items:center;gap:12px;border-bottom:1px solid #f0f0f1}.leaderRow:last-child{border-bottom:0}.rank{width:26px;height:26px;border-radius:8px;background:#f0f1f3;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900}.rank.first{background:#171717;color:white}.restaurantAvatar{width:34px;height:34px;border-radius:10px;background:#eceef1;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900}.restaurantInfo{min-width:0}.restaurantInfo strong,.restaurantInfo span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.restaurantInfo strong{font-size:11px}.restaurantInfo span{color:#92959a;font-size:9px;margin-top:4px}.bidAmount{font-size:11px;font-weight:900;white-space:nowrap}.statusPill{color:#258150;background:#e9f7ef;padding:5px 8px;border-radius:999px;font-size:8px;font-weight:900;white-space:nowrap}.snapshotList{padding:6px 22px}.snapshotRow{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid #f0f0f1}.snapshotRow:last-child{border-bottom:0}.snapshotRow span{color:#777b81;font-size:10px}.snapshotRow strong{font-size:12px}.marketMessage{margin:10px 22px 22px;padding:14px;background:#f5f6f7;border-radius:11px;display:flex;gap:10px}.messageIcon{width:26px;height:26px;border-radius:8px;background:#171717;color:white;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}.marketMessage strong{font-size:10px}.marketMessage p{margin:4px 0 0;color:#888c91;font-size:9px;line-height:1.5}.quickSection{margin-top:4px}.sectionTitle{margin-bottom:12px}.sectionTitle h3{margin:0;font-size:15px}.sectionTitle p{margin:5px 0 0;color:#92959a;font-size:10px}.quickGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.quickAction{border:1px solid #e6e7e9;background:white;border-radius:14px;padding:18px;text-align:left;cursor:pointer;transition:.2s}.quickAction:hover{transform:translateY(-2px);border-color:#cfd1d5;box-shadow:0 8px 25px rgba(0,0,0,.05)}.quickIcon{width:34px;height:34px;border-radius:10px;background:#171717;color:white;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;margin-bottom:13px}.quickAction strong{display:block;font-size:11px}.quickAction span{display:block;margin-top:5px;color:#92959a;font-size:9px}.searchInput{width:230px;border:1px solid #dedfe2;border-radius:9px;padding:10px 11px;outline:none;font-size:11px;background:white;color:#171717}.searchInput:focus{border-color:#777}.miniStats,.paymentSummary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:18px 22px;border-bottom:1px solid #ececef;background:#fafafa}.miniStat{background:white;border:1px solid #e8e9eb;border-radius:11px;padding:13px 14px}.miniStat span{display:block;color:#85898f;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}.miniStat strong{display:block;margin-top:6px;font-size:16px}.tableScroll{width:100%;overflow-x:auto}.dataTable{width:100%;min-width:900px;border-collapse:collapse}.dataTable th{background:#fafafa;color:#888b91;font-size:8px;text-transform:uppercase;letter-spacing:.8px;text-align:left;padding:13px 20px;border-bottom:1px solid #e9eaec;white-space:nowrap}.dataTable td{padding:14px 20px;border-bottom:1px solid #f0f0f1;font-size:10px;vertical-align:middle}.dataTable tr:last-child td{border-bottom:0}.tableRestaurant{display:flex;align-items:center;gap:10px;min-width:180px}.tableAvatar{width:30px;height:30px;border-radius:8px;background:#eceef1;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:10px;flex-shrink:0}.tableRestaurant strong{display:block;font-size:10px;white-space:nowrap}.tableRestaurant span{display:block;color:#92959a;font-size:8px;margin-top:3px;white-space:nowrap}.tableBid{font-weight:900;white-space:nowrap}.mutedCell{color:#777b80;font-weight:700}.dateCell{color:#676b71;white-space:nowrap}.monoCell{color:#5e6268;font-family:"Courier New",monospace;font-size:8px!important;white-space:nowrap}.successBadge,.warningBadge,.dangerBadge,.neutralBadge,.infoBadge{display:inline-flex;align-items:center;padding:5px 8px;border-radius:999px;font-size:8px;font-weight:800;white-space:nowrap}.successBadge{color:#258150;background:#e9f7ef}.warningBadge{color:#8a6518;background:#fff5dd}.dangerBadge{color:#a43b3b;background:#fff0f0}.neutralBadge{color:#777b80;background:#f0f1f3}.infoBadge{color:#266c9c;background:#e9f4fb}.managementNote{margin:18px 22px 0;padding:13px 15px;background:#f7f8fa;border:1px solid #e8e9eb;border-radius:11px;display:flex;align-items:center;justify-content:space-between;gap:15px}.managementNote strong,.managementNote span{display:block}.managementNote strong{font-size:10px}.managementNote div>span{margin-top:3px;color:#8a8e94;font-size:9px}.securityBadge{color:#258150;background:#e9f7ef;padding:6px 9px;border-radius:999px;font-size:8px!important;font-weight:800;white-space:nowrap}.restaurantMeta strong,.restaurantMeta span{display:block}.restaurantMeta strong{font-size:10px}.restaurantMeta span{margin-top:3px;color:#92959a;font-size:8px;max-width:95px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.addressCell{max-width:190px;color:#676b71;font-size:9px!important;line-height:1.35}.actionGroup{display:flex;gap:6px;align-items:center}
-.restaurantList{padding:18px 22px 24px;display:flex;flex-direction:column;gap:10px}.restaurantCard{display:grid;grid-template-columns:minmax(230px,1.5fr) minmax(300px,2fr) auto auto;align-items:center;gap:18px;padding:15px 16px;border:1px solid #e7e8ea;border-radius:12px;background:white}.restaurantCard:hover{border-color:#d5d7da;box-shadow:0 5px 18px rgba(0,0,0,.035)}.restaurantCardMain{display:flex;align-items:center;gap:11px;min-width:0}.largeAvatar{width:38px;height:38px;border-radius:10px;flex-shrink:0}.restaurantCardIdentity{min-width:0}.restaurantCardIdentity strong,.restaurantCardIdentity span,.restaurantCardIdentity small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.restaurantCardIdentity strong{font-size:11px}.restaurantCardIdentity span{margin-top:4px;color:#7f8389;font-size:9px}.restaurantCardIdentity small{margin-top:4px;color:#a0a3a8;font-size:8px}.restaurantCardStats{display:grid;grid-template-columns:repeat(3,minmax(80px,1fr));gap:14px;min-width:0}.restaurantCardStats>div{min-width:0}.restaurantCardStats span,.restaurantCardStats small{display:block;color:#92959a;font-size:8px}.restaurantCardStats strong{display:block;margin-top:4px;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.restaurantCardStats small{margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.restaurantCardStatus{display:flex;align-items:center;gap:10px}.statusStack{display:flex;flex-direction:column;align-items:flex-start;gap:4px}.statusLabel{color:#92959a;font-size:8px}.restaurantCardActions{display:flex;gap:6px;justify-content:flex-end}.restaurantRank{width:38px;height:30px;border-radius:8px;background:#f0f1f3;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;flex-shrink:0}.restaurantRank.first{background:#171717;color:white}.leaderboardList .restaurantCard{grid-template-columns:minmax(230px,1.7fr) minmax(160px,1fr) auto}.leaderboardList .restaurantCardStats{grid-template-columns:1fr}.leaderboardList .restaurantCardStatus{justify-content:flex-end}.leaderboardList{padding-top:8px}.tableAction{border:1px solid #dcdfe3;background:#171717;color:white;border-radius:7px;padding:7px 9px;font-size:8px;font-weight:800;cursor:pointer;white-space:nowrap}.tableAction.secondary{background:white;color:#171717}.tableAction:disabled{opacity:.5;cursor:not-allowed}.emptyState{padding:55px 20px;text-align:center;color:#999;font-size:11px}.footer{padding:20px 38px 28px;display:flex;justify-content:space-between;color:#a0a3a8;font-size:9px}.modalBackdrop{position:fixed;inset:0;background:rgba(17,18,20,.48);display:flex;align-items:center;justify-content:center;padding:24px;z-index:100}.restaurantModal{width:min(680px,100%);max-height:90vh;overflow:auto;background:white;border-radius:18px;box-shadow:0 25px 80px rgba(0,0,0,.2);padding:24px}.modalHeader{display:flex;justify-content:space-between;gap:20px;padding-bottom:18px;border-bottom:1px solid #ececef}.modalHeader h2{margin:8px 0 5px;font-size:22px;letter-spacing:-.6px}.modalHeader p{margin:0;color:#8c9096;font-size:11px}.modalClose{width:34px;height:34px;border:1px solid #e1e2e5;background:white;border-radius:9px;font-size:22px;line-height:1;cursor:pointer;color:#555}.detailGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:20px 0}.detailItem{border:1px solid #e8e9eb;background:#fafafa;border-radius:11px;padding:13px}.detailItem span,.detailItem small{display:block;color:#92959a;font-size:8px}.detailItem strong{display:block;margin-top:5px;font-size:11px;overflow-wrap:anywhere}.detailItem small{margin-top:4px;overflow-wrap:anywhere}.modalActions{display:flex;justify-content:flex-end;gap:8px;border-top:1px solid #ececef;padding-top:16px}.editForm{padding:20px 0;display:flex;flex-direction:column;gap:14px}.editForm label{display:flex;flex-direction:column;gap:6px;color:#6f7379;font-size:9px;font-weight:800}.editForm input{width:100%;border:1px solid #dfe1e4;border-radius:9px;padding:11px 12px;outline:none;font-size:11px;color:#171717;background:white}.editForm input:focus{border-color:#777}.editTwoCol{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-
-@media(max-width:1050px){.sidebar{width:210px}.mainArea{width:calc(100% - 210px);margin-left:210px}.statsGrid,.quickGrid,.miniStats,.paymentSummary{grid-template-columns:repeat(2,1fr)}.dashboardGrid{grid-template-columns:1fr}.restaurantCard{grid-template-columns:minmax(210px,1.2fr) minmax(250px,1.5fr) auto}.restaurantCardActions{grid-column:1 / -1;justify-content:flex-end}.restaurantCardStats{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:760px){.sidebar{position:static;width:100%;min-height:auto}.adminShell{display:block}.mainArea{width:100%;margin-left:0}.navigation{display:grid;grid-template-columns:repeat(2,1fr)}.sidebarBottom{margin-top:20px}.topbar{height:auto;padding:20px;gap:15px;align-items:flex-start}.topActions{flex-direction:column;align-items:flex-end}.content{padding:20px}.welcomeCard{align-items:flex-start;flex-direction:column;gap:20px}.statsGrid,.quickGrid,.miniStats,.paymentSummary{grid-template-columns:1fr}.leaderRow{grid-template-columns:30px 34px minmax(0,1fr) auto}.leaderRow .statusPill{display:none}.searchInput{width:100%}.panelHeader{align-items:flex-start;flex-direction:column}.restaurantList{padding:14px}.restaurantCard,.leaderboardList .restaurantCard{grid-template-columns:1fr;gap:13px}.restaurantCardStats{grid-template-columns:repeat(2,1fr);gap:12px}.restaurantCardStatus{justify-content:flex-start}.restaurantCardActions{grid-column:auto;justify-content:flex-start;flex-wrap:wrap}.restaurantCardActions .tableAction{flex:1;min-width:120px}.footer{padding:20px;flex-direction:column;gap:5px}}
-`;
+*{box-sizing:border-box}html,body{margin:0;padding:0}body{background:#f5f6f8;color:#171717;font-family:Arial,Helvetica,sans-serif;overflow-x:hidden}button,input{font-family:Arial,Helvetica,sans-serif}.adminShell{min-height:100vh;display:flex;background:#f5f6f8}.sidebar{width:255px;min-height:100vh;background:#111214;color:white;display:flex;flex-direction:column;padding:24px 16px;position:fixed;left:0;top:0;bottom:0;z-index:20}.brand{display:flex;align-items:center;gap:12px;padding:4px 10px 30px}.brandMark{width:40px;height:40px;background:white;color:#111214;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:900}.brandName{color:#fff;font-size:20px;font-weight:800;letter-spacing:-.5px}.brandSub{margin-top:2px;color:#777b82;font-size:9px;font-weight:700;letter-spacing:1.6px}.sideSectionTitle{color:#666a71;font-size:9px;font-weight:800;letter-spacing:1.5px;padding:0 12px 10px}.navigation{display:flex;flex-direction:column;gap:4px}.navItem{width:100%;border:0;background:transparent;color:#9da1a8;border-radius:10px;padding:12px;display:flex;align-items:center;gap:12px;text-align:left;font-size:13px;font-weight:600;cursor:pointer;transition:.2s}.navItem:hover{background:#1b1d20;color:white}.navItem.active{background:white;color:#111214}.navIcon{width:22px;text-align:center;font-size:16px}.sidebarBottom{margin-top:auto;border-top:1px solid #292b2f;padding-top:18px}.adminMini{display:flex;align-items:center;gap:10px;padding:8px}.adminAvatar{width:34px;height:34px;border-radius:50%;background:#2a2d32;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}.adminMiniText{min-width:0}.adminMiniText strong,.adminMiniText span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.adminMiniText strong{font-size:11px}.adminMiniText span{margin-top:3px;color:#777b82;font-size:9px}.logoutButton{width:100%;border:1px solid #2b2d31;background:transparent;color:#aaaeb4;border-radius:9px;padding:10px;margin-top:12px;cursor:pointer;font-size:12px;font-weight:700}.logoutButton:hover{background:#1b1d20;color:white}.mainArea{width:calc(100% - 255px);margin-left:255px;min-height:100vh;min-width:0}.topbar{height:94px;background:white;border-bottom:1px solid #e7e8eb;display:flex;align-items:center;justify-content:space-between;padding:0 38px}.breadcrumb{color:#9a9da3;font-size:10px;font-weight:700;margin-bottom:6px}.topbar h1{margin:0;font-size:25px;letter-spacing:-.7px}.topActions{display:flex;align-items:center;gap:12px}.liveStatus{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid #e4e5e8;border-radius:9px;color:#555960;background:white;font-size:11px;font-weight:700;white-space:nowrap}.liveDot{width:7px;height:7px;border-radius:50%;background:#21a366;display:inline-block}.refreshButton{border:0;background:#171717;color:white;border-radius:9px;padding:10px 14px;font-size:11px;font-weight:800;cursor:pointer}.refreshButton:disabled{opacity:.55;cursor:not-allowed}.content{padding:30px 38px 50px;max-width:1550px;margin:0 auto;min-width:0}.errorBox{background:#fff1f1;border:1px solid #f0c9c9;color:#9b2929;border-radius:12px;padding:14px 16px;margin-bottom:20px;font-size:12px}.errorBox strong,.errorBox span{display:block}.errorBox span{margin-top:4px}.welcomeCard{background:#171717;color:white;border-radius:18px;padding:30px 32px;display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;overflow:hidden;position:relative}.welcomeCard:after{content:"";position:absolute;width:280px;height:280px;border:1px solid rgba(255,255,255,.08);border-radius:50%;right:80px;top:-170px}.eyebrow{color:#8d9299;font-size:9px;font-weight:800;letter-spacing:1.8px}.welcomeCard h2{margin:9px 0 6px;font-size:28px;letter-spacing:-1px}.welcomeCard p{margin:0;color:#a4a8ad;font-size:12px}.welcomeBadge{min-width:160px;border:1px solid #303237;background:#202124;border-radius:13px;padding:14px 16px;position:relative;z-index:1}.welcomeBadge span{display:inline-block;color:#62c98a;font-size:8px;font-weight:900;letter-spacing:1.5px;margin-bottom:7px}.welcomeBadge strong{display:block;font-size:15px}.statsGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}.statCard{background:white;border:1px solid #e6e7e9;border-radius:15px;padding:20px}.statTop{display:flex;justify-content:space-between;align-items:center}.statIcon{width:32px;height:32px;border-radius:9px;background:#f0f1f3;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900}.statLabel{color:#7d8086;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px}.statValue{margin-top:15px;font-size:25px;font-weight:800;letter-spacing:-.7px}.statNote{margin-top:4px;color:#999ca2;font-size:10px}.dashboardGrid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(300px,1fr);gap:20px;margin-bottom:22px}.panel{background:white;border:1px solid #e6e7e9;border-radius:16px;overflow:hidden;min-width:0}.fullPanel{min-height:500px}.panelHeader{padding:21px 22px;border-bottom:1px solid #ececef;display:flex;align-items:center;justify-content:space-between;gap:15px}.panelHeader h3{margin:0;font-size:15px;letter-spacing:-.2px}.panelHeader p{margin:5px 0 0;color:#92959a;font-size:10px}.textButton{border:0;background:transparent;color:#171717;font-size:10px;font-weight:800;cursor:pointer}.leaderboard{padding:6px 20px 10px}.leaderRow{min-height:65px;display:grid;grid-template-columns:34px 38px minmax(0,1fr) auto auto;align-items:center;gap:12px;border-bottom:1px solid #f0f0f1}.leaderRow:last-child{border-bottom:0}.rank{width:26px;height:26px;border-radius:8px;background:#f0f1f3;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900}.rank.first{background:#171717;color:white}.restaurantAvatar{width:34px;height:34px;border-radius:10px;background:#eceef1;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900}.restaurantInfo{min-width:0}.restaurantInfo strong,.restaurantInfo span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.restaurantInfo strong{font-size:11px}.restaurantInfo span{color:#92959a;font-size:9px;margin-top:4px}.bidAmount{font-size:11px;font-weight:900;white-space:nowrap}.statusPill{color:#258150;background:#e9f7ef;padding:5px 8px;border-radius:999px;font-size:8px;font-weight:900;white-space:nowrap}.snapshotList{padding:6px 22px}.snapshotRow{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid #f0f0f1}.snapshotRow:last-child{border-bottom:0}.snapshotRow span{color:#777b81;font-size:10px}.snapshotRow strong{font-size:12px}.marketMessage{margin:10px 22px 22px;padding:14px;background:#f5f6f7;border-radius:11px;display:flex;gap:10px}.messageIcon{width:26px;height:26px;border-radius:8px;background:#171717;color:white;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}.marketMessage strong{font-size:10px}.marketMessage p{margin:4px 0 0;color:#888c91;font-size:9px;line-height:1.5}.quickSection{margin-top:4px}.sectionTitle{margin-bottom:12px}.sectionTitle h3{margin:0;font-size:15px}.sectionTitle p{margin:5px 0 0;color:#92959a;font-size:10px}.quickGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.quickAction{border:1px solid #e6e7e9;background:white;border-radius:14px;padding:18px;text-align:left;cursor:pointer;transition:.2s}.quickAction:hover{transform:translateY(-2px);border-color:#cfd1d5;box-shadow:0 8px 25px rgba(0,0,0,.05)}.quickIcon{width:34px;height:34px;border-radius:10px;background:#171717;color:white;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;margin-bottom:13px}.quickAction strong{display:block;font-size:11px}.quickAction span{display:block;margin-top:5px;color:#92959a;font-size:9px}.searchInput{width:230px;border:1px solid #dedfe2;border-radius:9px;padding:10px 11px;outline:none;font-size:11px;background:white;color:#171717}.searchInput:focus{border-color:#777}.miniStats,.paymentSummary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:18px 22px;border-bottom:1px solid #ececef;background:#fafafa}.miniStat{background:white;border:1px solid #e8e9eb;border-radius:11px;padding:13px 14px}.miniStat span{display:block;color:#85898f;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}.miniStat strong{display:block;margin-top:6px;font-size:16px}.tableScroll{width:100%;overflow-x:auto}.dataTable{width:100%;min-width:900px;border-collapse:collapse}.dataTable th{background:#fafafa;color:#888b91;font-size:8px;text-transform:uppercase;letter-spacing:.8px;text-align:left;padding:13px 20px;border-bottom:1px solid #e9eaec;white-space:nowrap}.dataTable td{padding:14px 20px;border-bottom:1px solid #f0f0f1;font-size:10px;vertical-align:middle}.dataTable tr:last-child td{border-bottom:0}.tableRestaurant{display:flex;align-items:center;gap:10px;min-width:180px}.tableAvatar{width:30px;height:30px;border-radius:8px;background:#eceef1;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:10px;flex-shrink:0}.tableRestaurant strong{display:block;font-size:10px;white-space:nowrap}.tableRestaurant span{display:block;color:#92959a;font-size:8px;margin-top:3px;white-space:nowrap}.tableBid{font-weight:900;white-space:nowrap}.mutedCell{color:#777b80;font-weight:700}.dateCell{color:#676b71;white-space:nowrap}.monoCell{color:#5e6268;font-family:"Courier New",monospace;font-size:8px!important;white-space:nowrap}.successBadge,.warningBadge,.dangerBadge,.neutralBadge,.infoBadge{display:inline-flex;align-items:center;padding:5px 8px;border-radius:999px;font-size:8px;font-weight:800;white-space:nowrap}.successBadge{color:#258150;background:#e9f7ef}.warningBadge{color:#8a6518;background:#fff5dd}.dangerBadge{color:#a43b3b;background:#fff0f0}.neutralBadge{color:#777b80;background:#f0f1f3}.infoBadge{color:#266c9c;background:#e9f4fb}.managementNote{margin:18px 22px 0;padding:13px 15px;background:#f7f8fa;border:1px solid #e8e9eb;border-radius:11px;display:flex;align-items:center;justify-content:space-between;gap:15px}.managementNote strong,.managementNote span{display:block}.managementNote strong{font-size:10px}.managementNote div>span{margin-top:3px;color:#8a8e94;font-size:9px}.securityBadge{color:#258150;background:#e9f7ef;padding:6px 9px;border-radius:999px;font-size:8px!important;font-weight:800;white-space:nowrap}.restaurantMeta strong,.restaurantMeta span{display:block}.restaurantMeta strong{font-size:10px}.restaurantMeta span{margin-top:3px;color:#92959a;font-size:8px;max-width:95px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.addressCell{max-width:190px;color:#676b71;font-size:9px!important;line-height:1.35}.actionGroup{display:flex;gap:6px;align-items:center}
+.restaurantList{padding:18px 22px 24px;display:flex;flex-direction:column;gap:10px;min-width:0}.restaurantCard{display:grid;grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"main status actions" "stats stats stats";align-items:center;column-gap:18px;row-gap:12px;padding:15px 16px;border:1px solid #e7e8ea;border-radius:12px;background:white;min-width:0;overflow:hidden}.restaurantCard:hover{border-color:#d5d7da;box-shadow:0 5px 18px rgba(0,0,0,.035)}.restaurantCardMain{grid-area:main;display:flex;align-items:center;gap:11px;min-width:0}.largeAvatar{width:38px;height:38px;border-radius:10px;flex-shrink:0}.restaurantCardIdentity{min-width:0}.restaurantCardIdentity strong,.restaurantCardIdentity span,.restaurantCardIdentity small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.restaurantCardIdentity strong{font-size:11px}.restaurantCardIdentity span{margin-top:4px;color:#7f8389;font-size:9px}.restaurantCardIdentity small{margin-top:4px;color:#a0a3a8;font-size:8px}.restaurantCardStats{grid-area:stats;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;min-width:0;border-top:1px solid #f0f0f1;padding-top:11px}.restaurantCardStats>div{min-width:0}.restaurantCardStats span,.restaurantCardStats small{display:block;color:#92959a;font-size:8px}.restaurantCardStats strong{display:block;margin-top:4px;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.restaurantCardStats small{margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.restaurantCardStatus{grid-area:status;display:flex;align-items:center;gap:10px}.statusStack{display:flex;flex-direction:column;align-items:flex-start;gap:4px}.statusLabel{color:#92959a;font-size:8px}.restaurantCardActions{grid-area:actions;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}.restaurantRank{width:38px;height:30px;border-radius:8px;background:#f0f1f3;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;flex-shrink:0}.restaurantRank.first{background:#171717;color:white}.leaderboardList .restaurantCard{grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"main stats status"}.leaderboardList .restaurantCardStats{grid-area:stats;grid-template-columns:1fr;border-top:0;padding-top:0}.leaderboardList .restaurantCardStatus{justify-content:flex-end}.leaderboardList{padding-top:8px}.tableAction{border:1px solid #dcdfe3;background:#171717;color:white;border-radius:7px;padding:7px 9px;font-size:8px;font-weight:800;cursor:pointer;white-space:nowrap}.tableAction.secondary{background:white;color:#171717}.tableAction:disabled{opacity:.5;cursor:not-allowed}.emptyState{padding:55px 20px;text-align:center;color:#999;font-size:11px}.footer{padding:20px 38px 28px;display:flex;justify-content:space-between;color:#a0a3a8;font-size:9px}.applicationSummary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:18px 22px;border-bottom:1px solid #ececef;background:#fafafa}.applicationList{padding:18px 22px 24px;display:flex;flex-direction:column;gap:10px}.applicationCard{display:grid;grid-template-columns:minmax(280px,1.7fr) minmax(260px,1fr) auto;align-items:center;gap:20px;padding:16px;border:1px solid #e7e8ea;border-radius:12px;background:white}.applicationCard:hover{border-color:#d5d7da;box-shadow:0 5px 18px rgba(0,0,0,.035)}.applicationIdentity{display:flex;align-items:center;gap:12px;min-width:0}.applicationIdentity>div:last-child{min-width:0}.applicationIdentity strong,.applicationIdentity span,.applicationIdentity small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.applicationIdentity strong{font-size:12px}.applicationIdentity span{margin-top:4px;color:#7f8389;font-size:9px}.applicationIdentity small{margin-top:4px;color:#a0a3a8;font-size:8px}.applicationMeta{display:grid;grid-template-columns:1fr 1fr;gap:15px}.applicationMeta span{display:block;color:#92959a;font-size:8px}.applicationMeta strong{display:block;margin-top:4px;font-size:10px;white-space:nowrap}.modalBackdrop{position:fixed;inset:0;background:rgba(10,11,13,.55);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100}.applicationModal{width:min(720px,100%);max-height:90vh;overflow:auto;background:white;border-radius:18px;box-shadow:0 25px 80px rgba(0,0,0,.25);padding:24px}.modalHeader{display:flex;justify-content:space-between;gap:20px;padding-bottom:18px;border-bottom:1px solid #ececef}.modalHeader h2{margin:7px 0 4px;font-size:22px}.modalHeader p{margin:0;color:#888c92;font-size:10px}.modalClose{width:32px;height:32px;border:1px solid #e2e3e5;background:white;border-radius:9px;font-size:22px;line-height:1;cursor:pointer;color:#555}.applicationDetails{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:20px 0}.detailItem{padding:12px;background:#f7f8fa;border:1px solid #e9eaec;border-radius:10px;min-width:0}.detailItem span{display:block;color:#92959a;font-size:8px;text-transform:uppercase;letter-spacing:.6px;font-weight:800}.detailItem strong{display:block;margin-top:5px;font-size:10px;line-height:1.45;overflow-wrap:anywhere}.existingNote{background:#fff8e8;border:1px solid #f0dfb6;border-radius:10px;padding:12px 13px;margin-bottom:15px}.existingNote strong{font-size:9px}.existingNote p{margin:4px 0 0;color:#777b80;font-size:9px;line-height:1.5}.reviewArea{border-top:1px solid #ececef;padding-top:18px}.reviewArea label{display:block;margin-bottom:7px;color:#5f6369;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px}.reviewArea label span{font-weight:500;text-transform:none;letter-spacing:0;color:#999}.reviewArea textarea{width:100%;resize:vertical;border:1px solid #dedfe2;border-radius:9px;padding:10px 11px;outline:none;font-size:10px;color:#171717}.reviewArea textarea:focus{border-color:#777}.reviewActions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}.approveButton,.rejectButton{border-radius:8px;padding:10px 13px;font-size:9px;font-weight:800;cursor:pointer}.approveButton{border:0;background:#171717;color:white}.rejectButton{border:1px solid #e0c8c8;background:#fff5f5;color:#9d3838}.approveButton:disabled,.rejectButton:disabled{opacity:.5;cursor:not-allowed}.reviewHint{margin:9px 0 0;color:#92959a;font-size:8px;line-height:1.5}.reviewedBanner{padding:12px;background:#f5f6f7;border-radius:10px;color:#777b80;font-size:9px}.reviewedBanner strong{color:#171717}
+@media(max-width:1050px){.sidebar{width:210px}.mainArea{width:calc(100% - 210px);margin-left:210px}.statsGrid,.quickGrid,.miniStats,.paymentSummary{grid-template-columns:repeat(2,1fr)}.dashboardGrid{grid-template-columns:1fr}.restaurantCard{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"main status" "stats actions"}.restaurantCardStats{grid-template-columns:repeat(4,minmax(0,1fr))}.restaurantCardActions{justify-content:flex-end}}
+@media(max-width:760px){.sidebar{position:static;width:100%;min-height:auto}.adminShell{display:block}.mainArea{width:100%;margin-left:0}.navigation{display:grid;grid-template-columns:repeat(2,1fr)}.sidebarBottom{margin-top:20px}.topbar{height:auto;padding:20px;gap:15px;align-items:flex-start}.topActions{flex-direction:column;align-items:flex-end}.content{padding:20px}.welcomeCard{align-items:flex-start;flex-direction:column;gap:20px}.statsGrid,.quickGrid,.miniStats,.paymentSummary{grid-template-columns:1fr}.leaderRow{grid-template-columns:30px 34px minmax(0,1fr) auto}.leaderRow .statusPill{display:none}.searchInput{width:100%}.panelHeader{align-items:flex-start;flex-direction:column}.restaurantList{padding:14px}.restaurantCard,.leaderboardList .restaurantCard{grid-template-columns:1fr;grid-template-areas:"main" "stats" "status" "actions";gap:13px}.restaurantCardStats{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.restaurantCardStatus{justify-content:flex-start}.restaurantCardActions{justify-content:flex-start;flex-wrap:wrap}.restaurantCardActions .tableAction{flex:1;min-width:120px}.footer{padding:20px;flex-direction:column;gap:5px}}
+`;\n<style>/* Phase 2 mobile application fallback */\n@media(max-width:760px){.applicationCard{grid-template-columns:1fr;gap:13px}.applicationMeta{grid-template-columns:1fr 1fr}.applicationSummary{grid-template-columns:1fr}.applicationDetails{grid-template-columns:1fr}.reviewActions{flex-direction:column}.reviewActions button{width:100%}}</style>\n
