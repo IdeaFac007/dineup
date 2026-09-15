@@ -37,9 +37,10 @@ export default function RestaurantLoginPage() {
     setMessage("");
 
     try {
-      /*
-       * 1. AUTHENTICATION
-       */
+      // ==========================================
+      // 1. LOGIN
+      // ==========================================
+
       const { data: authData, error: authError } =
         await supabase.auth.signInWithPassword({
           email: email.trim().toLowerCase(),
@@ -48,6 +49,7 @@ export default function RestaurantLoginPage() {
 
       if (authError) {
         console.error("LOGIN AUTH ERROR:", authError);
+
         showMessage("Invalid email or password.");
         setLoading(false);
         return;
@@ -61,32 +63,34 @@ export default function RestaurantLoginPage() {
         return;
       }
 
-      /*
-       * 2. APPLICATION CHECK
-       */
-      const { data: applications, error: applicationError } =
-        await supabase
-          .from("restaurant_applications")
-          .select(
-            `
-              id,
-              owner_id,
-              restaurant_name,
-              email,
-              phone,
-              city,
-              category,
-              address,
-              status,
-              rejection_reason,
-              reviewed_at,
-              created_at,
-              updated_at
-            `
-          )
-          .eq("owner_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(1);
+      // ==========================================
+      // 2. CHECK RESTAURANT APPLICATION
+      // ==========================================
+
+      const {
+        data: applications,
+        error: applicationError,
+      } = await supabase
+        .from("restaurant_applications")
+        .select(
+          `
+          id,
+          owner_id,
+          restaurant_name,
+          email,
+          phone,
+          city,
+          category,
+          address,
+          status,
+          admin_note,
+          created_at,
+          reviewed_at
+        `
+        )
+        .eq("owner_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
 
       if (applicationError) {
         console.error(
@@ -109,25 +113,30 @@ export default function RestaurantLoginPage() {
           ? applications[0]
           : null;
 
-      /*
-       * 3. REJECTED
-       */
+      // ==========================================
+      // 3. REJECTED APPLICATION
+      // ==========================================
+
       if (application?.status === "rejected") {
         await supabase.auth.signOut();
 
         const reason =
-          application.rejection_reason?.trim() ||
+          application.admin_note?.trim() ||
           "Your restaurant application was not approved.";
 
-        showMessage(`Application rejected: ${reason}`);
+        showMessage(
+          `Application rejected: ${reason}`,
+          "error"
+        );
 
         setLoading(false);
         return;
       }
 
-      /*
-       * 4. PENDING
-       */
+      // ==========================================
+      // 4. PENDING APPLICATION
+      // ==========================================
+
       if (application?.status === "pending") {
         await supabase.auth.signOut();
 
@@ -140,28 +149,31 @@ export default function RestaurantLoginPage() {
         return;
       }
 
-      /*
-       * 5. APPROVED / RESTAURANT LOOKUP
-       */
-      const { data: restaurant, error: restaurantError } =
-        await supabase
-          .from("restaurants")
-          .select(
-            `
-              id,
-              name,
-              city,
-              category,
-              address,
-              current_bid,
-              is_claimed,
-              is_active,
-              owner_id
-            `
-          )
-          .eq("owner_id", user.id)
-          .eq("is_active", true)
-          .maybeSingle();
+      // ==========================================
+      // 5. FIND APPROVED ACTIVE RESTAURANT
+      // ==========================================
+
+      const {
+        data: restaurant,
+        error: restaurantError,
+      } = await supabase
+        .from("restaurants")
+        .select(
+          `
+          id,
+          name,
+          city,
+          category,
+          address,
+          current_bid,
+          is_claimed,
+          is_active,
+          owner_id
+        `
+        )
+        .eq("owner_id", user.id)
+        .eq("is_active", true)
+        .maybeSingle();
 
       if (restaurantError) {
         console.error(
@@ -179,9 +191,10 @@ export default function RestaurantLoginPage() {
         return;
       }
 
-      /*
-       * 6. RESTAURANT NOT FOUND
-       */
+      // ==========================================
+      // 6. RESTAURANT NOT FOUND
+      // ==========================================
+
       if (!restaurant) {
         await supabase.auth.signOut();
 
@@ -206,9 +219,10 @@ export default function RestaurantLoginPage() {
         return;
       }
 
-      /*
-       * 7. SUCCESS
-       */
+      // ==========================================
+      // 7. SUCCESS
+      // ==========================================
+
       showMessage(
         "Login successful. Redirecting...",
         "success"
@@ -217,7 +231,10 @@ export default function RestaurantLoginPage() {
       router.push("/restaurant/dashboard");
       router.refresh();
     } catch (error) {
-      console.error("UNEXPECTED LOGIN ERROR:", error);
+      console.error(
+        "UNEXPECTED LOGIN ERROR:",
+        error
+      );
 
       await supabase.auth.signOut();
 
@@ -282,6 +299,7 @@ export default function RestaurantLoginPage() {
           }}
         >
           {/* LOGO */}
+
           <div style={{ marginBottom: "34px" }}>
             <div
               style={{
@@ -294,6 +312,7 @@ export default function RestaurantLoginPage() {
               <span style={{ color: "#111111" }}>
                 Dine
               </span>
+
               <span style={{ color: "#d97927" }}>
                 Up
               </span>
@@ -313,6 +332,7 @@ export default function RestaurantLoginPage() {
           </div>
 
           {/* HEADING */}
+
           <div style={{ marginBottom: "28px" }}>
             <h1
               style={{
@@ -341,6 +361,7 @@ export default function RestaurantLoginPage() {
           </div>
 
           {/* MESSAGE */}
+
           {message && (
             <div
               style={{
@@ -360,8 +381,10 @@ export default function RestaurantLoginPage() {
           )}
 
           {/* FORM */}
+
           <form onSubmit={handleLogin}>
             {/* EMAIL */}
+
             <div style={{ marginBottom: "20px" }}>
               <label
                 htmlFor="email"
@@ -402,6 +425,7 @@ export default function RestaurantLoginPage() {
             </div>
 
             {/* PASSWORD */}
+
             <div style={{ marginBottom: "26px" }}>
               <div
                 style={{
@@ -460,7 +484,8 @@ export default function RestaurantLoginPage() {
               />
             </div>
 
-            {/* LOGIN BUTTON */}
+            {/* BUTTON */}
+
             <button
               type="submit"
               disabled={loading}
@@ -478,7 +503,6 @@ export default function RestaurantLoginPage() {
                 cursor: loading
                   ? "not-allowed"
                   : "pointer",
-                transition: "all 0.2s ease",
               }}
             >
               {loading
@@ -488,6 +512,7 @@ export default function RestaurantLoginPage() {
           </form>
 
           {/* SIGNUP */}
+
           <div
             style={{
               marginTop: "30px",
@@ -522,6 +547,7 @@ export default function RestaurantLoginPage() {
           </div>
 
           {/* FOOTER */}
+
           <div
             style={{
               marginTop: "30px",
@@ -535,15 +561,12 @@ export default function RestaurantLoginPage() {
         </div>
       </div>
 
-      {/* MOBILE RESPONSIVE */}
+      {/* MOBILE */}
+
       <style jsx>{`
         @media (max-width: 600px) {
           main {
             padding: 20px 12px !important;
-          }
-
-          h1 {
-            font-size: 38px !important;
           }
         }
       `}</style>
