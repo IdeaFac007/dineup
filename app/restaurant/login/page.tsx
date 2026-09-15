@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "../../../lib/supabase/client";
 
 export default function RestaurantLoginPage() {
   const router = useRouter();
@@ -39,7 +39,7 @@ export default function RestaurantLoginPage() {
     try {
       /*
        * STEP 1
-       * Authenticate with Supabase Auth
+       * Login with Supabase Auth
        */
       const { data: authData, error: authError } =
         await supabase.auth.signInWithPassword({
@@ -65,12 +65,10 @@ export default function RestaurantLoginPage() {
 
       /*
        * STEP 2
-       * First check whether this user has an application.
+       * Check restaurant application.
        *
-       * IMPORTANT:
-       * We deliberately do NOT use .single()
-       * because duplicate/old applications should not
-       * break login.
+       * We intentionally use limit(1) instead of single()
+       * so duplicate applications do not break login.
        */
       const {
         data: applications,
@@ -99,7 +97,10 @@ export default function RestaurantLoginPage() {
         .limit(1);
 
       if (applicationError) {
-        console.error("APPLICATION QUERY ERROR:", applicationError);
+        console.error(
+          "APPLICATION QUERY ERROR:",
+          applicationError
+        );
 
         await supabase.auth.signOut();
 
@@ -118,7 +119,7 @@ export default function RestaurantLoginPage() {
 
       /*
        * STEP 3
-       * If application exists, handle its status.
+       * Handle application status.
        */
 
       if (application) {
@@ -132,7 +133,10 @@ export default function RestaurantLoginPage() {
             application.rejection_reason?.trim() ||
             "Your restaurant application was not approved.";
 
-          showMessage(`Application rejected: ${reason}`, "error");
+          showMessage(
+            `Application rejected: ${reason}`,
+            "error"
+          );
 
           setLoading(false);
           return;
@@ -156,19 +160,13 @@ export default function RestaurantLoginPage() {
         /*
          * APPROVED
          *
-         * Continue below and find the actual restaurant.
+         * Continue to restaurant lookup.
          */
-        if (application.status === "approved") {
-          // Continue to restaurant lookup.
-        }
       }
 
       /*
        * STEP 4
-       * Find the approved restaurant belonging to this user.
-       *
-       * We use maybeSingle() instead of single() so a missing
-       * restaurant does not become a hard error.
+       * Find active restaurant owned by this user.
        */
       const {
         data: restaurant,
@@ -193,7 +191,10 @@ export default function RestaurantLoginPage() {
         .maybeSingle();
 
       if (restaurantError) {
-        console.error("RESTAURANT QUERY ERROR:", restaurantError);
+        console.error(
+          "RESTAURANT QUERY ERROR:",
+          restaurantError
+        );
 
         await supabase.auth.signOut();
 
@@ -207,12 +208,7 @@ export default function RestaurantLoginPage() {
 
       /*
        * STEP 5
-       * No restaurant yet.
-       *
-       * If an application exists and is pending, we already
-       * handled it above.
-       *
-       * If no application exists, show a clean message.
+       * No active restaurant found.
        */
       if (!restaurant) {
         await supabase.auth.signOut();
@@ -240,16 +236,20 @@ export default function RestaurantLoginPage() {
 
       /*
        * STEP 6
-       * Everything is good.
-       *
-       * Keep the Supabase session and go to dashboard.
+       * Successful login.
        */
-      showMessage("Login successful. Redirecting...", "success");
+      showMessage(
+        "Login successful. Redirecting...",
+        "success"
+      );
 
       router.push("/restaurant/dashboard");
       router.refresh();
     } catch (error) {
-      console.error("UNEXPECTED LOGIN ERROR:", error);
+      console.error(
+        "UNEXPECTED LOGIN ERROR:",
+        error
+      );
 
       await supabase.auth.signOut();
 
@@ -272,11 +272,16 @@ export default function RestaurantLoginPage() {
     <main className="min-h-screen bg-[#111111] px-4 py-10 sm:px-6">
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-xl items-center justify-center">
         <div className="w-full rounded-[28px] bg-white p-7 shadow-2xl sm:p-10">
+
           {/* BRAND */}
           <div className="mb-8">
             <div className="text-3xl font-black tracking-tight">
-              <span className="text-[#111111]">Dine</span>
-              <span className="text-[#d97927]">Up</span>
+              <span className="text-[#111111]">
+                Dine
+              </span>
+              <span className="text-[#d97927]">
+                Up
+              </span>
             </div>
 
             <div className="mt-1 text-xs font-bold tracking-[0.22em] text-[#111111]">
@@ -305,8 +310,12 @@ export default function RestaurantLoginPage() {
             </div>
           )}
 
-          {/* FORM */}
-          <form onSubmit={handleLogin} className="space-y-5">
+          {/* LOGIN FORM */}
+          <form
+            onSubmit={handleLogin}
+            className="space-y-5"
+          >
+
             {/* EMAIL */}
             <div>
               <label
@@ -320,7 +329,9 @@ export default function RestaurantLoginPage() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) =>
+                  setEmail(e.target.value)
+                }
                 placeholder="restaurant@example.com"
                 autoComplete="email"
                 disabled={loading}
@@ -331,6 +342,7 @@ export default function RestaurantLoginPage() {
             {/* PASSWORD */}
             <div>
               <div className="mb-2 flex items-center justify-between">
+
                 <label
                   htmlFor="password"
                   className="block text-sm font-bold text-[#111111]"
@@ -350,7 +362,9 @@ export default function RestaurantLoginPage() {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) =>
+                  setPassword(e.target.value)
+                }
                 placeholder="Enter your password"
                 autoComplete="current-password"
                 disabled={loading}
@@ -358,13 +372,15 @@ export default function RestaurantLoginPage() {
               />
             </div>
 
-            {/* LOGIN */}
+            {/* LOGIN BUTTON */}
             <button
               type="submit"
               disabled={loading}
               className="w-full rounded-xl bg-[#111111] px-5 py-4 text-sm font-bold text-white transition hover:bg-[#222222] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {loading ? "Checking..." : "Login to dashboard →"}
+              {loading
+                ? "Checking..."
+                : "Login to dashboard →"}
             </button>
           </form>
 
@@ -386,6 +402,7 @@ export default function RestaurantLoginPage() {
           <div className="mt-8 text-center text-xs text-gray-400">
             DineUp · Where Restaurants Rise
           </div>
+
         </div>
       </div>
     </main>
