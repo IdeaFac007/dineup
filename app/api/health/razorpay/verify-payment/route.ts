@@ -2,12 +2,11 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import Razorpay from "razorpay";
 import { createClient } from "../../../../../lib/supabase/server";
-import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 
 export async function POST(request: Request) {
   try {
     // --------------------------------------------------
-    // 1. Verify logged-in user
+    // 1. Verify logged-in restaurant user
     // --------------------------------------------------
     const supabase = await createClient();
 
@@ -18,7 +17,9 @@ export async function POST(request: Request) {
 
     if (userError || !user) {
       return NextResponse.json(
-        { error: "You must be logged in." },
+        {
+          error: "You must be logged in.",
+        },
         { status: 401 }
       );
     }
@@ -51,7 +52,8 @@ export async function POST(request: Request) {
     ) {
       return NextResponse.json(
         {
-          error: "Missing payment verification details.",
+          error:
+            "Missing payment verification details.",
         },
         { status: 400 }
       );
@@ -66,7 +68,14 @@ export async function POST(request: Request) {
     const razorpayKeySecret =
       process.env.RAZORPAY_KEY_SECRET;
 
-    if (!razorpayKeyId || !razorpayKeySecret) {
+    if (
+      !razorpayKeyId ||
+      !razorpayKeySecret
+    ) {
+      console.error(
+        "Razorpay environment variables are missing."
+      );
+
       return NextResponse.json(
         {
           error:
@@ -77,133 +86,53 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 4. Supabase server credentials
+    // 4. Get bid using authenticated user session
+    //
+    // IMPORTANT:
+    // Do NOT use the admin/secret client here.
+    // The confirmation RPC uses auth.uid().
     // --------------------------------------------------
-    const supabaseUrl =
-      process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const {
+      data: bid,
+      error: bidError,
+    } = await supabase
+      .from("bids")
+      .select(
+        `
+        id,
+        restaurant_id,
+        amount,
+        status,
+        payment_status,
+        razorpay_order_id,
+        razorpay_payment_id
+        `
+      )
+      .eq("id", bidId)
+      .maybeSingle();
 
-    const supabaseSecretKey =
-      process.env.SUPABASE_SECRET_KEY;
-
-    if (!supabaseUrl || !supabaseSecretKey) {
+    if (bidError || !bid) {
       console.error(
-        "Supabase secret configuration missing."
+        "Bid lookup error:",
+        bidError
       );
 
       return NextResponse.json(
         {
-          error:
-            "Server database configuration is incomplete.",
-        },
-        { status: 500 }
-      );
-    }
-
-    // --------------------------------------------------
-    // 5. Create server-only Supabase client
-    // --------------------------------------------------
-    const supabaseAdmin =
-      createSupabaseAdmin(
-        supabaseUrl,
-        supabaseSecretKey,
-        {
-          auth: {
-            autoRefreshToken: false,
-            persistSession: false,
-          },
-        }
-      );
-
-    // --------------------------------------------------
-    // 6. Find bid
-    //
-    // First try bidId.
-    // If that fails, find it by Razorpay order ID.
-    // --------------------------------------------------
-    let bid: any = null;
-
-    const { data: bidById, error: bidByIdError } =
-      await supabaseAdmin
-        .from("bids")
-        .select(
-          `
-          id,
-          restaurant_id,
-          amount,
-          status,
-          payment_status,
-          razorpay_order_id,
-          razorpay_payment_id
-          `
-        )
-        .eq("id", bidId)
-        .maybeSingle();
-
-    if (bidById) {
-      bid = bidById;
-    } else {
-      console.warn(
-        "Bid ID lookup failed. Trying Razorpay order ID.",
-        {
+          error: "Bid not found.",
           bidId,
-          razorpayOrderId,
-          error: bidByIdError,
-        }
+        },
+        { status: 404 }
       );
-
-      const {
-        data: bidByOrder,
-        error: bidByOrderError,
-      } = await supabaseAdmin
-        .from("bids")
-        .select(
-          `
-          id,
-          restaurant_id,
-          amount,
-          status,
-          payment_status,
-          razorpay_order_id,
-          razorpay_payment_id
-          `
-        )
-        .eq(
-          "razorpay_order_id",
-          razorpayOrderId
-        )
-        .maybeSingle();
-
-      if (bidByOrderError || !bidByOrder) {
-        console.error(
-          "Bid lookup failed completely:",
-          {
-            bidId,
-            razorpayOrderId,
-            bidByIdError,
-            bidByOrderError,
-          }
-        );
-
-        return NextResponse.json(
-          {
-            error: "Bid not found.",
-            bidId,
-            razorpayOrderId,
-          },
-          { status: 404 }
-        );
-      }
-
-      bid = bidByOrder;
     }
 
     // --------------------------------------------------
-    // 7. Get restaurant
+    // 5. Get restaurant using authenticated session
     // --------------------------------------------------
     const {
       data: restaurant,
       error: restaurantError,
-    } = await supabaseAdmin
+    } = await supabase
       .from("restaurants")
       .select(
         "id, name, owner_id, is_active"
@@ -211,7 +140,10 @@ export async function POST(request: Request) {
       .eq("id", bid.restaurant_id)
       .maybeSingle();
 
-    if (restaurantError || !restaurant) {
+    if (
+      restaurantError ||
+      !restaurant
+    ) {
       console.error(
         "Restaurant lookup error:",
         restaurantError
@@ -226,13 +158,16 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 8. Verify ownership
+    // 6. Verify ownership
     // --------------------------------------------------
-    if (restaurant.owner_id !== user.id) {
+    if (
+      restaurant.owner_id !== user.id
+    ) {
       console.error(
         "Owner mismatch:",
         {
-          restaurantOwner: restaurant.owner_id,
+          restaurantOwner:
+            restaurant.owner_id,
           loggedInUser: user.id,
         }
       );
@@ -247,19 +182,20 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 9. Restaurant must be active
+    // 7. Restaurant must be active
     // --------------------------------------------------
     if (!restaurant.is_active) {
       return NextResponse.json(
         {
-          error: "Restaurant is inactive.",
+          error:
+            "Restaurant is inactive.",
         },
         { status: 403 }
       );
     }
 
     // --------------------------------------------------
-    // 10. Razorpay order must match database
+    // 8. Verify Razorpay order ID
     // --------------------------------------------------
     if (
       bid.razorpay_order_id !==
@@ -285,7 +221,7 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 11. Verify Razorpay signature
+    // 9. Verify Razorpay signature
     // --------------------------------------------------
     const generatedSignature =
       crypto
@@ -332,7 +268,7 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 12. Verify payment directly with Razorpay
+    // 10. Verify payment directly with Razorpay
     // --------------------------------------------------
     const razorpay =
       new Razorpay({
@@ -356,7 +292,7 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 13. Payment must belong to this order
+    // 11. Payment must belong to this order
     // --------------------------------------------------
     if (
       payment.order_id !==
@@ -382,9 +318,12 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 14. Payment must be captured
+    // 12. Payment must be captured
     // --------------------------------------------------
-    if (payment.status !== "captured") {
+    if (
+      payment.status !==
+      "captured"
+    ) {
       return NextResponse.json(
         {
           error:
@@ -395,7 +334,7 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 15. Verify payment amount
+    // 13. Verify payment amount
     // --------------------------------------------------
     const expectedAmountPaise =
       Math.round(
@@ -425,7 +364,7 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 16. Duplicate payment protection
+    // 14. Duplicate payment protection
     // --------------------------------------------------
     if (
       bid.payment_status ===
@@ -442,13 +381,18 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 17. Confirm bid through server-only RPC
+    // 15. Confirm bid
+    //
+    // IMPORTANT:
+    // Use authenticated client so auth.uid()
+    // inside confirm_paid_bid() is the real
+    // restaurant owner's user ID.
     // --------------------------------------------------
     const {
       data: confirmedBid,
       error: confirmError,
     } =
-      await supabaseAdmin.rpc(
+      await supabase.rpc(
         "confirm_paid_bid",
         {
           p_bid_id: bid.id,
@@ -484,7 +428,7 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 18. Success
+    // 16. Success
     // --------------------------------------------------
     return NextResponse.json({
       success: true,
