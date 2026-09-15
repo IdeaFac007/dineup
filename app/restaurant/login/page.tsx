@@ -38,8 +38,7 @@ export default function RestaurantLoginPage() {
 
     try {
       /*
-       * STEP 1
-       * Login with Supabase Auth
+       * 1. AUTHENTICATION
        */
       const { data: authData, error: authError } =
         await supabase.auth.signInWithPassword({
@@ -49,7 +48,6 @@ export default function RestaurantLoginPage() {
 
       if (authError) {
         console.error("LOGIN AUTH ERROR:", authError);
-
         showMessage("Invalid email or password.");
         setLoading(false);
         return;
@@ -58,43 +56,37 @@ export default function RestaurantLoginPage() {
       const user = authData.user;
 
       if (!user) {
-        showMessage("Unable to create login session. Please try again.");
+        showMessage("Unable to create login session.");
         setLoading(false);
         return;
       }
 
       /*
-       * STEP 2
-       * Check restaurant application.
-       *
-       * We intentionally use limit(1) instead of single()
-       * so duplicate applications do not break login.
+       * 2. APPLICATION CHECK
        */
-      const {
-        data: applications,
-        error: applicationError,
-      } = await supabase
-        .from("restaurant_applications")
-        .select(
-          `
-          id,
-          owner_id,
-          restaurant_name,
-          email,
-          phone,
-          city,
-          category,
-          address,
-          status,
-          rejection_reason,
-          reviewed_at,
-          created_at,
-          updated_at
-        `
-        )
-        .eq("owner_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1);
+      const { data: applications, error: applicationError } =
+        await supabase
+          .from("restaurant_applications")
+          .select(
+            `
+              id,
+              owner_id,
+              restaurant_name,
+              email,
+              phone,
+              city,
+              category,
+              address,
+              status,
+              rejection_reason,
+              reviewed_at,
+              created_at,
+              updated_at
+            `
+          )
+          .eq("owner_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1);
 
       if (applicationError) {
         console.error(
@@ -118,77 +110,58 @@ export default function RestaurantLoginPage() {
           : null;
 
       /*
-       * STEP 3
-       * Handle application status.
+       * 3. REJECTED
        */
+      if (application?.status === "rejected") {
+        await supabase.auth.signOut();
 
-      if (application) {
-        /*
-         * REJECTED
-         */
-        if (application.status === "rejected") {
-          await supabase.auth.signOut();
+        const reason =
+          application.rejection_reason?.trim() ||
+          "Your restaurant application was not approved.";
 
-          const reason =
-            application.rejection_reason?.trim() ||
-            "Your restaurant application was not approved.";
+        showMessage(`Application rejected: ${reason}`);
 
-          showMessage(
-            `Application rejected: ${reason}`,
-            "error"
-          );
-
-          setLoading(false);
-          return;
-        }
-
-        /*
-         * PENDING
-         */
-        if (application.status === "pending") {
-          await supabase.auth.signOut();
-
-          showMessage(
-            "Your restaurant application is still pending approval.",
-            "info"
-          );
-
-          setLoading(false);
-          return;
-        }
-
-        /*
-         * APPROVED
-         *
-         * Continue to restaurant lookup.
-         */
+        setLoading(false);
+        return;
       }
 
       /*
-       * STEP 4
-       * Find active restaurant owned by this user.
+       * 4. PENDING
        */
-      const {
-        data: restaurant,
-        error: restaurantError,
-      } = await supabase
-        .from("restaurants")
-        .select(
-          `
-          id,
-          name,
-          city,
-          category,
-          address,
-          current_bid,
-          is_claimed,
-          is_active,
-          owner_id
-        `
-        )
-        .eq("owner_id", user.id)
-        .eq("is_active", true)
-        .maybeSingle();
+      if (application?.status === "pending") {
+        await supabase.auth.signOut();
+
+        showMessage(
+          "Your restaurant application is still pending approval.",
+          "info"
+        );
+
+        setLoading(false);
+        return;
+      }
+
+      /*
+       * 5. APPROVED / RESTAURANT LOOKUP
+       */
+      const { data: restaurant, error: restaurantError } =
+        await supabase
+          .from("restaurants")
+          .select(
+            `
+              id,
+              name,
+              city,
+              category,
+              address,
+              current_bid,
+              is_claimed,
+              is_active,
+              owner_id
+            `
+          )
+          .eq("owner_id", user.id)
+          .eq("is_active", true)
+          .maybeSingle();
 
       if (restaurantError) {
         console.error(
@@ -207,8 +180,7 @@ export default function RestaurantLoginPage() {
       }
 
       /*
-       * STEP 5
-       * No active restaurant found.
+       * 6. RESTAURANT NOT FOUND
        */
       if (!restaurant) {
         await supabase.auth.signOut();
@@ -235,8 +207,7 @@ export default function RestaurantLoginPage() {
       }
 
       /*
-       * STEP 6
-       * Successful login.
+       * 7. SUCCESS
        */
       showMessage(
         "Login successful. Redirecting...",
@@ -246,10 +217,7 @@ export default function RestaurantLoginPage() {
       router.push("/restaurant/dashboard");
       router.refresh();
     } catch (error) {
-      console.error(
-        "UNEXPECTED LOGIN ERROR:",
-        error
-      );
+      console.error("UNEXPECTED LOGIN ERROR:", error);
 
       await supabase.auth.signOut();
 
@@ -261,41 +229,112 @@ export default function RestaurantLoginPage() {
     }
   }
 
-  const messageClass =
+  const messageBackground =
     messageType === "success"
-      ? "border-green-200 bg-green-50 text-green-700"
+      ? "#ecfdf5"
       : messageType === "info"
-      ? "border-blue-200 bg-blue-50 text-blue-700"
-      : "border-red-200 bg-red-50 text-red-700";
+      ? "#eff6ff"
+      : "#fef2f2";
+
+  const messageBorder =
+    messageType === "success"
+      ? "#bbf7d0"
+      : messageType === "info"
+      ? "#bfdbfe"
+      : "#fecaca";
+
+  const messageColor =
+    messageType === "success"
+      ? "#15803d"
+      : messageType === "info"
+      ? "#1d4ed8"
+      : "#dc2626";
 
   return (
-    <main className="min-h-screen bg-[#111111] px-4 py-10 sm:px-6">
-      <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-xl items-center justify-center">
-        <div className="w-full rounded-[28px] bg-white p-7 shadow-2xl sm:p-10">
-
-          {/* BRAND */}
-          <div className="mb-8">
-            <div className="text-3xl font-black tracking-tight">
-              <span className="text-[#111111]">
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "#111111",
+        padding: "40px 16px",
+        boxSizing: "border-box",
+        fontFamily:
+          "Inter, Arial, Helvetica, sans-serif",
+      }}
+    >
+      <div
+        style={{
+          minHeight: "calc(100vh - 80px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            maxWidth: "560px",
+            background: "#ffffff",
+            borderRadius: "28px",
+            padding: "42px",
+            boxSizing: "border-box",
+            boxShadow:
+              "0 25px 70px rgba(0,0,0,0.35)",
+          }}
+        >
+          {/* LOGO */}
+          <div style={{ marginBottom: "34px" }}>
+            <div
+              style={{
+                fontSize: "32px",
+                fontWeight: 900,
+                letterSpacing: "-1.5px",
+                lineHeight: 1,
+              }}
+            >
+              <span style={{ color: "#111111" }}>
                 Dine
               </span>
-              <span className="text-[#d97927]">
+              <span style={{ color: "#d97927" }}>
                 Up
               </span>
             </div>
 
-            <div className="mt-1 text-xs font-bold tracking-[0.22em] text-[#111111]">
+            <div
+              style={{
+                marginTop: "9px",
+                fontSize: "11px",
+                fontWeight: 800,
+                letterSpacing: "3px",
+                color: "#111111",
+              }}
+            >
               RESTAURANT PARTNER
             </div>
           </div>
 
           {/* HEADING */}
-          <div className="mb-7">
-            <h1 className="text-4xl font-black tracking-tight text-[#111111] sm:text-5xl">
+          <div style={{ marginBottom: "28px" }}>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: "48px",
+                lineHeight: 1.05,
+                fontWeight: 900,
+                letterSpacing: "-2px",
+                color: "#111111",
+              }}
+            >
               Welcome back.
             </h1>
 
-            <p className="mt-3 max-w-md text-sm leading-6 text-gray-500 sm:text-base">
+            <p
+              style={{
+                margin: "14px 0 0",
+                fontSize: "16px",
+                lineHeight: 1.6,
+                color: "#6b7280",
+              }}
+            >
               Login to manage your restaurant visibility,
               campaign and leaderboard position.
             </p>
@@ -304,23 +343,35 @@ export default function RestaurantLoginPage() {
           {/* MESSAGE */}
           {message && (
             <div
-              className={`mb-6 rounded-xl border px-4 py-3 text-sm font-medium ${messageClass}`}
+              style={{
+                marginBottom: "22px",
+                padding: "14px 16px",
+                borderRadius: "12px",
+                border: `1px solid ${messageBorder}`,
+                background: messageBackground,
+                color: messageColor,
+                fontSize: "14px",
+                lineHeight: 1.5,
+                fontWeight: 600,
+              }}
             >
               {message}
             </div>
           )}
 
-          {/* LOGIN FORM */}
-          <form
-            onSubmit={handleLogin}
-            className="space-y-5"
-          >
-
+          {/* FORM */}
+          <form onSubmit={handleLogin}>
             {/* EMAIL */}
-            <div>
+            <div style={{ marginBottom: "20px" }}>
               <label
                 htmlFor="email"
-                className="mb-2 block text-sm font-bold text-[#111111]"
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontSize: "14px",
+                  fontWeight: 800,
+                  color: "#111111",
+                }}
               >
                 Email
               </label>
@@ -335,24 +386,50 @@ export default function RestaurantLoginPage() {
                 placeholder="restaurant@example.com"
                 autoComplete="email"
                 disabled={loading}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm text-[#111111] outline-none transition placeholder:text-gray-400 focus:border-[#d97927] focus:ring-2 focus:ring-[#d97927]/10 disabled:bg-gray-100"
+                style={{
+                  width: "100%",
+                  height: "54px",
+                  padding: "0 16px",
+                  boxSizing: "border-box",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "12px",
+                  background: "#ffffff",
+                  color: "#111111",
+                  fontSize: "15px",
+                  outline: "none",
+                }}
               />
             </div>
 
             {/* PASSWORD */}
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-
+            <div style={{ marginBottom: "26px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: "8px",
+                }}
+              >
                 <label
                   htmlFor="password"
-                  className="block text-sm font-bold text-[#111111]"
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: 800,
+                    color: "#111111",
+                  }}
                 >
                   Password
                 </label>
 
                 <Link
                   href="/restaurant/forgot-password"
-                  className="text-sm font-semibold text-[#d97927] hover:underline"
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    color: "#d97927",
+                    textDecoration: "none",
+                  }}
                 >
                   Forgot password?
                 </Link>
@@ -368,7 +445,18 @@ export default function RestaurantLoginPage() {
                 placeholder="Enter your password"
                 autoComplete="current-password"
                 disabled={loading}
-                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm text-[#111111] outline-none transition placeholder:text-gray-400 focus:border-[#d97927] focus:ring-2 focus:ring-[#d97927]/10 disabled:bg-gray-100"
+                style={{
+                  width: "100%",
+                  height: "54px",
+                  padding: "0 16px",
+                  boxSizing: "border-box",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "12px",
+                  background: "#ffffff",
+                  color: "#111111",
+                  fontSize: "15px",
+                  outline: "none",
+                }}
               />
             </div>
 
@@ -376,7 +464,22 @@ export default function RestaurantLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-[#111111] px-5 py-4 text-sm font-bold text-white transition hover:bg-[#222222] disabled:cursor-not-allowed disabled:opacity-60"
+              style={{
+                width: "100%",
+                height: "56px",
+                border: "none",
+                borderRadius: "12px",
+                background: loading
+                  ? "#444444"
+                  : "#111111",
+                color: "#ffffff",
+                fontSize: "15px",
+                fontWeight: 800,
+                cursor: loading
+                  ? "not-allowed"
+                  : "pointer",
+                transition: "all 0.2s ease",
+              }}
             >
               {loading
                 ? "Checking..."
@@ -385,26 +488,65 @@ export default function RestaurantLoginPage() {
           </form>
 
           {/* SIGNUP */}
-          <div className="mt-8 border-t border-gray-100 pt-7 text-center">
-            <p className="text-sm text-gray-500">
+          <div
+            style={{
+              marginTop: "30px",
+              paddingTop: "26px",
+              borderTop: "1px solid #eeeeee",
+              textAlign: "center",
+            }}
+          >
+            <p
+              style={{
+                margin: 0,
+                fontSize: "14px",
+                color: "#6b7280",
+              }}
+            >
               Don&apos;t have a restaurant account?
             </p>
 
             <Link
               href="/restaurant/signup"
-              className="mt-2 inline-block text-sm font-bold text-[#d97927] hover:underline"
+              style={{
+                display: "inline-block",
+                marginTop: "9px",
+                fontSize: "14px",
+                fontWeight: 800,
+                color: "#d97927",
+                textDecoration: "none",
+              }}
             >
               Register your restaurant →
             </Link>
           </div>
 
           {/* FOOTER */}
-          <div className="mt-8 text-center text-xs text-gray-400">
+          <div
+            style={{
+              marginTop: "30px",
+              textAlign: "center",
+              fontSize: "12px",
+              color: "#9ca3af",
+            }}
+          >
             DineUp · Where Restaurants Rise
           </div>
-
         </div>
       </div>
+
+      {/* MOBILE RESPONSIVE */}
+      <style jsx>{`
+        @media (max-width: 600px) {
+          main {
+            padding: 20px 12px !important;
+          }
+
+          h1 {
+            font-size: 38px !important;
+          }
+        }
+      `}</style>
     </main>
   );
 }
