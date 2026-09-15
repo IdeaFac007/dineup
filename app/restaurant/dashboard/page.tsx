@@ -49,6 +49,28 @@ export default function RestaurantDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [message, setMessage] = useState("");
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileMessage, setProfileMessage] = useState("");
+  const [profileForm, setProfileForm] = useState({
+    phone: "",
+    whatsapp: "",
+    website_url: "",
+    description: "",
+    price_range: "",
+    menu_url: "",
+    cover_image_url: "",
+    logo_image_url: "",
+    opening_hours: {
+      monday: "10:00 AM - 10:00 PM",
+      tuesday: "10:00 AM - 10:00 PM",
+      wednesday: "10:00 AM - 10:00 PM",
+      thursday: "10:00 AM - 10:00 PM",
+      friday: "10:00 AM - 10:00 PM",
+      saturday: "10:00 AM - 10:00 PM",
+      sunday: "10:00 AM - 10:00 PM",
+    } as Record<string, string>,
+  });
 
   const currentBid = restaurant?.current_bid || 0;
 
@@ -138,6 +160,48 @@ export default function RestaurantDashboard() {
         };
 
         setRestaurant(restaurantData);
+
+        // ---------------------------------------------
+        // 2b. Load editable restaurant profile
+        // ---------------------------------------------
+        const { data: profileData, error: profileError } =
+          await supabase
+            .from("restaurant_profiles")
+            .select(
+              "phone, whatsapp, website_url, description, price_range, menu_url, cover_image_url, logo_image_url, opening_hours"
+            )
+            .eq("restaurant_id", restaurantData.id)
+            .maybeSingle();
+
+        if (profileError) {
+          throw profileError;
+        }
+
+        if (profileData) {
+          setProfileForm({
+            phone: profileData.phone || "",
+            whatsapp: profileData.whatsapp || "",
+            website_url: profileData.website_url || "",
+            description: profileData.description || "",
+            price_range: profileData.price_range || "",
+            menu_url: profileData.menu_url || "",
+            cover_image_url: profileData.cover_image_url || "",
+            logo_image_url: profileData.logo_image_url || "",
+            opening_hours:
+              profileData.opening_hours &&
+              typeof profileData.opening_hours === "object"
+                ? profileData.opening_hours
+                : {
+                    monday: "10:00 AM - 10:00 PM",
+                    tuesday: "10:00 AM - 10:00 PM",
+                    wednesday: "10:00 AM - 10:00 PM",
+                    thursday: "10:00 AM - 10:00 PM",
+                    friday: "10:00 AM - 10:00 PM",
+                    saturday: "10:00 AM - 10:00 PM",
+                    sunday: "10:00 AM - 10:00 PM",
+                  },
+          });
+        }
 
         // ---------------------------------------------
         // 3. Load city leaderboard
@@ -715,9 +779,29 @@ export default function RestaurantDashboard() {
                 Restaurant profile
               </div>
 
-              <span className="status">
-                LIVE
-              </span>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <span className="status">LIVE</span>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => {
+                    setProfileMessage("");
+                    setProfileOpen(true);
+                  }}
+                  style={{
+                    padding: "8px 12px",
+                    fontSize: 12,
+                  }}
+                >
+                  Edit profile
+                </button>
+              </div>
             </div>
 
             <div
@@ -829,8 +913,257 @@ export default function RestaurantDashboard() {
                 Promote restaurant
               </Link>
             </div>
+
+            <div
+              style={{
+                marginTop: 16,
+                padding: 14,
+                borderRadius: 12,
+                background: "#f7f7f7",
+                border: "1px solid #e5e5e5",
+              }}
+            >
+              <strong style={{ fontSize: 13 }}>
+                Keep your profile complete
+              </strong>
+              <p
+                className="muted"
+                style={{
+                  marginTop: 5,
+                  marginBottom: 0,
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                }}
+              >
+                Add your contact details, menu and description so customers
+                can learn more before visiting.
+              </p>
+            </div>
           </section>
         </div>
+
+        {profileOpen && (
+          <div
+            className="profile-modal-backdrop"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget && !profileSaving) {
+                setProfileOpen(false);
+              }
+            }}
+          >
+            <div className="profile-modal">
+              <div className="profile-modal-header">
+                <div>
+                  <small className="muted">Restaurant partner</small>
+                  <h2>Edit restaurant profile</h2>
+                  <p className="muted">
+                    Update the information customers see on your DineUp listing.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="modal-close"
+                  onClick={() => !profileSaving && setProfileOpen(false)}
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="profile-form-grid">
+                <label>
+                  <span>Phone</span>
+                  <input
+                    value={profileForm.phone}
+                    onChange={(e) =>
+                      setProfileForm((p) => ({ ...p, phone: e.target.value }))
+                    }
+                    placeholder="Restaurant phone"
+                  />
+                </label>
+
+                <label>
+                  <span>WhatsApp</span>
+                  <input
+                    value={profileForm.whatsapp}
+                    onChange={(e) =>
+                      setProfileForm((p) => ({
+                        ...p,
+                        whatsapp: e.target.value,
+                      }))
+                    }
+                    placeholder="WhatsApp number"
+                  />
+                </label>
+
+                <label>
+                  <span>Website</span>
+                  <input
+                    value={profileForm.website_url}
+                    onChange={(e) =>
+                      setProfileForm((p) => ({
+                        ...p,
+                        website_url: e.target.value,
+                      }))
+                    }
+                    placeholder="https://example.com"
+                  />
+                </label>
+
+                <label>
+                  <span>Menu URL</span>
+                  <input
+                    value={profileForm.menu_url}
+                    onChange={(e) =>
+                      setProfileForm((p) => ({
+                        ...p,
+                        menu_url: e.target.value,
+                      }))
+                    }
+                    placeholder="Link to your menu"
+                  />
+                </label>
+
+                <label>
+                  <span>Price range</span>
+                  <select
+                    value={profileForm.price_range}
+                    onChange={(e) =>
+                      setProfileForm((p) => ({
+                        ...p,
+                        price_range: e.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">Select</option>
+                    <option value="₹">₹ — Budget</option>
+                    <option value="₹₹">₹₹ — Moderate</option>
+                    <option value="₹₹₹">₹₹₹ — Premium</option>
+                    <option value="₹₹₹₹">₹₹₹₹ — Luxury</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Logo image URL</span>
+                  <input
+                    value={profileForm.logo_image_url}
+                    onChange={(e) =>
+                      setProfileForm((p) => ({
+                        ...p,
+                        logo_image_url: e.target.value,
+                      }))
+                    }
+                    placeholder="Public image URL"
+                  />
+                </label>
+
+                <label>
+                  <span>Cover image URL</span>
+                  <input
+                    value={profileForm.cover_image_url}
+                    onChange={(e) =>
+                      setProfileForm((p) => ({
+                        ...p,
+                        cover_image_url: e.target.value,
+                      }))
+                    }
+                    placeholder="Public image URL"
+                  />
+                </label>
+
+                <label className="profile-full-field">
+                  <span>Description</span>
+                  <textarea
+                    value={profileForm.description}
+                    onChange={(e) =>
+                      setProfileForm((p) => ({
+                        ...p,
+                        description: e.target.value,
+                      }))
+                    }
+                    placeholder="Tell customers what makes your restaurant special..."
+                    rows={4}
+                    maxLength={500}
+                  />
+                  <small className="muted">
+                    {profileForm.description.length}/500
+                  </small>
+                </label>
+              </div>
+
+              <div className="hours-editor">
+                <div className="hours-editor-title">
+                  <div>
+                    <strong>Opening hours</strong>
+                    <p className="muted">
+                      Set the hours customers should see on your listing.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="hours-grid">
+                  {[
+                    ["monday", "Monday"],
+                    ["tuesday", "Tuesday"],
+                    ["wednesday", "Wednesday"],
+                    ["thursday", "Thursday"],
+                    ["friday", "Friday"],
+                    ["saturday", "Saturday"],
+                    ["sunday", "Sunday"],
+                  ].map(([key, label]) => (
+                    <label key={key}>
+                      <span>{label}</span>
+                      <input
+                        value={profileForm.opening_hours[key] || ""}
+                        onChange={(e) =>
+                          setProfileForm((p) => ({
+                            ...p,
+                            opening_hours: {
+                              ...p.opening_hours,
+                              [key]: e.target.value,
+                            },
+                          }))
+                        }
+                        placeholder="10:00 AM - 10:00 PM"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {profileMessage && (
+                <div
+                  className={
+                    profileMessage.includes("successfully")
+                      ? "profile-message success"
+                      : "profile-message error"
+                  }
+                >
+                  {profileMessage}
+                </div>
+              )}
+
+              <div className="profile-modal-actions">
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  disabled={profileSaving}
+                  onClick={() => setProfileOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="primary-btn"
+                  disabled={profileSaving}
+                  onClick={saveProfile}
+                >
+                  {profileSaving ? "Saving..." : "Save profile"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ==================================================
             BID HISTORY
@@ -1206,7 +1539,28 @@ export default function RestaurantDashboard() {
             }}
           >
             <Link
-              href={`/restaurant/bid?id=${restaurant.id}`}
+              href={`/restaurant/bid?id=${restaurant.id}
+.profile-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.48);display:flex;align-items:center;justify-content:center;padding:20px;z-index:1000}
+.profile-modal{width:min(760px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:20px;padding:26px;box-shadow:0 25px 80px rgba(0,0,0,.22)}
+.profile-modal-header{display:flex;justify-content:space-between;gap:20px;margin-bottom:24px}
+.profile-modal-header h2{margin:5px 0 5px;font-size:24px}
+.modal-close{border:0;background:#f3f3f3;width:36px;height:36px;border-radius:10px;font-size:22px;cursor:pointer}
+.profile-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.profile-form-grid label,.hours-grid label{display:grid;gap:7px}
+.profile-form-grid label>span,.hours-grid label>span{font-size:12px;font-weight:700;color:#555}
+.profile-form-grid input,.profile-form-grid select,.profile-form-grid textarea,.hours-grid input{width:100%;border:1px solid #ddd;border-radius:10px;padding:11px 12px;font:inherit;background:#fff;box-sizing:border-box}
+.profile-form-grid textarea{resize:vertical}
+.profile-full-field{grid-column:1/-1}
+.hours-editor{margin-top:22px;padding-top:20px;border-top:1px solid #eee}
+.hours-editor-title{margin-bottom:14px}
+.hours-editor-title p{margin:4px 0 0;font-size:12px}
+.hours-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.hours-grid input{font-size:13px}
+.profile-message{margin-top:18px;padding:11px 13px;border-radius:10px;font-size:13px;font-weight:600}
+.profile-message.success{background:#edf9f1;border:1px solid #ccebd6}
+.profile-message.error{background:#fff1f1;border:1px solid #f0caca}
+.profile-modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;padding-top:18px;border-top:1px solid #eee}
+`}
               className="primary-btn"
               style={{
                 textAlign: "center",
