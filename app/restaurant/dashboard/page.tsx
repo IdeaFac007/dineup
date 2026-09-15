@@ -359,6 +359,47 @@ export default function RestaurantDashboard() {
     };
   }, [loadDashboard]);
 
+  async function saveProfile() {
+    if (!restaurant) return;
+
+    setProfileSaving(true);
+    setProfileMessage("");
+
+    try {
+      const payload = {
+        restaurant_id: restaurant.id,
+        phone: profileForm.phone.trim() || null,
+        whatsapp: profileForm.whatsapp.trim() || null,
+        website_url: profileForm.website_url.trim() || null,
+        description: profileForm.description.trim() || null,
+        price_range: profileForm.price_range || null,
+        menu_url: profileForm.menu_url.trim() || null,
+        cover_image_url: profileForm.cover_image_url.trim() || null,
+        logo_image_url: profileForm.logo_image_url.trim() || null,
+        opening_hours: profileForm.opening_hours,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase
+        .from("restaurant_profiles")
+        .upsert(payload, { onConflict: "restaurant_id" });
+
+      if (error) throw error;
+
+      setProfileMessage("Profile saved successfully.");
+      setProfileOpen(false);
+      await loadDashboard(true);
+    } catch (error: unknown) {
+      setProfileMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to save profile right now."
+      );
+    } finally {
+      setProfileSaving(false);
+    }
+  }
+
   async function handleLogout() {
     setLoggingOut(true);
     setMessage("");
