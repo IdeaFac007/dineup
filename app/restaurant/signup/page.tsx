@@ -30,7 +30,19 @@ export default function RestaurantSignupPage() {
     if(password!==confirmPassword){setMessage("Passwords do not match.");return;}
     setLoading(true);
     try {
-      const {data,error}=await supabase.auth.signUp({email:mail,password});
+      const {data,error}=await supabase.auth.signUp({
+        email:mail,
+        password,
+        options:{
+          data:{
+            restaurant_name:name,
+            phone:phone.trim()||null,
+            city:cleanCity,
+            category,
+            address:cleanAddress
+          }
+        }
+      });
       if(error){setMessage(error.message);return;}
       if(!data.user){setMessage("Unable to create your account. Please try again.");return;}
       if(!data.session){
@@ -38,13 +50,13 @@ export default function RestaurantSignupPage() {
         setMessage("Account created. Please verify your email, then sign in to complete your restaurant application.");
         return;
       }
-      const {error:appError}=await supabase.from("restaurant_applications").insert({
-        owner_id:data.user.id,email:mail,restaurant_name:name,phone:phone.trim()||null,city:cleanCity,category,address:cleanAddress,status:"pending"
-      });
-      if(appError){setMessage(`Account created, but application submission failed: ${appError.message}`);return;}
       setSuccess(true);
-      setMessage("Application submitted successfully. Your restaurant is now pending admin approval.");
-      setTimeout(()=>router.push("/restaurant/login"),1800);
+      setMessage(
+        data.session
+          ? "Application submitted successfully. Your restaurant is now pending admin approval."
+          : "Account created successfully. Please verify your email. Your restaurant application will be submitted automatically and reviewed by the DineUp admin team."
+      );
+      setTimeout(()=>router.push("/restaurant/login"),2200);
     } catch(err) { console.error(err); setMessage("Something went wrong. Please try again."); }
     finally { setLoading(false); }
   }
