@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 
-export default function RestaurantLogin() {
+export default function RestaurantLoginPage() {
   const router = useRouter();
   const supabase = createClient();
 
@@ -17,156 +17,372 @@ export default function RestaurantLogin() {
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    setError("");
     setLoading(true);
-
-    const cleanEmail = email.trim();
-
-    if (!cleanEmail || !password) {
-      setError("Please enter your email and password.");
-      setLoading(false);
-      return;
-    }
+    setError("");
 
     try {
       const { data, error: loginError } =
         await supabase.auth.signInWithPassword({
-          email: cleanEmail,
+          email: email.trim(),
           password,
         });
 
-      if (loginError) {
-        throw loginError;
+      if (loginError || !data.user) {
+        console.error("Login error:", loginError);
+
+        if (
+          loginError?.message?.toLowerCase().includes("email not confirmed")
+        ) {
+          setError(
+            "Please verify your email before logging in."
+          );
+        } else {
+          setError("Invalid email or password.");
+        }
+
+        setLoading(false);
+        return;
       }
 
-      if (!data.user) {
-        throw new Error("Login failed. Please try again.");
-      }
-
-      /*
-       * Check that this logged-in user is connected
-       * to a DineUp restaurant.
-       */
-      const { data: restaurant, error: restaurantError } = await supabase
-        .from("restaurants")
-        .select("id, name, city, category, owner_id")
-        .eq("owner_id", data.user.id)
-        .eq("is_active", true)
-        .limit(1)
-        .maybeSingle();
+      const { data: restaurant, error: restaurantError } =
+        await supabase
+          .from("restaurants")
+          .select(
+            "id, name, city, category, owner_id, is_active, is_claimed"
+          )
+          .eq("owner_id", data.user.id)
+          .eq("is_active", true)
+          .maybeSingle();
 
       if (restaurantError) {
-        throw restaurantError;
+        console.error("Restaurant lookup error:", restaurantError);
+
+        await supabase.auth.signOut();
+
+        setError(
+          "Unable to verify your restaurant account. Please try again."
+        );
+
+        setLoading(false);
+        return;
       }
 
       if (!restaurant) {
         await supabase.auth.signOut();
 
-        throw new Error(
-          "No active restaurant is linked to this account. Please contact DineUp support."
+        setError(
+          "Your account is verified, but your restaurant has not been approved yet."
         );
+
+        setLoading(false);
+        return;
       }
 
-      /*
-       * Real authenticated user found and connected
-       * to a restaurant.
-       */
       router.push("/restaurant/dashboard");
       router.refresh();
-    } catch (err) {
+    } catch (error) {
+      console.error("Restaurant login error:", error);
+
       setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to login. Please try again."
+        "Something went wrong. Please try again."
       );
-    } finally {
+
       setLoading(false);
     }
   }
 
   return (
-    <main className="auth-page">
-      <div className="auth-card">
-        <Link href="/" className="brand">
-          Dine<span>Up</span>
-        </Link>
+    <main className="loginPage">
+      <div className="loginShell">
 
-        <div className="eyebrow">RESTAURANT PARTNER</div>
+        <div className="loginCard">
 
-        <h1>Welcome back.</h1>
+          <div className="brand">
+            <div className="brandName">
+              Dine<span>Up</span>
+            </div>
 
-        <p className="muted">
-          Login to manage your restaurant visibility, campaign and leaderboard
-          position.
-        </p>
+            <div className="brandSub">
+              RESTAURANT PARTNER
+            </div>
+          </div>
 
-        <form className="auth-form" onSubmit={handleLogin}>
-          <label>
-            Email
+          <div className="intro">
+            <h1>Welcome back.</h1>
+
+            <p>
+              Login to manage your restaurant visibility,
+              campaign and leaderboard position.
+            </p>
+          </div>
+
+          <form onSubmit={handleLogin}>
+
+            <label>
+              Email
+            </label>
+
             <input
               type="email"
-              name="email"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(event) =>
+                setEmail(event.target.value)
+              }
               placeholder="owner@restaurant.com"
               autoComplete="email"
               required
             />
-          </label>
 
-          <label>
-            Password
+            <label>
+              Password
+            </label>
+
             <input
               type="password"
-              name="password"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={(event) =>
+                setPassword(event.target.value)
+              }
               placeholder="Enter your password"
               autoComplete="current-password"
               required
             />
-          </label>
 
-          {error && (
-            <div
-              style={{
-                marginTop: 4,
-                padding: "12px 14px",
-                borderRadius: 10,
-                background: "#fff1f1",
-                border: "1px solid #ffd1d1",
-                color: "#b42318",
-                fontSize: 14,
-                lineHeight: 1.5,
-              }}
+            {error && (
+              <div className="errorBox">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
             >
-              {error}
-            </div>
-          )}
+              {loading
+                ? "Signing in..."
+                : "Login to dashboard →"}
+            </button>
 
-          <button
-            className="primary-btn"
-            type="submit"
-            disabled={loading}
-            style={{
-              opacity: loading ? 0.7 : 1,
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-          >
-            {loading ? "Logging in..." : "Login to dashboard →"}
-          </button>
-        </form>
+          </form>
 
-        <div className="demo-note">
-          <strong>Secure login:</strong> Your account is authenticated through
-          DineUp and Supabase. Only an approved restaurant account linked to
-          DineUp can access the partner dashboard.
+          <div className="forgot">
+            <Link href="/restaurant/forgot-password">
+              Forgot password?
+            </Link>
+          </div>
+
+          <div className="secureBox">
+            <strong>Secure login:</strong>{" "}
+            Your account is authenticated through DineUp
+            and Supabase. Only an approved restaurant
+            account linked to DineUp can access the
+            partner dashboard.
+          </div>
+
+          <div className="bottomLinks">
+            <Link href="/">
+              ← Back to DineUp
+            </Link>
+
+            <Link href="/restaurant/signup">
+              Create restaurant account
+            </Link>
+          </div>
+
         </div>
-
-        <p className="back-link">
-          <Link href="/">← Back to DineUp</Link>
-        </p>
       </div>
+
+      <style jsx global>{`
+
+        * {
+          box-sizing: border-box;
+        }
+
+        body {
+          margin: 0;
+          font-family:
+            Arial,
+            Helvetica,
+            sans-serif;
+          background: #171717;
+          color: #171717;
+        }
+
+        .loginPage {
+          min-height: 100vh;
+          background: #171717;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 40px 20px;
+        }
+
+        .loginShell {
+          width: 100%;
+          max-width: 520px;
+        }
+
+        .loginCard {
+          background: #fff;
+          border-radius: 24px;
+          padding: 48px;
+          box-shadow:
+            0 30px 80px rgba(0,0,0,.25);
+        }
+
+        .brandName {
+          font-size: 30px;
+          font-weight: 900;
+          letter-spacing: -1.5px;
+        }
+
+        .brandName span {
+          color: #c9792c;
+        }
+
+        .brandSub {
+          margin-top: 4px;
+          font-size: 12px;
+          font-weight: 800;
+          letter-spacing: 2px;
+        }
+
+        .intro {
+          margin-top: 38px;
+        }
+
+        .intro h1 {
+          margin: 0;
+          font-size: 46px;
+          line-height: 1;
+          letter-spacing: -2px;
+        }
+
+        .intro p {
+          margin: 18px 0 30px;
+          color: #707070;
+          font-size: 16px;
+          line-height: 1.6;
+        }
+
+        form {
+          display: flex;
+          flex-direction: column;
+        }
+
+        label {
+          font-size: 13px;
+          font-weight: 800;
+          margin-bottom: 8px;
+        }
+
+        input {
+          width: 100%;
+          height: 54px;
+          border: 1px solid #d9d9d9;
+          border-radius: 10px;
+          padding: 0 15px;
+          font-size: 15px;
+          margin-bottom: 20px;
+          outline: none;
+        }
+
+        input:focus {
+          border-color: #171717;
+          box-shadow:
+            0 0 0 3px rgba(201,121,44,.12);
+        }
+
+        button {
+          height: 54px;
+          border: 0;
+          border-radius: 10px;
+          background: #171717;
+          color: #fff;
+          font-size: 15px;
+          font-weight: 800;
+          cursor: pointer;
+          margin-top: 2px;
+        }
+
+        button:hover {
+          background: #000;
+        }
+
+        button:disabled {
+          opacity: .6;
+          cursor: not-allowed;
+        }
+
+        .errorBox {
+          background: #fff1f1;
+          border: 1px solid #ffd0d0;
+          color: #c62828;
+          padding: 13px 14px;
+          border-radius: 10px;
+          font-size: 14px;
+          margin-bottom: 15px;
+        }
+
+        .forgot {
+          text-align: center;
+          margin-top: 18px;
+        }
+
+        .forgot a {
+          color: #171717;
+          font-size: 14px;
+          font-weight: 700;
+          text-decoration: underline;
+        }
+
+        .secureBox {
+          margin-top: 28px;
+          padding: 16px;
+          border-radius: 12px;
+          background: #f5f2ed;
+          color: #666;
+          font-size: 13px;
+          line-height: 1.55;
+        }
+
+        .secureBox strong {
+          color: #444;
+        }
+
+        .bottomLinks {
+          display: flex;
+          justify-content: space-between;
+          gap: 20px;
+          margin-top: 28px;
+          font-size: 14px;
+        }
+
+        .bottomLinks a {
+          color: #555;
+          text-decoration: underline;
+        }
+
+        @media (max-width: 600px) {
+          .loginPage {
+            padding: 20px;
+          }
+
+          .loginCard {
+            padding: 30px 24px;
+            border-radius: 18px;
+          }
+
+          .intro h1 {
+            font-size: 38px;
+          }
+
+          .bottomLinks {
+            flex-direction: column;
+          }
+        }
+
+      `}</style>
     </main>
   );
 }
