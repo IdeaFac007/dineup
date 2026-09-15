@@ -24,17 +24,20 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 2. Read payment details
+    // 2. Read payment verification details
     // --------------------------------------------------
     const body = await request.json();
 
     const bidId = Number(body.bidId);
+
     const razorpayOrderId = String(
       body.razorpay_order_id || ""
     );
+
     const razorpayPaymentId = String(
       body.razorpay_payment_id || ""
     );
+
     const razorpaySignature = String(
       body.razorpay_signature || ""
     );
@@ -55,7 +58,7 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 3. Razorpay credentials
+    // 3. Razorpay server credentials
     // --------------------------------------------------
     const razorpayKeyId =
       process.env.RAZORPAY_KEY_ID;
@@ -64,6 +67,10 @@ export async function POST(request: Request) {
       process.env.RAZORPAY_KEY_SECRET;
 
     if (!razorpayKeyId || !razorpayKeySecret) {
+      console.error(
+        "Razorpay environment variables are missing."
+      );
+
       return NextResponse.json(
         {
           error:
@@ -74,20 +81,17 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 4. Supabase service-role credentials
+    // 4. Supabase server credentials
     // --------------------------------------------------
     const supabaseUrl =
       process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-    const supabaseServiceRoleKey =
-      process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseSecretKey =
+      process.env.SUPABASE_SECRET_KEY;
 
-    if (
-      !supabaseUrl ||
-      !supabaseServiceRoleKey
-    ) {
+    if (!supabaseUrl || !supabaseSecretKey) {
       console.error(
-        "Supabase service-role configuration missing."
+        "Supabase secret key configuration is missing."
       );
 
       return NextResponse.json(
@@ -100,17 +104,12 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 5. Create trusted admin Supabase client
-    //
-    // IMPORTANT:
-    // This client is server-only.
-    // Never expose SUPABASE_SERVICE_ROLE_KEY
-    // to the browser.
+    // 5. Create server-only Supabase client
     // --------------------------------------------------
     const supabaseAdmin =
       createSupabaseAdmin(
         supabaseUrl,
-        supabaseServiceRoleKey,
+        supabaseSecretKey,
         {
           auth: {
             autoRefreshToken: false,
@@ -122,22 +121,24 @@ export async function POST(request: Request) {
     // --------------------------------------------------
     // 6. Get bid
     // --------------------------------------------------
-    const { data: bid, error: bidError } =
-      await supabaseAdmin
-        .from("bids")
-        .select(
-          `
-          id,
-          restaurant_id,
-          amount,
-          status,
-          payment_status,
-          razorpay_order_id,
-          razorpay_payment_id
-          `
-        )
-        .eq("id", bidId)
-        .single();
+    const {
+      data: bid,
+      error: bidError,
+    } = await supabaseAdmin
+      .from("bids")
+      .select(
+        `
+        id,
+        restaurant_id,
+        amount,
+        status,
+        payment_status,
+        razorpay_order_id,
+        razorpay_payment_id
+        `
+      )
+      .eq("id", bidId)
+      .single();
 
     if (bidError || !bid) {
       console.error(
@@ -212,8 +213,7 @@ export async function POST(request: Request) {
     if (!restaurant.is_active) {
       return NextResponse.json(
         {
-          error:
-            "Restaurant is inactive.",
+          error: "Restaurant is inactive.",
         },
         { status: 403 }
       );
@@ -318,7 +318,7 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 13. Payment must belong to order
+    // 13. Payment must belong to this order
     // --------------------------------------------------
     if (
       payment.order_id !==
@@ -360,10 +360,9 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 15. Verify Razorpay amount
-    //
-    // Razorpay amount is in paise.
+    // 15. Verify payment amount
     // --------------------------------------------------
+    // Razorpay amount is stored in paise.
     const expectedAmountPaise =
       Math.round(
         Number(bid.amount) * 100
@@ -410,7 +409,7 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------------
-    // 17. Confirm bid through server-only RPC
+    // 17. Confirm bid using server-only RPC
     // --------------------------------------------------
     const {
       data: confirmedBid,
@@ -456,6 +455,7 @@ export async function POST(request: Request) {
         "Payment verified and bid confirmed successfully.",
       bid: confirmedBid,
     });
+
   } catch (error) {
     console.error(
       "Razorpay verify payment error:",
