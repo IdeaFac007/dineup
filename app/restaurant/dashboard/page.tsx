@@ -60,7 +60,18 @@ export default function RestaurantDashboard() {
         .select("phone, whatsapp, website_url, description, price_range, menu_url, cover_image_url, logo_image_url, opening_hours")
         .eq("restaurant_id", restaurantData.id).maybeSingle();
       if (profileError) console.error("Profile load error:", profileError);
-      if (p) setProfileForm((prev: any) => ({ ...prev, ...p, opening_hours: { ...defaultHours, ...(p.opening_hours || {}) } }));
+      if (p) setProfileForm((prev: any) => ({
+        ...prev,
+        phone: p.phone ?? "",
+        whatsapp: p.whatsapp ?? "",
+        website_url: p.website_url ?? "",
+        description: p.description ?? "",
+        price_range: p.price_range ?? "",
+        menu_url: p.menu_url ?? "",
+        cover_image_url: p.cover_image_url ?? "",
+        logo_image_url: p.logo_image_url ?? "",
+        opening_hours: { ...defaultHours, ...(p.opening_hours || {}) },
+      }));
 
       const { data: restaurants, error: leaderboardError } = await supabase.from("restaurants")
         .select("id, name, current_bid").eq("is_active", true).eq("city", restaurantData.city)
@@ -125,15 +136,15 @@ export default function RestaurantDashboard() {
     try {
       const payload = {
         restaurant_id: restaurant.id,
-        phone: profileForm.phone.trim() || null,
-        whatsapp: profileForm.whatsapp.trim() || null,
-        website_url: profileForm.website_url.trim() || null,
-        description: profileForm.description.trim() || null,
+        phone: String(profileForm.phone ?? "").trim() || null,
+        whatsapp: String(profileForm.whatsapp ?? "").trim() || null,
+        website_url: String(profileForm.website_url ?? "").trim() || null,
+        description: String(profileForm.description ?? "").trim() || null,
         price_range: profileForm.price_range || null,
-        menu_url: profileForm.menu_url.trim() || null,
-        cover_image_url: profileForm.cover_image_url.trim() || null,
-        logo_image_url: profileForm.logo_image_url.trim() || null,
-        opening_hours: profileForm.opening_hours,
+        menu_url: String(profileForm.menu_url ?? "").trim() || null,
+        cover_image_url: String(profileForm.cover_image_url ?? "").trim() || null,
+        logo_image_url: String(profileForm.logo_image_url ?? "").trim() || null,
+        opening_hours: profileForm.opening_hours || { ...defaultHours },
         updated_at: new Date().toISOString(),
       };
       const { error } = await supabase.from("restaurant_profiles").upsert(payload, { onConflict: "restaurant_id" });
@@ -159,9 +170,9 @@ export default function RestaurantDashboard() {
   const customerActions = analytics.call + analytics.whatsapp + analytics.directions + analytics.menu + analytics.website;
 
   return <main className="page"><style jsx>{styles}</style>
-    <header className="nav"><Link href="/" className="brand">Dine<span>Up</span></Link><div className="navRight"><span className="pill">Restaurant Partner</span><Link href="/marketplace" className="text">Marketplace</Link><button className="secondary" onClick={handleLogout} disabled={loggingOut}>{loggingOut ? "Logging out..." : "Logout"}</button></div></header>
+    <header className="nav"><Link href="/" className="brand">Dine<span>Up</span></Link><div className="navRight"><span className="pill">Restaurant Partner</span><Link href="/marketplace" className="text">Marketplace</Link><button type="button" className="secondary" onClick={handleLogout} disabled={loggingOut}>{loggingOut ? "Logging out..." : "Logout"}</button></div></header>
     <div className="shell">
-      <div className="heading"><div><div className="eyebrow">RESTAURANT DASHBOARD</div><h1>{restaurant.name}</h1><p className="muted">{restaurant.city} • {restaurant.category}{restaurant.address ? ` • ${restaurant.address}` : ""}</p></div><div className="actions"><button className="secondary" onClick={() => loadDashboard(true)} disabled={refreshing}>{refreshing ? "Refreshing..." : "↻ Refresh"}</button><Link href={`/restaurant/bid?id=${restaurant.id}`} className="primary">Increase visibility ↑</Link></div></div>
+      <div className="heading"><div><div className="eyebrow">RESTAURANT DASHBOARD</div><h1>{restaurant.name}</h1><p className="muted">{restaurant.city} • {restaurant.category}{restaurant.address ? ` • ${restaurant.address}` : ""}</p></div><div className="actions"><button type="button" className="secondary" onClick={() => loadDashboard(true)} disabled={refreshing}>{refreshing ? "Refreshing..." : "↻ Refresh"}</button><Link href={`/restaurant/bid?id=${restaurant.id}`} className="primary">Increase visibility ↑</Link></div></div>
       {message && <div className="panel alert"><p className="muted">{message}</p></div>}
 
       <div className="stats">
@@ -175,23 +186,23 @@ export default function RestaurantDashboard() {
 
       <div className="grid">
         <section className="panel"><div className="panelTitle"><b>Live campaign</b><span className="status">ACTIVE</span></div><div className="rankBox"><div><small>Your position</small><strong>{rank ? `#${rank}` : "—"}</strong></div><div className="arrow">↑</div><div><small>{nextRank ? "Next position" : "Marketplace leader"}</small><strong>{nextRank ? `#${nextRank}` : "TOP"}</strong></div></div><div className="row"><span>Current bid</span><b>{formatMoney(restaurant.current_bid)}</b></div><div className="row"><span>{nextBid ? `Bid to reach #${nextRank}` : "You are #1"}</span><b>{nextBid ? formatMoney(nextBid + 1) : "—"}</b></div>{nextBid && <div className="notice"><b>You are one bid away</b><p>Bid <b>{formatMoney(nextBid + 1)}</b> or more to move to #{nextRank}.</p></div>}<Link href={`/restaurant/bid?id=${restaurant.id}`} className="primary full">Increase visibility ↑</Link></section>
-        <section className="panel"><div className="panelTitle"><b>Restaurant profile</b><div className="titleActions"><span className="status">LIVE</span><button className="secondary small" onClick={() => { setProfileMessage(""); setProfileOpen(true); }}>Edit profile</button></div></div><div className="summary"><div><small>Restaurant</small><b>{restaurant.name}</b></div><div><small>Location</small><b>{restaurant.city}</b>{restaurant.address && <p>{restaurant.address}</p>}</div><div><small>Category</small><b>{restaurant.category}</b></div></div><div className="actions"><Link href="/marketplace" className="secondary">View marketplace</Link><Link href={`/restaurant/${restaurant.id}`} className="secondary">View public profile</Link><Link href={`/restaurant/bid?id=${restaurant.id}`} className="primary">Promote restaurant</Link></div></section>
+        <section className="panel"><div className="panelTitle"><b>Restaurant profile</b><div className="titleActions"><span className="status">LIVE</span><button type="button" className="secondary small" onClick={() => { setProfileMessage(""); setProfileOpen(true); }}>Edit profile</button></div></div><div className="summary"><div><small>Restaurant</small><b>{restaurant.name}</b></div><div><small>Location</small><b>{restaurant.city}</b>{restaurant.address && <p>{restaurant.address}</p>}</div><div><small>Category</small><b>{restaurant.category}</b></div></div><div className="actions"><Link href="/marketplace" className="secondary">View marketplace</Link><Link href={`/restaurant/${restaurant.id}`} className="secondary">View public profile</Link><Link href={`/restaurant/bid?id=${restaurant.id}`} className="primary">Promote restaurant</Link></div></section>
       </div>
 
       <section className="panel analyticsPanel"><div className="panelTitle"><div><b>Customer activity</b><p className="muted panelSub">Actions recorded on your public DineUp profile.</p></div><span className="liveData">LIVE DATA</span></div><div className="analyticsGrid"><div className="analyticsItem"><span>Profile views</span><strong>{analytics.profile_view}</strong></div><div className="analyticsItem"><span>Calls</span><strong>{analytics.call}</strong></div><div className="analyticsItem"><span>WhatsApp</span><strong>{analytics.whatsapp}</strong></div><div className="analyticsItem"><span>Directions</span><strong>{analytics.directions}</strong></div><div className="analyticsItem"><span>Menu views</span><strong>{analytics.menu}</strong></div><div className="analyticsItem"><span>Website visits</span><strong>{analytics.website}</strong></div></div></section>
 
       <section className="panel"><div className="panelTitle"><b>Bid history</b><span className="muted">Last 20 attempts</span></div>{bids.length === 0 ? <p className="muted">No bids yet.</p> : <div className="tableWrap"><table><thead><tr><th>Date</th><th>Amount</th><th>Status</th><th>Payment</th></tr></thead><tbody>{bids.map((b: any) => <tr key={b.id}><td>{formatDate(b.created_at)}</td><td><b>{formatMoney(b.amount)}</b></td><td><span className="status">{b.status}</span></td><td>{b.payment_status || "pending"}</td></tr>)}</tbody></table></div>}</section>
 
-      {profileOpen && <div className="backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget && !profileSaving && !uploadingImage) setProfileOpen(false); }}><div className="modal"><div className="modalHead"><div><small className="muted">Restaurant partner</small><h2>Edit restaurant profile</h2><p className="muted">Update the information customers see on your DineUp listing.</p></div><button className="close" onClick={() => !profileSaving && !uploadingImage && setProfileOpen(false)}>×</button></div><div className="formGrid">
-        <label><span>Phone</span><input value={profileForm.phone} onChange={(e) => setProfileForm((p: any) => ({ ...p, phone: e.target.value }))} placeholder="Restaurant phone" /></label>
-        <label><span>WhatsApp</span><input value={profileForm.whatsapp} onChange={(e) => setProfileForm((p: any) => ({ ...p, whatsapp: e.target.value }))} placeholder="WhatsApp number" /></label>
-        <label><span>Website</span><input value={profileForm.website_url} onChange={(e) => setProfileForm((p: any) => ({ ...p, website_url: e.target.value }))} placeholder="https://example.com" /></label>
-        <label><span>Menu URL</span><input value={profileForm.menu_url} onChange={(e) => setProfileForm((p: any) => ({ ...p, menu_url: e.target.value }))} placeholder="Link to your menu" /></label>
-        <label><span>Price range</span><select value={profileForm.price_range} onChange={(e) => setProfileForm((p: any) => ({ ...p, price_range: e.target.value }))}><option value="">Select</option><option value="₹">₹ — Budget</option><option value="₹₹">₹₹ — Moderate</option><option value="₹₹₹">₹₹₹ — Premium</option><option value="₹₹₹₹">₹₹₹₹ — Luxury</option></select></label>
+      {profileOpen && <div className="backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget && !profileSaving && !uploadingImage) setProfileOpen(false); }}><div className="modal"><div className="modalHead"><div><small className="muted">Restaurant partner</small><h2>Edit restaurant profile</h2><p className="muted">Update the information customers see on your DineUp listing.</p></div><button type="button" className="close" onClick={() => !profileSaving && !uploadingImage && setProfileOpen(false)}>×</button></div><div className="formGrid">
+        <label><span>Phone</span><input value={profileForm.phone ?? ""} onChange={(e) => setProfileForm((p: any) => ({ ...p, phone: e.target.value }))} placeholder="Restaurant phone" /></label>
+        <label><span>WhatsApp</span><input value={profileForm.whatsapp ?? ""} onChange={(e) => setProfileForm((p: any) => ({ ...p, whatsapp: e.target.value }))} placeholder="WhatsApp number" /></label>
+        <label><span>Website</span><input value={profileForm.website_url ?? ""} onChange={(e) => setProfileForm((p: any) => ({ ...p, website_url: e.target.value }))} placeholder="https://example.com" /></label>
+        <label><span>Menu URL</span><input value={profileForm.menu_url ?? ""} onChange={(e) => setProfileForm((p: any) => ({ ...p, menu_url: e.target.value }))} placeholder="Link to your menu" /></label>
+        <label><span>Price range</span><select value={profileForm.price_range ?? ""} onChange={(e) => setProfileForm((p: any) => ({ ...p, price_range: e.target.value }))}><option value="">Select</option><option value="₹">₹ — Budget</option><option value="₹₹">₹₹ — Moderate</option><option value="₹₹₹">₹₹₹ — Premium</option><option value="₹₹₹₹">₹₹₹₹ — Luxury</option></select></label>
         <label><span>Logo image</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadProfileImage("logo", f); }} disabled={uploadingImage !== null} /><small>JPG, PNG or WebP • max 5 MB</small>{profileForm.logo_image_url && <img src={profileForm.logo_image_url} alt="Logo preview" className="logoPreview" />}</label>
         <label><span>Cover image</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadProfileImage("cover", f); }} disabled={uploadingImage !== null} /><small>Wide restaurant photo • max 5 MB</small>{profileForm.cover_image_url && <img src={profileForm.cover_image_url} alt="Cover preview" className="coverPreview" />}</label>
-        <label className="fullField"><span>Description</span><textarea value={profileForm.description} onChange={(e) => setProfileForm((p: any) => ({ ...p, description: e.target.value }))} rows={4} maxLength={500} placeholder="Tell customers what makes your restaurant special..." /><small>{profileForm.description.length}/500</small></label>
-      </div><div className="hours"><b>Opening hours</b><p className="muted">Set the hours customers should see on your listing.</p><div className="hoursGrid">{Object.entries(defaultHours).map(([key]) => <label key={key}><span>{key.charAt(0).toUpperCase() + key.slice(1)}</span><input value={profileForm.opening_hours[key] || ""} onChange={(e) => setProfileForm((p: any) => ({ ...p, opening_hours: { ...p.opening_hours, [key]: e.target.value } }))} /></label>)}</div></div>{profileMessage && <div className={`profileMessage ${profileMessage.includes("successfully") ? "success" : "error"}`}>{profileMessage}</div>}<div className="modalActions"><button className="secondary" onClick={() => setProfileOpen(false)} disabled={profileSaving || !!uploadingImage}>Cancel</button><button className="primary" onClick={saveProfile} disabled={profileSaving || !!uploadingImage}>{profileSaving ? "Saving..." : "Save profile"}</button></div></div></div>}
+        <label className="fullField"><span>Description</span><textarea value={profileForm.description ?? ""} onChange={(e) => setProfileForm((p: any) => ({ ...p, description: e.target.value }))} rows={4} maxLength={500} placeholder="Tell customers what makes your restaurant special..." /><small>{String(profileForm.description ?? "").length}/500</small></label>
+      </div><div className="hours"><b>Opening hours</b><p className="muted">Set the hours customers should see on your listing.</p><div className="hoursGrid">{Object.entries(defaultHours).map(([key]) => <label key={key}><span>{key.charAt(0).toUpperCase() + key.slice(1)}</span><input value={profileForm.opening_hours?.[key] || ""} onChange={(e) => setProfileForm((p: any) => ({ ...p, opening_hours: { ...(p.opening_hours || {}), [key]: e.target.value } }))} /></label>)}</div></div>{profileMessage && <div className={`profileMessage ${profileMessage.includes("successfully") ? "success" : "error"}`}>{profileMessage}</div>}<div className="modalActions"><button type="button" className="secondary" onClick={() => setProfileOpen(false)} disabled={profileSaving || !!uploadingImage}>Cancel</button><button type="button" className="primary" onClick={saveProfile} disabled={profileSaving || !!uploadingImage}>{profileSaving ? "Saving..." : "Save profile"}</button></div></div></div>}
 
       <div className="footer">DineUp • Where Restaurants Rise</div>
     </div>
