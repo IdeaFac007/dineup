@@ -51,6 +51,7 @@ export default function RestaurantDashboard() {
   const [message, setMessage] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState<"logo" | "cover" | null>(null);
   const [profileMessage, setProfileMessage] = useState("");
   const [profileForm, setProfileForm] = useState({
     phone: "",
@@ -358,47 +359,6 @@ export default function RestaurantDashboard() {
       );
     };
   }, [loadDashboard]);
-
-  async function saveProfile() {
-    if (!restaurant) return;
-
-    setProfileSaving(true);
-    setProfileMessage("");
-
-    try {
-      const payload = {
-        restaurant_id: restaurant.id,
-        phone: profileForm.phone.trim() || null,
-        whatsapp: profileForm.whatsapp.trim() || null,
-        website_url: profileForm.website_url.trim() || null,
-        description: profileForm.description.trim() || null,
-        price_range: profileForm.price_range || null,
-        menu_url: profileForm.menu_url.trim() || null,
-        cover_image_url: profileForm.cover_image_url.trim() || null,
-        logo_image_url: profileForm.logo_image_url.trim() || null,
-        opening_hours: profileForm.opening_hours,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { error } = await supabase
-        .from("restaurant_profiles")
-        .upsert(payload, { onConflict: "restaurant_id" });
-
-      if (error) throw error;
-
-      setProfileMessage("Profile saved successfully.");
-      setProfileOpen(false);
-      await loadDashboard(true);
-    } catch (error: unknown) {
-      setProfileMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to save profile right now."
-      );
-    } finally {
-      setProfileSaving(false);
-    }
-  }
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -1085,31 +1045,47 @@ export default function RestaurantDashboard() {
                 </label>
 
                 <label>
-                  <span>Logo image URL</span>
+                  <span>Logo</span>
                   <input
-                    value={profileForm.logo_image_url}
-                    onChange={(e) =>
-                      setProfileForm((p) => ({
-                        ...p,
-                        logo_image_url: e.target.value,
-                      }))
-                    }
-                    placeholder="Public image URL"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void uploadProfileImage("logo", file);
+                      e.currentTarget.value = "";
+                    }}
+                    disabled={uploadingImage !== null}
                   />
+                  {profileForm.logo_image_url && (
+                    <img
+                      src={profileForm.logo_image_url}
+                      alt="Restaurant logo preview"
+                      style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 12, border: "1px solid #e5e5e5" }}
+                    />
+                  )}
+                  <small className="muted">{uploadingImage === "logo" ? "Uploading..." : "JPG, PNG or WebP • max 5 MB"}</small>
                 </label>
 
                 <label>
-                  <span>Cover image URL</span>
+                  <span>Cover image</span>
                   <input
-                    value={profileForm.cover_image_url}
-                    onChange={(e) =>
-                      setProfileForm((p) => ({
-                        ...p,
-                        cover_image_url: e.target.value,
-                      }))
-                    }
-                    placeholder="Public image URL"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void uploadProfileImage("cover", file);
+                      e.currentTarget.value = "";
+                    }}
+                    disabled={uploadingImage !== null}
                   />
+                  {profileForm.cover_image_url && (
+                    <img
+                      src={profileForm.cover_image_url}
+                      alt="Restaurant cover preview"
+                      style={{ width: "100%", maxHeight: 130, objectFit: "cover", borderRadius: 12, border: "1px solid #e5e5e5" }}
+                    />
+                  )}
+                  <small className="muted">{uploadingImage === "cover" ? "Uploading..." : "Recommended: wide restaurant photo • max 5 MB"}</small>
                 </label>
 
                 <label className="profile-full-field">
@@ -1188,7 +1164,7 @@ export default function RestaurantDashboard() {
                 <button
                   type="button"
                   className="secondary-btn"
-                  disabled={profileSaving}
+                  disabled={profileSaving || uploadingImage !== null}
                   onClick={() => setProfileOpen(false)}
                 >
                   Cancel
@@ -1196,10 +1172,10 @@ export default function RestaurantDashboard() {
                 <button
                   type="button"
                   className="primary-btn"
-                  disabled={profileSaving}
+                  disabled={profileSaving || uploadingImage !== null}
                   onClick={saveProfile}
                 >
-                  {profileSaving ? "Saving..." : "Save profile"}
+                  {profileSaving ? "Saving..." : uploadingImage ? "Uploading..." : "Save profile"}
                 </button>
               </div>
             </div>
@@ -1580,42 +1556,25 @@ export default function RestaurantDashboard() {
             }}
           >
             <Link
-              href={`/restaurant/bid?id=${restaurant.id}
-.profile-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.48);display:flex;align-items:center;justify-content:center;padding:20px;z-index:1000}
-.profile-modal{width:min(760px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:20px;padding:26px;box-shadow:0 25px 80px rgba(0,0,0,.22)}
-.profile-modal-header{display:flex;justify-content:space-between;gap:20px;margin-bottom:24px}
-.profile-modal-header h2{margin:5px 0 5px;font-size:24px}
-.modal-close{border:0;background:#f3f3f3;width:36px;height:36px;border-radius:10px;font-size:22px;cursor:pointer}
-.profile-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.profile-form-grid label,.hours-grid label{display:grid;gap:7px}
-.profile-form-grid label>span,.hours-grid label>span{font-size:12px;font-weight:700;color:#555}
-.profile-form-grid input,.profile-form-grid select,.profile-form-grid textarea,.hours-grid input{width:100%;border:1px solid #ddd;border-radius:10px;padding:11px 12px;font:inherit;background:#fff;box-sizing:border-box}
-.profile-form-grid textarea{resize:vertical}
-.profile-full-field{grid-column:1/-1}
-.hours-editor{margin-top:22px;padding-top:20px;border-top:1px solid #eee}
-.hours-editor-title{margin-bottom:14px}
-.hours-editor-title p{margin:4px 0 0;font-size:12px}
-.hours-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.hours-grid input{font-size:13px}
-.profile-message{margin-top:18px;padding:11px 13px;border-radius:10px;font-size:13px;font-weight:600}
-.profile-message.success{background:#edf9f1;border:1px solid #ccebd6}
-.profile-message.error{background:#fff1f1;border:1px solid #f0caca}
-.profile-modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;padding-top:18px;border-top:1px solid #eee}
-`}
+              href={`/restaurant/bid?id=${restaurant.id}`}
               className="primary-btn"
-              style={{
-                textAlign: "center",
-              }}
+              style={{ textAlign: "center" }}
             >
               Increase visibility ↑
             </Link>
 
             <Link
+              href={`/restaurant/${restaurant.id}`}
+              className="secondary-btn"
+              style={{ textAlign: "center" }}
+            >
+              View public profile
+            </Link>
+
+            <Link
               href="/"
               className="secondary-btn"
-              style={{
-                textAlign: "center",
-              }}
+              style={{ textAlign: "center" }}
             >
               View marketplace
             </Link>
@@ -1623,31 +1582,16 @@ export default function RestaurantDashboard() {
             <button
               type="button"
               className="secondary-btn"
-              onClick={() =>
-                loadDashboard(true)
-              }
+              onClick={() => loadDashboard(true)}
               disabled={refreshing}
             >
-              {refreshing
-                ? "Refreshing..."
-                : "Refresh dashboard"}
+              {refreshing ? "Refreshing..." : "Refresh dashboard"}
             </button>
           </div>
         </section>
 
-        {/* ==================================================
-            FOOTER NOTE
-        ================================================== */}
-        <div
-          style={{
-            padding: "24px 0 10px",
-            textAlign: "center",
-          }}
-        >
-          <p
-            className="muted"
-            style={{ fontSize: 12 }}
-          >
+        <div style={{ padding: "24px 0 10px", textAlign: "center" }}>
+          <p className="muted" style={{ fontSize: 12 }}>
             DineUp • Where Restaurants Rise
           </p>
         </div>
