@@ -127,7 +127,7 @@ export default function RestaurantAnalyticsPage() {
                   <div className="funnelRow"><span>Profile views</span><b>{profileViews}</b><div className="bar"><i style={{ width: "100%" }} /></div></div>
                   <div className="funnelRow"><span>Customer actions</span><b>{actions}</b><div className="bar"><i style={{ width: `${Math.min(100, conversion)}%` }} /></div></div>
                 </div>
-                <div className="insight"><b>{conversion > 0 ? `${conversion.toFixed(1)}% of profile visits generated an action.` : "No customer actions recorded yet."}</b><p>{profileViews > 0 ? "Keep your menu, phone, WhatsApp and directions information complete to give visitors a clear next step." : "Share your DineUp profile and improve your listing to start generating customer activity."}</p></div>
+                <div className="insight"><b>{conversion > 0 ? `${conversion.toFixed(1)} customer actions were recorded per 100 profile views.` : "No customer actions recorded yet."}</b><p>{profileViews > 0 ? "Keep your menu, phone, WhatsApp and directions information complete to give visitors a clear next step." : "Share your DineUp profile and improve your listing to start generating customer activity."}</p></div>
               </section>
 
               <section className="panel">
