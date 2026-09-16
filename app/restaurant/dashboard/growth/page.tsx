@@ -66,7 +66,7 @@ export default function RestaurantGrowthPage() {
     views > 0 && actions === 0 && "Your profile is getting views; make contact and menu options prominent to give visitors an action.",
   ].filter(Boolean) as string[];
 
-  const edit = "/restaurant/dashboard";
+  const edit = "/restaurant/dashboard/profile";
   return <main className="page"><style jsx>{styles}</style>
     <header className="nav"><Link href="/" className="brand">Dine<span>Up</span></Link><div className="navRight"><Link href="/restaurant/dashboard" className="secondary">Dashboard</Link><Link href="/restaurant/dashboard/analytics" className="secondary">Analytics</Link></div></header>
     <div className="shell">
