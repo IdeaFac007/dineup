@@ -90,6 +90,68 @@ export default function RestaurantDashboard() {
     }
   };
 
+  async function uploadProfileImage(kind: "logo" | "cover", file: File) {
+    if (!restaurant) return;
+
+    if (!file.type.startsWith("image/")) {
+      setProfileMessage("Please select an image file.");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setProfileMessage("Image must be 5 MB or smaller.");
+      return;
+    }
+
+    setUploadingImage(kind);
+    setProfileMessage("");
+
+    try {
+      const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const safeExtension = ["jpg", "jpeg", "png", "webp"].includes(extension)
+        ? extension
+        : "jpg";
+      const filePath = `${restaurant.id}/${kind}-${Date.now()}.${safeExtension}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("restaurant-media")
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: file.type,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage
+        .from("restaurant-media")
+        .getPublicUrl(filePath);
+
+      const publicUrl = publicUrlData.publicUrl;
+
+      setProfileForm((previous) => ({
+        ...previous,
+        ...(kind === "logo"
+          ? { logo_image_url: publicUrl }
+          : { cover_image_url: publicUrl }),
+      }));
+
+      setProfileMessage(
+        kind === "logo"
+          ? "Logo uploaded. Click Save profile to publish it."
+          : "Cover image uploaded. Click Save profile to publish it."
+      );
+    } catch (error: unknown) {
+      setProfileMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to upload image right now."
+      );
+    } finally {
+      setUploadingImage(null);
+    }
+  }
+
   const loadDashboard = useCallback(
     async (isRefresh = false) => {
       if (isRefresh) {
