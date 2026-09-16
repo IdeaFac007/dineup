@@ -2,454 +2,77 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import Razorpay from "razorpay";
 import { createClient } from "../../../../../lib/supabase/server";
+import { createAdminClient } from "../../../../../lib/supabase/admin";
 
 export async function POST(request: Request) {
   try {
-    // --------------------------------------------------
-    // 1. Verify logged-in restaurant user
-    // --------------------------------------------------
     const supabase = await createClient();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) return NextResponse.json({ error: "You must be logged in." }, { status: 401 });
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return NextResponse.json(
-        {
-          error: "You must be logged in.",
-        },
-        { status: 401 }
-      );
-    }
-
-    // --------------------------------------------------
-    // 2. Read payment details
-    // --------------------------------------------------
     const body = await request.json();
-
     const bidId = Number(body.bidId);
-
-    const razorpayOrderId = String(
-      body.razorpay_order_id || ""
-    );
-
-    const razorpayPaymentId = String(
-      body.razorpay_payment_id || ""
-    );
-
-    const razorpaySignature = String(
-      body.razorpay_signature || ""
-    );
-
-    if (
-      !Number.isInteger(bidId) ||
-      bidId <= 0 ||
-      !razorpayOrderId ||
-      !razorpayPaymentId ||
-      !razorpaySignature
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Missing payment verification details.",
-        },
-        { status: 400 }
-      );
+    const orderId = String(body.razorpay_order_id || "");
+    const paymentId = String(body.razorpay_payment_id || "");
+    const signature = String(body.razorpay_signature || "");
+    if (!Number.isInteger(bidId) || bidId <= 0 || !orderId || !paymentId || !signature) {
+      return NextResponse.json({ error: "Missing payment verification details." }, { status: 400 });
     }
 
-    // --------------------------------------------------
-    // 3. Razorpay credentials
-    // --------------------------------------------------
-    const razorpayKeyId =
-      process.env.RAZORPAY_KEY_ID;
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!keyId || !keySecret) return NextResponse.json({ error: "Razorpay configuration is missing on the server." }, { status: 500 });
 
-    const razorpayKeySecret =
-      process.env.RAZORPAY_KEY_SECRET;
+    const { data: bid, error: bidError } = await supabase.from("bids")
+      .select("id,restaurant_id,amount,payment_status,razorpay_order_id,razorpay_payment_id")
+      .eq("id", bidId).maybeSingle();
+    if (bidError || !bid) return NextResponse.json({ error: "Bid not found." }, { status: 404 });
 
-    if (
-      !razorpayKeyId ||
-      !razorpayKeySecret
-    ) {
-      console.error(
-        "Razorpay environment variables are missing."
-      );
+    const { data: restaurant, error: restaurantError } = await supabase.from("restaurants")
+      .select("id,name,owner_id,is_active").eq("id", bid.restaurant_id).maybeSingle();
+    if (restaurantError || !restaurant) return NextResponse.json({ error: "Restaurant not found." }, { status: 404 });
+    if (restaurant.owner_id !== user.id) return NextResponse.json({ error: "You do not have permission to verify this bid." }, { status: 403 });
+    if (!restaurant.is_active) return NextResponse.json({ error: "Restaurant is inactive." }, { status: 403 });
+    if (bid.razorpay_order_id !== orderId) return NextResponse.json({ error: "Razorpay order mismatch." }, { status: 400 });
 
-      return NextResponse.json(
-        {
-          error:
-            "Razorpay configuration is missing on the server.",
-        },
-        { status: 500 }
-      );
+    const expectedSignature = crypto.createHmac("sha256", keySecret).update(`${orderId}|${paymentId}`).digest("hex");
+    const a = Buffer.from(expectedSignature, "utf8");
+    const b = Buffer.from(signature, "utf8");
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+      return NextResponse.json({ error: "Payment signature verification failed." }, { status: 400 });
     }
 
-    // --------------------------------------------------
-    // 4. Get bid using authenticated user session
-    //
-    // IMPORTANT:
-    // Do NOT use the admin/secret client here.
-    // The confirmation RPC uses auth.uid().
-    // --------------------------------------------------
-    const {
-      data: bid,
-      error: bidError,
-    } = await supabase
-      .from("bids")
-      .select(
-        `
-        id,
-        restaurant_id,
-        amount,
-        status,
-        payment_status,
-        razorpay_order_id,
-        razorpay_payment_id
-        `
-      )
-      .eq("id", bidId)
-      .maybeSingle();
-
-    if (bidError || !bid) {
-      console.error(
-        "Bid lookup error:",
-        bidError
-      );
-
-      return NextResponse.json(
-        {
-          error: "Bid not found.",
-          bidId,
-        },
-        { status: 404 }
-      );
+    const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
+    const payment = await razorpay.payments.fetch(paymentId);
+    if (!payment || payment.order_id !== orderId) {
+      return NextResponse.json({ error: "Payment does not belong to this Razorpay order." }, { status: 400 });
+    }
+    if (payment.status !== "captured") {
+      return NextResponse.json({ error: `Payment is not captured. Current status: ${payment.status}` }, { status: 400 });
+    }
+    if (Number(payment.amount) !== Math.round(Number(bid.amount) * 100)) {
+      return NextResponse.json({ error: "Payment amount does not match the bid amount." }, { status: 400 });
     }
 
-    // --------------------------------------------------
-    // 5. Get restaurant using authenticated session
-    // --------------------------------------------------
-    const {
-      data: restaurant,
-      error: restaurantError,
-    } = await supabase
-      .from("restaurants")
-      .select(
-        "id, name, owner_id, is_active"
-      )
-      .eq("id", bid.restaurant_id)
-      .maybeSingle();
-
-    if (
-      restaurantError ||
-      !restaurant
-    ) {
-      console.error(
-        "Restaurant lookup error:",
-        restaurantError
-      );
-
-      return NextResponse.json(
-        {
-          error: "Restaurant not found.",
-        },
-        { status: 404 }
-      );
+    if (bid.payment_status === "captured" && bid.razorpay_payment_id === paymentId) {
+      return NextResponse.json({ success: true, message: "Payment was already verified.", bid });
     }
 
-    // --------------------------------------------------
-    // 6. Verify ownership
-    // --------------------------------------------------
-    if (
-      restaurant.owner_id !== user.id
-    ) {
-      console.error(
-        "Owner mismatch:",
-        {
-          restaurantOwner:
-            restaurant.owner_id,
-          loggedInUser: user.id,
-        }
-      );
-
-      return NextResponse.json(
-        {
-          error:
-            "You do not have permission to verify this bid.",
-        },
-        { status: 403 }
-      );
-    }
-
-    // --------------------------------------------------
-    // 7. Restaurant must be active
-    // --------------------------------------------------
-    if (!restaurant.is_active) {
-      return NextResponse.json(
-        {
-          error:
-            "Restaurant is inactive.",
-        },
-        { status: 403 }
-      );
-    }
-
-    // --------------------------------------------------
-    // 8. Verify Razorpay order ID
-    // --------------------------------------------------
-    if (
-      bid.razorpay_order_id !==
-      razorpayOrderId
-    ) {
-      console.error(
-        "Razorpay order mismatch:",
-        {
-          databaseOrder:
-            bid.razorpay_order_id,
-          receivedOrder:
-            razorpayOrderId,
-        }
-      );
-
-      return NextResponse.json(
-        {
-          error:
-            "Razorpay order mismatch.",
-        },
-        { status: 400 }
-      );
-    }
-
-    // --------------------------------------------------
-    // 9. Verify Razorpay signature
-    // --------------------------------------------------
-    const generatedSignature =
-      crypto
-        .createHmac(
-          "sha256",
-          razorpayKeySecret
-        )
-        .update(
-          `${razorpayOrderId}|${razorpayPaymentId}`
-        )
-        .digest("hex");
-
-    const generatedBuffer =
-      Buffer.from(
-        generatedSignature,
-        "utf8"
-      );
-
-    const receivedBuffer =
-      Buffer.from(
-        razorpaySignature,
-        "utf8"
-      );
-
-    if (
-      generatedBuffer.length !==
-        receivedBuffer.length ||
-      !crypto.timingSafeEqual(
-        generatedBuffer,
-        receivedBuffer
-      )
-    ) {
-      console.error(
-        "Razorpay signature verification failed."
-      );
-
-      return NextResponse.json(
-        {
-          error:
-            "Payment signature verification failed.",
-        },
-        { status: 400 }
-      );
-    }
-
-    // --------------------------------------------------
-    // 10. Verify payment directly with Razorpay
-    // --------------------------------------------------
-    const razorpay =
-      new Razorpay({
-        key_id: razorpayKeyId,
-        key_secret: razorpayKeySecret,
-      });
-
-    const payment =
-      await razorpay.payments.fetch(
-        razorpayPaymentId
-      );
-
-    if (!payment) {
-      return NextResponse.json(
-        {
-          error:
-            "Unable to verify payment with Razorpay.",
-        },
-        { status: 400 }
-      );
-    }
-
-    // --------------------------------------------------
-    // 11. Payment must belong to this order
-    // --------------------------------------------------
-    if (
-      payment.order_id !==
-      razorpayOrderId
-    ) {
-      console.error(
-        "Payment/order mismatch:",
-        {
-          paymentOrder:
-            payment.order_id,
-          receivedOrder:
-            razorpayOrderId,
-        }
-      );
-
-      return NextResponse.json(
-        {
-          error:
-            "Payment does not belong to this Razorpay order.",
-        },
-        { status: 400 }
-      );
-    }
-
-    // --------------------------------------------------
-    // 12. Payment must be captured
-    // --------------------------------------------------
-    if (
-      payment.status !==
-      "captured"
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            `Payment is not captured. Current status: ${payment.status}`,
-        },
-        { status: 400 }
-      );
-    }
-
-    // --------------------------------------------------
-    // 13. Verify payment amount
-    // --------------------------------------------------
-    const expectedAmountPaise =
-      Math.round(
-        Number(bid.amount) * 100
-      );
-
-    if (
-      Number(payment.amount) !==
-      expectedAmountPaise
-    ) {
-      console.error(
-        "Payment amount mismatch:",
-        {
-          expectedAmountPaise,
-          razorpayAmount:
-            payment.amount,
-        }
-      );
-
-      return NextResponse.json(
-        {
-          error:
-            "Payment amount does not match the bid amount.",
-        },
-        { status: 400 }
-      );
-    }
-
-    // --------------------------------------------------
-    // 14. Duplicate payment protection
-    // --------------------------------------------------
-    if (
-      bid.payment_status ===
-        "captured" &&
-      bid.razorpay_payment_id ===
-        razorpayPaymentId
-    ) {
-      return NextResponse.json({
-        success: true,
-        message:
-          "Payment was already verified.",
-        bid,
-      });
-    }
-
-    // --------------------------------------------------
-    // 15. Confirm bid
-    //
-    // IMPORTANT:
-    // Use authenticated client so auth.uid()
-    // inside confirm_paid_bid() is the real
-    // restaurant owner's user ID.
-    // --------------------------------------------------
-    const {
-      data: confirmedBid,
-      error: confirmError,
-    } =
-      await supabase.rpc(
-        "confirm_paid_bid",
-        {
-          p_bid_id: bid.id,
-          p_razorpay_order_id:
-            razorpayOrderId,
-          p_razorpay_payment_id:
-            razorpayPaymentId,
-          p_razorpay_signature:
-            razorpaySignature,
-        }
-      );
-
-    if (
-      confirmError ||
-      !confirmedBid
-    ) {
-      console.error(
-        "Bid confirmation error:",
-        confirmError
-      );
-
-      return NextResponse.json(
-        {
-          error:
-            "Payment was verified, but bid confirmation failed.",
-          code:
-            confirmError?.code || null,
-          message:
-            confirmError?.message || null,
-        },
-        { status: 500 }
-      );
-    }
-
-    // --------------------------------------------------
-    // 16. Success
-    // --------------------------------------------------
-    return NextResponse.json({
-      success: true,
-      message:
-        "Payment verified and bid confirmed successfully.",
-      bid: confirmedBid,
+    const admin = createAdminClient();
+    const { data: confirmedBid, error: confirmError } = await admin.rpc("confirm_paid_bid", {
+      p_bid_id: bid.id,
+      p_razorpay_order_id: orderId,
+      p_razorpay_payment_id: paymentId,
+      p_razorpay_signature: signature,
     });
+    if (confirmError || !confirmedBid) {
+      console.error("Bid confirmation error:", confirmError);
+      return NextResponse.json({ error: "Payment was verified, but bid confirmation failed." }, { status: 500 });
+    }
 
+    return NextResponse.json({ success: true, message: "Payment verified and bid confirmed successfully.", bid: confirmedBid });
   } catch (error: any) {
-    console.error(
-      "Razorpay verify payment error:",
-      error
-    );
-
-    return NextResponse.json(
-      {
-        error:
-          error?.message ||
-          "Unable to verify Razorpay payment.",
-      },
-      { status: 500 }
-    );
+    console.error("Razorpay verify payment error:", error);
+    return NextResponse.json({ error: error?.message || "Unable to verify Razorpay payment." }, { status: 500 });
   }
 }
