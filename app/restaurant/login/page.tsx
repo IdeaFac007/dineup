@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "../../../lib/supabase/client";
+import { TurnstileWidget } from "../../../components/turnstile-widget";
 
 export default function RestaurantLoginPage() {
   const router = useRouter();
@@ -11,6 +12,8 @@ export default function RestaurantLoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetNonce, setCaptchaResetNonce] = useState(0);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<
@@ -33,6 +36,11 @@ export default function RestaurantLoginPage() {
       return;
     }
 
+    if (!captchaToken) {
+      showMessage("Please complete the security verification.");
+      return;
+    }
+
     setLoading(true);
     setMessage("");
 
@@ -45,6 +53,7 @@ export default function RestaurantLoginPage() {
         await supabase.auth.signInWithPassword({
           email: email.trim().toLowerCase(),
           password,
+          options: { captchaToken },
         });
 
       if (authError) {
@@ -242,6 +251,10 @@ export default function RestaurantLoginPage() {
         "Something went wrong while logging in. Please try again."
       );
 
+      setLoading(false);
+    } finally {
+      setCaptchaToken(null);
+      setCaptchaResetNonce((current) => current + 1);
       setLoading(false);
     }
   }
@@ -484,11 +497,17 @@ export default function RestaurantLoginPage() {
               />
             </div>
 
+            <TurnstileWidget
+              action="restaurant-login"
+              onToken={setCaptchaToken}
+              resetNonce={captchaResetNonce}
+            />
+
             {/* BUTTON */}
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !captchaToken}
               style={{
                 width: "100%",
                 height: "56px",
@@ -500,9 +519,11 @@ export default function RestaurantLoginPage() {
                 color: "#ffffff",
                 fontSize: "15px",
                 fontWeight: 800,
-                cursor: loading
-                  ? "not-allowed"
-                  : "pointer",
+                cursor:
+                  loading || !captchaToken
+                    ? "not-allowed"
+                    : "pointer",
+                opacity: !captchaToken && !loading ? 0.65 : 1,
               }}
             >
               {loading
