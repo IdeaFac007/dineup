@@ -34,6 +34,53 @@ export async function POST(request: Request) {
     }
 
     const event = JSON.parse(rawBody);
+    const admin = createAdminClient();
+
+    if (event?.event === "payment.failed") {
+      const payment = event?.payload?.payment?.entity;
+      const paymentId = String(payment?.id || "");
+      const orderId = String(payment?.order_id || "");
+      const failureCode = String(payment?.error_code || "");
+      const failureDescription = String(payment?.error_description || "");
+
+      if (!paymentId || !orderId) {
+        return NextResponse.json({ error: "Invalid failed payment payload." }, { status: 400 });
+      }
+
+      const { data: bid, error: bidError } = await admin
+        .from("bids")
+        .select("id, payment_status, razorpay_order_id")
+        .eq("razorpay_order_id", orderId)
+        .maybeSingle();
+
+      if (bidError) {
+        console.error("Failed-payment bid lookup error:", bidError);
+        return NextResponse.json({ error: "Unable to record payment failure." }, { status: 500 });
+      }
+
+      if (!bid) {
+        return NextResponse.json({ received: true, ignored: true });
+      }
+
+      const { error: failureError } = await admin.rpc(
+        "record_bid_payment_failure_from_webhook",
+        {
+          p_bid_id: bid.id,
+          p_razorpay_payment_id: paymentId,
+          p_failure_code: failureCode,
+          p_failure_description: failureDescription,
+        }
+      );
+
+      if (failureError) {
+        console.error("Failed-payment record error:", failureError);
+        return NextResponse.json({ error: "Unable to record payment failure." }, { status: 500 });
+      }
+
+      // A failed payment attempt does not expire the bid immediately.
+      // Razorpay can allow another attempt against the same order.
+      return NextResponse.json({ received: true, recordedFailure: true });
+    }
 
     if (event?.event !== "payment.captured") {
       return NextResponse.json({ received: true });
@@ -48,8 +95,6 @@ export async function POST(request: Request) {
     if (!paymentId || !orderId || !Number.isFinite(amount) || currency !== "INR") {
       return NextResponse.json({ error: "Invalid payment payload." }, { status: 400 });
     }
-
-    const admin = createAdminClient();
 
     const { data: bid, error: bidError } = await admin
       .from("bids")
