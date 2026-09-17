@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
 
       setStep("verify");
       setMessage(
-        "Check your email for the 6-digit password reset code. The code can be used directly here without opening the email link."
+        "Check your email for the 8-digit password reset code. Enter it here without opening the email link."
       );
     } catch (error) {
       console.error(error);
@@ -64,8 +64,8 @@ export default function ForgotPasswordPage() {
     const normalizedEmail = email.trim();
     const normalizedToken = token.trim();
 
-    if (!/^\d{6}$/.test(normalizedToken)) {
-      setError("Enter the 6-digit code from your email.");
+    if (!/^\d{8}$/.test(normalizedToken)) {
+      setError("Enter the 8-digit code from your email.");
       setLoading(false);
       return;
     }
@@ -142,7 +142,7 @@ export default function ForgotPasswordPage() {
 
             <p className="intro">
               Enter the email address connected to your restaurant account.
-              We'll send a 6-digit reset code that you can enter here.
+              We'll send an 8-digit reset code that you can enter here.
             </p>
 
             <form onSubmit={handleRequestReset}>
@@ -173,23 +173,23 @@ export default function ForgotPasswordPage() {
             <h1>Enter reset code.</h1>
 
             <p className="intro">
-              Enter the 6-digit code sent to <strong>{email}</strong>, then
+              Enter the 8-digit code sent to <strong>{email}</strong>, then
               choose your new password.
             </p>
 
             <form onSubmit={handleVerifyAndReset}>
-              <label>6-digit code</label>
+              <label>8-digit code</label>
 
               <input
                 type="text"
                 inputMode="numeric"
-                pattern="[0-9]{6}"
-                maxLength={6}
+                pattern="[0-9]{8}"
+                maxLength={8}
                 value={token}
                 onChange={(event) =>
-                  setToken(event.target.value.replace(/\D/g, ""))
+                  setToken(event.target.value.replace(/\D/g, "").slice(0, 8))
                 }
-                placeholder="123456"
+                placeholder="12345678"
                 autoComplete="one-time-code"
                 required
               />
