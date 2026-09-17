@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
+import { TurnstileWidget } from "../../../components/turnstile-widget";
 
 const categories = ["Fine Dining","North Indian","South Indian","Mughlai","Chinese","Cafe","Fast Food","Bakery","Desserts","Other"];
 
@@ -18,6 +19,8 @@ export default function RestaurantSignupPage() {
   const [address,setAddress]=useState("");
   const [password,setPassword]=useState("");
   const [confirmPassword,setConfirmPassword]=useState("");
+  const [captchaToken,setCaptchaToken]=useState<string | null>(null);
+  const [captchaResetNonce,setCaptchaResetNonce]=useState(0);
   const [loading,setLoading]=useState(false);
   const [message,setMessage]=useState("");
   const [success,setSuccess]=useState(false);
@@ -28,12 +31,14 @@ export default function RestaurantSignupPage() {
     if(!name||!mail||!cleanCity||!cleanAddress){setMessage("Please fill all required fields.");return;}
     if(password.length<8){setMessage("Password must be at least 8 characters.");return;}
     if(password!==confirmPassword){setMessage("Passwords do not match.");return;}
+    if(!captchaToken){setMessage("Please complete the security verification.");return;}
     setLoading(true);
     try {
       const {data,error}=await supabase.auth.signUp({
         email:mail,
         password,
         options:{
+          captchaToken,
           data:{
             restaurant_name:name,
             phone:phone.trim()||null,
@@ -58,7 +63,11 @@ export default function RestaurantSignupPage() {
       );
       setTimeout(()=>router.push("/restaurant/login"),2200);
     } catch(err) { console.error(err); setMessage("Something went wrong. Please try again."); }
-    finally { setLoading(false); }
+    finally {
+      setCaptchaToken(null);
+      setCaptchaResetNonce((current)=>current+1);
+      setLoading(false);
+    }
   }
 
   return <main className="signupPage"><section className="shell">
@@ -76,7 +85,8 @@ export default function RestaurantSignupPage() {
         <Field label="Restaurant address" required><textarea value={address} onChange={e=>setAddress(e.target.value)} placeholder="Full restaurant address" rows={3} required/></Field>
         <div className="cols"><Field label="Password" required><input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Minimum 8 characters" autoComplete="new-password" required/></Field><Field label="Confirm password" required><input type="password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} placeholder="Repeat password" autoComplete="new-password" required/></Field></div>
         <div className="note"><span>✓</span><div><strong>Admin approval required</strong><p>Your restaurant remains pending until the DineUp admin team approves the listing.</p></div></div>
-        <button className="submit" disabled={loading}>{loading?"Creating account...":"Create restaurant account →"}</button>
+        <TurnstileWidget action="restaurant-signup" onToken={setCaptchaToken} resetNonce={captchaResetNonce}/>
+        <button className="submit" disabled={loading || !captchaToken}>{loading?"Creating account...":"Create restaurant account →"}</button>
       </form>}
       <div className="login">Already have a restaurant account? <Link href="/restaurant/login">Sign in</Link></div>
     </div>
