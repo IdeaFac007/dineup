@@ -1,6 +1,7 @@
 import { createClient } from "./supabase/client";
 
 const KEY = "dineup_marketing_session";
+const COOKIE = "dineup_marketing_session";
 
 function sessionId() {
   if (typeof window === "undefined") return "";
@@ -9,6 +10,7 @@ function sessionId() {
     id = `${crypto.randomUUID()}-${Date.now()}`;
     localStorage.setItem(KEY, id);
   }
+  document.cookie = `${COOKIE}=${encodeURIComponent(id)}; path=/; max-age=31536000; SameSite=Lax`;
   return id;
 }
 
