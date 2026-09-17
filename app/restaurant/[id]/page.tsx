@@ -12,7 +12,25 @@ const DAYS = [["monday","Monday"],["tuesday","Tuesday"],["wednesday","Wednesday"
 export default function PublicRestaurantProfile(){
  const params=useParams<{id:string}>(); const id=Number(params?.id); const supabase=createClient();
  const [restaurant,setRestaurant]=useState<Restaurant|null>(null); const [profile,setProfile]=useState<Profile|null>(null); const [rank,setRank]=useState<number|null>(null); const [loading,setLoading]=useState(true); const [error,setError]=useState("");
- async function track(event_type:"profile_view"|"call"|"whatsapp"|"directions"|"menu"|"website"){ if(!Number.isFinite(id)||id<=0)return; const {error:e}=await supabase.rpc("track_restaurant_event",{p_restaurant_id:id,p_event_type:event_type}); if(e) console.warn("Analytics event failed",e.message); }
+
+ function getVisitorKey(){
+   if(typeof window === "undefined") return null;
+   try{
+     const storageKey="dineup_analytics_visitor_id";
+     let key=window.localStorage.getItem(storageKey);
+     if(!key){
+       key=typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+         ? crypto.randomUUID()
+         : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+       window.localStorage.setItem(storageKey,key);
+     }
+     return key;
+   }catch{
+     return null;
+   }
+ }
+
+ async function track(event_type:"profile_view"|"call"|"whatsapp"|"directions"|"menu"|"website"){ if(!Number.isFinite(id)||id<=0)return; const {error:e}=await supabase.rpc("track_restaurant_event",{p_restaurant_id:id,p_event_type:event_type,p_visitor_key:getVisitorKey()}); if(e) console.warn("Analytics event failed",e.message); }
  useEffect(()=>{ async function load(){ if(!Number.isFinite(id)||id<=0){setError("Restaurant not found.");setLoading(false);return;} try{
    const {data:r,error:re}=await supabase.from("restaurants").select("id,name,city,category,address,current_bid,is_claimed").eq("id",id).eq("is_active",true).maybeSingle(); if(re)throw re; if(!r){setError("This restaurant is not available on DineUp.");setLoading(false);return;}
    setRestaurant({...r,id:Number(r.id),current_bid:Number(r.current_bid||0)});
