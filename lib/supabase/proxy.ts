@@ -15,7 +15,7 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => {
+          cookiesToSet.forEach(({ name, value, options }) => {
             request.cookies.set(name, value);
           });
 
@@ -31,19 +31,27 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { claims },
-  } = await supabase.auth.getClaims();
+  try {
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
 
-  if (!claims) {
+    if (error || !user) {
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = "/restaurant/login";
+      loginUrl.search = "";
+      return NextResponse.redirect(loginUrl);
+    }
+  } catch (error) {
+    console.error("DASHBOARD AUTH PROXY ERROR:", error);
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/restaurant/login";
     loginUrl.search = "";
-
     return NextResponse.redirect(loginUrl);
   }
 
-  // Protected responses must not be cached with an authenticated session.
+  // Never cache authenticated dashboard responses.
   supabaseResponse.headers.set("Cache-Control", "private, no-store");
 
   return supabaseResponse;
