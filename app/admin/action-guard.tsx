@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "../../lib/supabase/client";
 
 type PendingAction = {
@@ -37,7 +37,7 @@ export default function AdminActionGuard() {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [skipOnce, setSkipOnce] = useState<HTMLButtonElement | null>(null);
+  const bypassButton = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
@@ -45,8 +45,8 @@ export default function AdminActionGuard() {
       const button = target?.closest("button") as HTMLButtonElement | null;
       if (!button) return;
 
-      if (skipOnce === button) {
-        setSkipOnce(null);
+      if (bypassButton.current === button) {
+        bypassButton.current = null;
         return;
       }
 
@@ -62,7 +62,7 @@ export default function AdminActionGuard() {
 
     document.addEventListener("click", onClick, true);
     return () => document.removeEventListener("click", onClick, true);
-  }, [skipOnce]);
+  }, []);
 
   async function confirmAction() {
     if (!pending || !reason.trim()) return;
@@ -90,9 +90,10 @@ export default function AdminActionGuard() {
         return;
       }
 
-      setSkipOnce(pending.button);
+      bypassButton.current = pending.button;
+      const button = pending.button;
       setPending(null);
-      pending.button.click();
+      button.click();
     } catch (err) {
       console.error(err);
       setError("Confirmation failed. Action was not continued.");
