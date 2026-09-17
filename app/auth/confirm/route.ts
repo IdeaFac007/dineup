@@ -1,44 +1,40 @@
-import { type EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "../../../lib/supabase/server";
 
-function safeNextPath(value: string | null) {
-  if (!value) return "/";
+function safeNextPath(value: FormDataEntryValue | null) {
+  if (typeof value !== "string") return "/";
   if (!value.startsWith("/") || value.startsWith("//")) return "/";
   return value;
 }
 
-export async function GET(request: NextRequest) {
-  const requestUrl = new URL(request.url);
-  const tokenHash = requestUrl.searchParams.get("token_hash");
-  const type = requestUrl.searchParams.get("type") as EmailOtpType | null;
-  const next = safeNextPath(requestUrl.searchParams.get("next"));
+export async function POST(request: NextRequest) {
+  const formData = await request.formData();
+  const tokenHash = formData.get("token_hash");
+  const type = formData.get("type");
+  const next = safeNextPath(formData.get("next"));
 
-  const redirectUrl = new URL(request.url);
-  redirectUrl.pathname = next;
-  redirectUrl.search = "";
-  redirectUrl.hash = "";
-
-  if (!tokenHash || !type) {
+  if (typeof tokenHash !== "string" || type !== "recovery") {
     return NextResponse.redirect(
-      new URL("/restaurant/forgot-password?error=invalid-link", request.url)
+      new URL("/restaurant/forgot-password?error=invalid-link", request.url),
+      303
     );
   }
 
   const supabase = await createClient();
 
   const { error } = await supabase.auth.verifyOtp({
-    type,
+    type: "recovery",
     token_hash: tokenHash,
   });
 
   if (error) {
-    console.error("Auth confirmation error:", error);
+    console.error("Password recovery verification error:", error);
 
     return NextResponse.redirect(
-      new URL("/restaurant/forgot-password?error=invalid-link", request.url)
+      new URL("/restaurant/forgot-password?error=invalid-link", request.url),
+      303
     );
   }
 
-  return NextResponse.redirect(redirectUrl);
+  return NextResponse.redirect(new URL(next, request.url), 303);
 }
