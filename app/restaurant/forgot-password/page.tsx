@@ -27,9 +27,7 @@ export default function ForgotPasswordPage() {
       const normalizedEmail = email.trim();
 
       const { error: resetError } =
-        await supabase.auth.resetPasswordForEmail(
-          normalizedEmail
-        );
+        await supabase.auth.resetPasswordForEmail(normalizedEmail);
 
       if (resetError) {
         console.error("Password reset error:", resetError);
@@ -42,7 +40,7 @@ export default function ForgotPasswordPage() {
 
       setStep("verify");
       setMessage(
-        "Check your email for the 8-digit password reset code. Enter it here without opening the email link."
+        "Check your email for the 6-digit password reset code. Enter it here without opening any email link."
       );
     } catch (error) {
       console.error(error);
@@ -64,8 +62,8 @@ export default function ForgotPasswordPage() {
     const normalizedEmail = email.trim();
     const normalizedToken = token.trim();
 
-    if (!/^\d{8}$/.test(normalizedToken)) {
-      setError("Enter the 8-digit code from your email.");
+    if (!/^\d{6}$/.test(normalizedToken)) {
+      setError("Enter the 6-digit code from your email.");
       setLoading(false);
       return;
     }
@@ -142,7 +140,7 @@ export default function ForgotPasswordPage() {
 
             <p className="intro">
               Enter the email address connected to your restaurant account.
-              We'll send an 8-digit reset code that you can enter here.
+              We'll send a 6-digit reset code that you can enter here.
             </p>
 
             <form onSubmit={handleRequestReset}>
@@ -173,23 +171,23 @@ export default function ForgotPasswordPage() {
             <h1>Enter reset code.</h1>
 
             <p className="intro">
-              Enter the 8-digit code sent to <strong>{email}</strong>, then
+              Enter the 6-digit code sent to <strong>{email}</strong>, then
               choose your new password.
             </p>
 
             <form onSubmit={handleVerifyAndReset}>
-              <label>8-digit code</label>
+              <label>6-digit code</label>
 
               <input
                 type="text"
                 inputMode="numeric"
-                pattern="[0-9]{8}"
-                maxLength={8}
+                pattern="[0-9]{6}"
+                maxLength={6}
                 value={token}
                 onChange={(event) =>
-                  setToken(event.target.value.replace(/\D/g, "").slice(0, 8))
+                  setToken(event.target.value.replace(/\D/g, "").slice(0, 6))
                 }
-                placeholder="12345678"
+                placeholder="123456"
                 autoComplete="one-time-code"
                 required
               />
@@ -254,148 +252,27 @@ export default function ForgotPasswordPage() {
       </div>
 
       <style jsx global>{`
-        * {
-          box-sizing: border-box;
-        }
-
-        body {
-          margin: 0;
-          font-family: Arial, Helvetica, sans-serif;
-          background: #171717;
-        }
-
-        .forgotPage {
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 30px 20px;
-          background: #171717;
-        }
-
-        .forgotCard {
-          width: 100%;
-          max-width: 520px;
-          background: #fff;
-          border-radius: 24px;
-          padding: 48px;
-        }
-
-        .brand {
-          font-size: 30px;
-          font-weight: 900;
-          letter-spacing: -1.5px;
-        }
-
-        .brand span {
-          color: #c9792c;
-        }
-
-        .brandSub {
-          margin-top: 4px;
-          font-size: 12px;
-          font-weight: 800;
-          letter-spacing: 2px;
-        }
-
-        h1 {
-          margin: 42px 0 14px;
-          font-size: 42px;
-          line-height: 1;
-          letter-spacing: -1.8px;
-        }
-
-        .intro {
-          color: #707070;
-          line-height: 1.6;
-          margin-bottom: 30px;
-        }
-
-        form {
-          display: flex;
-          flex-direction: column;
-        }
-
-        label {
-          font-size: 13px;
-          font-weight: 800;
-          margin-bottom: 8px;
-        }
-
-        input {
-          height: 54px;
-          border: 1px solid #d9d9d9;
-          border-radius: 10px;
-          padding: 0 15px;
-          font-size: 15px;
-          margin-bottom: 18px;
-          outline: none;
-        }
-
-        input:focus {
-          border-color: #171717;
-        }
-
-        button {
-          height: 54px;
-          border: 0;
-          border-radius: 10px;
-          background: #171717;
-          color: #fff;
-          font-weight: 800;
-          cursor: pointer;
-          font-size: 15px;
-        }
-
-        button:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        .secondaryButton {
-          margin-top: 12px;
-          background: #f2f2f2;
-          color: #171717;
-        }
-
-        .errorBox,
-        .successBox {
-          padding: 13px;
-          border-radius: 10px;
-          font-size: 14px;
-          margin-bottom: 15px;
-          line-height: 1.5;
-        }
-
-        .errorBox {
-          background: #fff1f1;
-          border: 1px solid #ffd0d0;
-          color: #c62828;
-        }
-
-        .successBox {
-          background: #edf9f0;
-          border: 1px solid #c9ebd0;
-          color: #24753a;
-        }
-
-        .backLink {
-          display: block;
-          margin-top: 25px;
-          color: #555;
-          font-size: 14px;
-          text-decoration: underline;
-        }
-
-        @media (max-width: 600px) {
-          .forgotCard {
-            padding: 30px 24px;
-          }
-
-          h1 {
-            font-size: 36px;
-          }
-        }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #171717; }
+        .forgotPage { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 30px 20px; background: #171717; }
+        .forgotCard { width: 100%; max-width: 520px; background: #fff; border-radius: 24px; padding: 48px; }
+        .brand { font-size: 30px; font-weight: 900; letter-spacing: -1.5px; }
+        .brand span { color: #c9792c; }
+        .brandSub { margin-top: 4px; font-size: 12px; font-weight: 800; letter-spacing: 2px; }
+        h1 { margin: 42px 0 14px; font-size: 42px; line-height: 1; letter-spacing: -1.8px; }
+        .intro { color: #707070; line-height: 1.6; margin-bottom: 30px; }
+        form { display: flex; flex-direction: column; }
+        label { font-size: 13px; font-weight: 800; margin-bottom: 8px; }
+        input { height: 54px; border: 1px solid #d9d9d9; border-radius: 10px; padding: 0 15px; font-size: 15px; margin-bottom: 18px; outline: none; }
+        input:focus { border-color: #171717; }
+        button { height: 54px; border: 0; border-radius: 10px; background: #171717; color: #fff; font-weight: 800; cursor: pointer; font-size: 15px; }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+        .secondaryButton { margin-top: 12px; background: #f2f2f2; color: #171717; }
+        .errorBox, .successBox { padding: 13px; border-radius: 10px; font-size: 14px; margin-bottom: 15px; line-height: 1.5; }
+        .errorBox { background: #fff1f1; border: 1px solid #ffd0d0; color: #c62828; }
+        .successBox { background: #edf9f0; border: 1px solid #c9ebd0; color: #24753a; }
+        .backLink { display: block; margin-top: 25px; color: #555; font-size: 14px; text-decoration: underline; }
+        @media (max-width: 600px) { .forgotCard { padding: 30px 24px; } h1 { font-size: 36px; } }
       `}</style>
     </main>
   );
