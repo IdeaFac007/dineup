@@ -16,11 +16,12 @@ export async function POST(request: Request) {
     const {data:restaurant,error:restaurantError}=await supabase.from("restaurants").select("id,name,owner_id,current_bid,is_active").eq("id",restaurantId).eq("owner_id",user.id).eq("is_active",true).single();
     if(restaurantError||!restaurant)return NextResponse.json({error:"Restaurant not found, inactive, or you do not have access."},{status:403});
     if(amount<=Number(restaurant.current_bid))return NextResponse.json({error:`Bid must be higher than the current bid of ₹${Number(restaurant.current_bid).toLocaleString("en-IN")}.`},{status:400});
-    const {data:bid,error:bidError}=await supabase.rpc("create_pending_bid",{p_restaurant_id:restaurantId,p_amount:amount});
-    if(bidError||!bid)return NextResponse.json({error:"Unable to create bid.",code:bidError?.code||null,message:bidError?.message||"Supabase could not create the pending bid."},{status:400});
     const session=cookieValue(request,"dineup_marketing_session");
     const source=utmCookie(request,"utm_source"),medium=utmCookie(request,"utm_medium"),campaign=utmCookie(request,"utm_campaign"),content=utmCookie(request,"utm_content"),term=utmCookie(request,"utm_term");
-    if(session)void supabase.rpc("track_marketing_event",{p_session_id:session,p_event_type:"bid_start",p_source:source,p_medium:medium,p_campaign:campaign,p_content:content,p_term:term,p_landing_path:"/restaurant/bid",p_referrer:null,p_restaurant_id:restaurantId,p_metadata:{bid_id:bid.id,amount}});
+    if(session)void supabase.rpc("track_marketing_event",{p_session_id:session,p_event_type:"bid_start",p_source:source,p_medium:medium,p_campaign:campaign,p_content:content,p_term:term,p_landing_path:"/restaurant/bid",p_referrer:null,p_restaurant_id:restaurantId,p_metadata:{amount}});
+    const {data:bid,error:bidError}=await supabase.rpc("create_pending_bid",{p_restaurant_id:restaurantId,p_amount:amount});
+    if(bidError||!bid)return NextResponse.json({error:"Unable to create bid.",code:bidError?.code||null,message:bidError?.message||"Supabase could not create the pending bid."},{status:400});
+    if(session)void supabase.rpc("track_marketing_event",{p_session_id:session,p_event_type:"bid_created",p_source:source,p_medium:medium,p_campaign:campaign,p_content:content,p_term:term,p_landing_path:"/restaurant/bid",p_referrer:null,p_restaurant_id:restaurantId,p_metadata:{bid_id:bid.id,amount}});
     const razorpayKeyId=process.env.RAZORPAY_KEY_ID,razorpayKeySecret=process.env.RAZORPAY_KEY_SECRET;
     if(!razorpayKeyId||!razorpayKeySecret)return NextResponse.json({error:"Razorpay is not configured on the server."},{status:500});
     const razorpay=new Razorpay({key_id:razorpayKeyId,key_secret:razorpayKeySecret});
