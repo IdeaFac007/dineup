@@ -75,6 +75,11 @@ export function TurnstileWidget({
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const widgetIdRef = useRef<string | null>(null);
+  const onTokenRef = useRef(onToken);
+
+  useEffect(() => {
+    onTokenRef.current = onToken;
+  }, [onToken]);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,15 +100,15 @@ export function TurnstileWidget({
           {
             sitekey: TURNSTILE_SITE_KEY,
             action,
-            callback: (token) => onToken(token),
-            "error-callback": () => onToken(null),
-            "expired-callback": () => onToken(null),
+            callback: (token) => onTokenRef.current(token),
+            "error-callback": () => onTokenRef.current(null),
+            "expired-callback": () => onTokenRef.current(null),
           }
         );
       })
       .catch((error) => {
         console.error("Turnstile load error:", error);
-        onToken(null);
+        onTokenRef.current(null);
       });
 
     return () => {
@@ -113,13 +118,13 @@ export function TurnstileWidget({
       }
       widgetIdRef.current = null;
     };
-  }, [action, onToken]);
+  }, [action]);
 
   useEffect(() => {
     if (!resetNonce || !widgetIdRef.current || !window.turnstile) return;
     window.turnstile.reset(widgetIdRef.current);
-    onToken(null);
-  }, [resetNonce, onToken]);
+    onTokenRef.current(null);
+  }, [resetNonce]);
 
   return (
     <div
