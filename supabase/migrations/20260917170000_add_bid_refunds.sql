@@ -33,11 +33,22 @@ create index if not exists bid_refunds_payment_id_idx on public.bid_refunds(razo
 
 alter table public.bid_refunds enable row level security;
 
-create policy if not exists "Admins can view bid refunds"
-on public.bid_refunds
-for select
-to authenticated
-using (exists (select 1 from public.admin_users a where a.user_id = auth.uid()));
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'bid_refunds'
+      and policyname = 'Admins can view bid refunds'
+  ) then
+    create policy "Admins can view bid refunds"
+      on public.bid_refunds
+      for select
+      to authenticated
+      using (exists (select 1 from public.admin_users a where a.user_id = auth.uid()));
+  end if;
+end;
+$$;
 
 revoke all on public.bid_refunds from anon, public;
 revoke all on public.bid_refunds from authenticated;
