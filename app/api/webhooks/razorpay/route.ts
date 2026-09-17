@@ -18,11 +18,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing webhook signature." }, { status: 400 });
     }
 
-    const expected = crypto
-      .createHmac("sha256", secret)
-      .update(rawBody)
-      .digest("hex");
-
+    const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
     const expectedBuffer = Buffer.from(expected, "utf8");
     const receivedBuffer = Buffer.from(signature, "utf8");
 
@@ -58,9 +54,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Unable to record payment failure." }, { status: 500 });
       }
 
-      if (!bid) {
-        return NextResponse.json({ received: true, ignored: true });
-      }
+      if (!bid) return NextResponse.json({ received: true, ignored: true });
 
       const { error: failureError } = await admin.rpc(
         "record_bid_payment_failure_from_webhook",
@@ -77,9 +71,63 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Unable to record payment failure." }, { status: 500 });
       }
 
-      // A failed payment attempt does not expire the bid immediately.
-      // Razorpay can allow another attempt against the same order.
       return NextResponse.json({ received: true, recordedFailure: true });
+    }
+
+    if (["refund.created", "refund.processed", "refund.failed"].includes(event?.event)) {
+      const refund = event?.payload?.refund?.entity;
+      const payment = event?.payload?.payment?.entity;
+      const refundId = String(refund?.id || "");
+      const paymentId = String(refund?.payment_id || payment?.id || "");
+      const amountPaise = Number(refund?.amount);
+      const currency = String(refund?.currency || payment?.currency || "");
+      const statusMap: Record<string, "pending" | "processed" | "failed"> = {
+        "refund.created": "pending",
+        "refund.processed": "processed",
+        "refund.failed": "failed",
+      };
+      const refundStatus = statusMap[event.event];
+
+      if (!refundId || !paymentId || !Number.isFinite(amountPaise) || amountPaise <= 0 || currency !== "INR") {
+        return NextResponse.json({ error: "Invalid refund payload." }, { status: 400 });
+      }
+
+      const { data: bid, error: bidError } = await admin
+        .from("bids")
+        .select("id, amount, razorpay_payment_id")
+        .eq("razorpay_payment_id", paymentId)
+        .maybeSingle();
+
+      if (bidError) {
+        console.error("Refund bid lookup error:", bidError);
+        return NextResponse.json({ error: "Unable to reconcile refund." }, { status: 500 });
+      }
+
+      if (!bid) return NextResponse.json({ received: true, ignored: true });
+
+      const refundAmount = amountPaise / 100;
+      if (refundAmount > Number(bid.amount)) {
+        return NextResponse.json({ error: "Refund amount exceeds original bid amount." }, { status: 400 });
+      }
+
+      const { error: refundError } = await admin.rpc(
+        "record_bid_refund_from_webhook",
+        {
+          p_bid_id: bid.id,
+          p_razorpay_refund_id: refundId,
+          p_refund_status: refundStatus,
+          p_refund_amount: refundAmount,
+          p_refund_reason: "Razorpay refund webhook",
+          p_razorpay_payment_id: paymentId,
+        }
+      );
+
+      if (refundError) {
+        console.error("Refund reconciliation error:", refundError);
+        return NextResponse.json({ error: "Unable to record refund." }, { status: 500 });
+      }
+
+      return NextResponse.json({ received: true, refundRecorded: true });
     }
 
     if (event?.event !== "payment.captured") {
@@ -107,25 +155,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unable to reconcile payment." }, { status: 500 });
     }
 
-    if (!bid) {
-      // Razorpay can retry delivery before the application's order record is visible.
-      // Returning 200 avoids an endless retry loop for an order DineUp does not know.
-      return NextResponse.json({ received: true, ignored: true });
-    }
+    if (!bid) return NextResponse.json({ received: true, ignored: true });
 
     if (Number(bid.amount) * 100 !== Math.round(amount)) {
-      console.error("Webhook amount mismatch", {
-        bidId: bid.id,
-        expected: Number(bid.amount) * 100,
-        received: amount,
-      });
       return NextResponse.json({ error: "Payment amount mismatch." }, { status: 400 });
     }
 
-    if (
-      bid.payment_status === "captured" &&
-      bid.razorpay_payment_id === paymentId
-    ) {
+    if (bid.payment_status === "captured" && bid.razorpay_payment_id === paymentId) {
       return NextResponse.json({ received: true, alreadyProcessed: true });
     }
 
@@ -136,11 +172,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Razorpay server configuration is missing." }, { status: 500 });
     }
 
-    const razorpay = new Razorpay({
-      key_id: razorpayKeyId,
-      key_secret: razorpayKeySecret,
-    });
-
+    const razorpay = new Razorpay({ key_id: razorpayKeyId, key_secret: razorpayKeySecret });
     const verifiedPayment = await razorpay.payments.fetch(paymentId);
 
     if (
