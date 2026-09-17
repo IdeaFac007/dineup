@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 import { TurnstileWidget } from "../../../components/turnstile-widget";
+import { trackMarketingEvent } from "../../../lib/marketing-attribution";
 
 const categories = ["Fine Dining","North Indian","South Indian","Mughlai","Chinese","Cafe","Fast Food","Bakery","Desserts","Other"];
 
@@ -34,6 +35,7 @@ export default function RestaurantSignupPage() {
     if(!captchaToken){setMessage("Please complete the security verification.");return;}
     setLoading(true);
     try {
+      await trackMarketingEvent("restaurant_signup_started",undefined,{city:cleanCity,category});
       const {data,error}=await supabase.auth.signUp({
         email:mail,
         password,
@@ -50,17 +52,14 @@ export default function RestaurantSignupPage() {
       });
       if(error){setMessage(error.message);return;}
       if(!data.user){setMessage("Unable to create your account. Please try again.");return;}
+      await trackMarketingEvent("restaurant_signup_completed",undefined,{city:cleanCity,category,user_id:data.user.id});
       if(!data.session){
         setSuccess(true);
         setMessage("Account created. Please verify your email, then sign in to complete your restaurant application.");
         return;
       }
       setSuccess(true);
-      setMessage(
-        data.session
-          ? "Application submitted successfully. Your restaurant is now pending admin approval."
-          : "Account created successfully. Please verify your email. Your restaurant application will be submitted automatically and reviewed by the DineUp admin team."
-      );
+      setMessage("Application submitted successfully. Your restaurant is now pending admin approval.");
       setTimeout(()=>router.push("/restaurant/login"),2200);
     } catch(err) { console.error(err); setMessage("Something went wrong. Please try again."); }
     finally {
