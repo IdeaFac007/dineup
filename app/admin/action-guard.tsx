@@ -16,18 +16,23 @@ function getTarget(button: HTMLButtonElement): PendingAction | null {
   const label = button.innerText.trim();
   if (!ACTIONS.has(label)) return null;
 
-  const row = button.closest("tr");
-  if (!row) return null;
+  // Restaurant Management renders cards, not table rows.
+  const container = button.closest(".restaurantCard, tr, [data-admin-restaurant]");
+  if (!container) return null;
 
-  const rowText = row.textContent || "";
-  const idMatch = rowText.match(/#(\d+)/);
-  const cells = Array.from(row.querySelectorAll("td"));
-  const restaurantName = cells.length > 1 ? cells[1]?.textContent?.trim() || null : null;
+  const restaurantName =
+    container.querySelector(".restaurantCardIdentity strong, [data-restaurant-name], td:nth-child(2) strong")?.textContent?.trim() ||
+    null;
+
+  const entityId =
+    container.getAttribute("data-restaurant-id") ||
+    container.getAttribute("data-entity-id") ||
+    null;
 
   return {
     button,
     action: label as PendingAction["action"],
-    entityId: idMatch?.[1] || null,
+    entityId,
     restaurantName,
   };
 }
