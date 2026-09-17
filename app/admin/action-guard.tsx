@@ -11,28 +11,26 @@ type PendingAction = {
 };
 
 const ACTIONS = new Set(["Claim", "Unclaim", "Activate", "Deactivate"]);
+const approvedButtons = new WeakSet<HTMLButtonElement>();
 
 function getTarget(button: HTMLButtonElement): PendingAction | null {
   const label = button.innerText.trim();
   if (!ACTIONS.has(label)) return null;
 
-  // Restaurant Management renders cards, not table rows.
-  const container = button.closest(".restaurantCard, tr, [data-admin-restaurant]");
-  if (!container) return null;
+  const row = button.closest("tr, article");
+  if (!row) return null;
 
-  const restaurantName =
-    container.querySelector(".restaurantCardIdentity strong, [data-restaurant-name], td:nth-child(2) strong")?.textContent?.trim() ||
-    null;
-
-  const entityId =
-    container.getAttribute("data-restaurant-id") ||
-    container.getAttribute("data-entity-id") ||
-    null;
+  const rowText = row.textContent || "";
+  const idMatch = rowText.match(/#(\d+)/);
+  const cards = Array.from(row.querySelectorAll("td"));
+  const restaurantName = cards.length > 1
+    ? cards[1]?.textContent?.trim() || null
+    : row.querySelector(".restaurantCardIdentity strong")?.textContent?.trim() || null;
 
   return {
     button,
     action: label as PendingAction["action"],
-    entityId,
+    entityId: idMatch?.[1] || null,
     restaurantName,
   };
 }
@@ -42,7 +40,6 @@ export default function AdminActionGuard() {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const bypassButton = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
@@ -50,8 +47,8 @@ export default function AdminActionGuard() {
       const button = target?.closest("button") as HTMLButtonElement | null;
       if (!button) return;
 
-      if (bypassButton.current === button) {
-        bypassButton.current = null;
+      if (approvedButtons.has(button)) {
+        approvedButtons.delete(button);
         return;
       }
 
@@ -70,7 +67,7 @@ export default function AdminActionGuard() {
   }, []);
 
   async function confirmAction() {
-    if (!pending || !reason.trim()) return;
+    if (!pending || !reason.trim() || busy) return;
     setBusy(true);
     setError("");
 
@@ -95,10 +92,13 @@ export default function AdminActionGuard() {
         return;
       }
 
-      bypassButton.current = pending.button;
       const button = pending.button;
+      approvedButtons.add(button);
       setPending(null);
-      button.click();
+      setReason("");
+
+      // Let React remove the confirmation modal first, then replay the original action once.
+      window.setTimeout(() => button.click(), 0);
     } catch (err) {
       console.error(err);
       setError("Confirmation failed. Action was not continued.");
