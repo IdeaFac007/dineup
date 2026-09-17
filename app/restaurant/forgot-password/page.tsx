@@ -1,8 +1,10 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "../../../lib/supabase/client";
+
+const RESEND_COOLDOWN_SECONDS = 60;
 
 export default function ForgotPasswordPage() {
   const supabase = createClient();
@@ -13,8 +15,50 @@ export default function ForgotPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [step, setStep] = useState<"request" | "verify">("request");
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+
+    const timer = window.setInterval(() => {
+      setResendCooldown((current) => {
+        if (current <= 1) {
+          window.clearInterval(timer);
+          return 0;
+        }
+
+        return current - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [resendCooldown]);
+
+  async function sendResetCode() {
+    const normalizedEmail = email.trim();
+
+    if (!normalizedEmail) {
+      setError("Enter your email address first.");
+      return false;
+    }
+
+    const { error: resetError } =
+      await supabase.auth.resetPasswordForEmail(normalizedEmail);
+
+    if (resetError) {
+      console.error("Password reset error:", resetError);
+      setError(
+        resetError.message ||
+          "Unable to send password reset email."
+      );
+      return false;
+    }
+
+    return true;
+  }
 
   async function handleRequestReset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -24,21 +68,13 @@ export default function ForgotPasswordPage() {
     setError("");
 
     try {
-      const normalizedEmail = email.trim();
+      const sent = await sendResetCode();
 
-      const { error: resetError } =
-        await supabase.auth.resetPasswordForEmail(normalizedEmail);
-
-      if (resetError) {
-        console.error("Password reset error:", resetError);
-        setError(
-          resetError.message ||
-            "Unable to send password reset email."
-        );
-        return;
-      }
+      if (!sent) return;
 
       setStep("verify");
+      setToken("");
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
       setMessage(
         "Check your email for the 8-digit password reset code. Enter it here without opening any email link."
       );
@@ -47,6 +83,31 @@ export default function ForgotPasswordPage() {
       setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleResendCode() {
+    if (resendCooldown > 0 || resendLoading) return;
+
+    setResendLoading(true);
+    setMessage("");
+    setError("");
+
+    try {
+      const sent = await sendResetCode();
+
+      if (!sent) return;
+
+      setToken("");
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      setMessage(
+        "A new password reset code has been sent. Use the newest code from your email."
+      );
+    } catch (error) {
+      console.error(error);
+      setError("Unable to resend the code. Please try again.");
+    } finally {
+      setResendLoading(false);
     }
   }
 
@@ -232,6 +293,19 @@ export default function ForgotPasswordPage() {
             <button
               type="button"
               className="secondaryButton"
+              onClick={handleResendCode}
+              disabled={resendCooldown > 0 || resendLoading}
+            >
+              {resendLoading
+                ? "Sending new code..."
+                : resendCooldown > 0
+                  ? `Resend code in ${resendCooldown}s`
+                  : "Resend code"}
+            </button>
+
+            <button
+              type="button"
+              className="secondaryButton secondaryButtonLight"
               onClick={() => {
                 setStep("request");
                 setToken("");
@@ -239,6 +313,7 @@ export default function ForgotPasswordPage() {
                 setConfirmPassword("");
                 setMessage("");
                 setError("");
+                setResendCooldown(0);
               }}
             >
               ← Use another email
@@ -268,6 +343,7 @@ export default function ForgotPasswordPage() {
         button { height: 54px; border: 0; border-radius: 10px; background: #171717; color: #fff; font-weight: 800; cursor: pointer; font-size: 15px; }
         button:disabled { opacity: 0.6; cursor: not-allowed; }
         .secondaryButton { margin-top: 12px; background: #f2f2f2; color: #171717; }
+        .secondaryButtonLight { background: #fff; border: 1px solid #d9d9d9; }
         .errorBox, .successBox { padding: 13px; border-radius: 10px; font-size: 14px; margin-bottom: 15px; line-height: 1.5; }
         .errorBox { background: #fff1f1; border: 1px solid #ffd0d0; color: #c62828; }
         .successBox { background: #edf9f0; border: 1px solid #c9ebd0; color: #24753a; }
