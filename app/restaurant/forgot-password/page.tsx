@@ -8,11 +8,51 @@ export default function ForgotPasswordPage() {
   const supabase = createClient();
 
   const [email, setEmail] = useState("");
+  const [token, setToken] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [step, setStep] = useState<"request" | "verify">("request");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  async function handleSubmit(
+  async function handleRequestReset(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    setLoading(true);
+    setMessage("");
+    setError("");
+
+    try {
+      const normalizedEmail = email.trim();
+
+      const { error: resetError } =
+        await supabase.auth.resetPasswordForEmail(
+          normalizedEmail
+        );
+
+      if (resetError) {
+        console.error("Password reset error:", resetError);
+        setError(
+          resetError.message ||
+            "Unable to send password reset email."
+        );
+        return;
+      }
+
+      setStep("verify");
+      setMessage(
+        "Check your email for the 6-digit password reset code. The code can be used directly here without opening the email link."
+      );
+    } catch (error) {
+      console.error(error);
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleVerifyAndReset(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
@@ -21,42 +61,67 @@ export default function ForgotPasswordPage() {
     setMessage("");
     setError("");
 
+    const normalizedEmail = email.trim();
+    const normalizedToken = token.trim();
+
+    if (!/^\d{6}$/.test(normalizedToken)) {
+      setError("Enter the 6-digit code from your email.");
+      setLoading(false);
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      setLoading(false);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const redirectTo =
-        `${window.location.origin}/restaurant/update-password`;
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email: normalizedEmail,
+        token: normalizedToken,
+        type: "recovery",
+      });
 
-      const { error: resetError } =
-        await supabase.auth.resetPasswordForEmail(
-          email.trim(),
-          {
-            redirectTo,
-          }
-        );
-
-      if (resetError) {
-        console.error(
-          "Password reset error:",
-          resetError
-        );
-
+      if (verifyError) {
+        console.error("Recovery verification error:", verifyError);
         setError(
-          resetError.message ||
-            "Unable to send password reset email."
+          verifyError.message ||
+            "The reset code is invalid or has expired."
         );
+        return;
+      }
 
-        setLoading(false);
+      const { error: updateError } =
+        await supabase.auth.updateUser({ password });
+
+      if (updateError) {
+        console.error("Password update error:", updateError);
+        setError(
+          updateError.message ||
+            "Unable to update password."
+        );
         return;
       }
 
       setMessage(
-        "If an account exists with this email, a password reset link has been sent. Please check your inbox and spam folder."
+        "Password updated successfully. Redirecting to login..."
       );
-    } catch (error) {
-      console.error(error);
 
-      setError(
-        "Something went wrong. Please try again."
-      );
+      await supabase.auth.signOut();
+
+      setTimeout(() => {
+        window.location.href = "/restaurant/login";
+      }, 1200);
+    } catch (error) {
+      console.error("Password reset error:", error);
+      setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -64,86 +129,138 @@ export default function ForgotPasswordPage() {
 
   return (
     <main className="forgotPage">
-
       <div className="forgotCard">
-
         <div className="brand">
           Dine<span>Up</span>
         </div>
 
-        <div className="brandSub">
-          RESTAURANT PARTNER
-        </div>
+        <div className="brandSub">RESTAURANT PARTNER</div>
 
-        <h1>Reset your password.</h1>
+        {step === "request" ? (
+          <>
+            <h1>Reset your password.</h1>
 
-        <p className="intro">
-          Enter the email address connected to your
-          restaurant account and we'll send you a
-          secure password reset link.
-        </p>
+            <p className="intro">
+              Enter the email address connected to your restaurant account.
+              We'll send a 6-digit reset code that you can enter here.
+            </p>
 
-        <form onSubmit={handleSubmit}>
+            <form onSubmit={handleRequestReset}>
+              <label>Email</label>
 
-          <label>
-            Email
-          </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="owner@restaurant.com"
+                autoComplete="email"
+                required
+              />
 
-          <input
-            type="email"
-            value={email}
-            onChange={(event) =>
-              setEmail(event.target.value)
-            }
-            placeholder="owner@restaurant.com"
-            autoComplete="email"
-            required
-          />
+              {error && <div className="errorBox">{error}</div>}
 
-          {error && (
-            <div className="errorBox">
-              {error}
-            </div>
-          )}
+              {message && (
+                <div className="successBox">{message}</div>
+              )}
 
-          {message && (
-            <div className="successBox">
-              {message}
-            </div>
-          )}
+              <button type="submit" disabled={loading}>
+                {loading ? "Sending..." : "Send reset code →"}
+              </button>
+            </form>
+          </>
+        ) : (
+          <>
+            <h1>Enter reset code.</h1>
 
-          <button
-            type="submit"
-            disabled={loading}
-          >
-            {loading
-              ? "Sending..."
-              : "Send reset link →"}
-          </button>
+            <p className="intro">
+              Enter the 6-digit code sent to <strong>{email}</strong>, then
+              choose your new password.
+            </p>
 
-        </form>
+            <form onSubmit={handleVerifyAndReset}>
+              <label>6-digit code</label>
 
-        <Link
-          className="backLink"
-          href="/restaurant/login"
-        >
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                value={token}
+                onChange={(event) =>
+                  setToken(event.target.value.replace(/\D/g, ""))
+                }
+                placeholder="123456"
+                autoComplete="one-time-code"
+                required
+              />
+
+              <label>New password</label>
+
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Minimum 8 characters"
+                autoComplete="new-password"
+                required
+              />
+
+              <label>Confirm password</label>
+
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(event) =>
+                  setConfirmPassword(event.target.value)
+                }
+                placeholder="Repeat your password"
+                autoComplete="new-password"
+                required
+              />
+
+              {error && <div className="errorBox">{error}</div>}
+
+              {message && (
+                <div className="successBox">{message}</div>
+              )}
+
+              <button type="submit" disabled={loading}>
+                {loading
+                  ? "Updating..."
+                  : "Verify code & update password →"}
+              </button>
+            </form>
+
+            <button
+              type="button"
+              className="secondaryButton"
+              onClick={() => {
+                setStep("request");
+                setToken("");
+                setPassword("");
+                setConfirmPassword("");
+                setMessage("");
+                setError("");
+              }}
+            >
+              ← Use another email
+            </button>
+          </>
+        )}
+
+        <Link className="backLink" href="/restaurant/login">
           ← Back to login
         </Link>
-
       </div>
 
       <style jsx global>{`
-
         * {
           box-sizing: border-box;
         }
 
         body {
           margin: 0;
-          font-family:
-            Arial,
-            Helvetica,
-            sans-serif;
+          font-family: Arial, Helvetica, sans-serif;
           background: #171717;
         }
 
@@ -231,8 +348,14 @@ export default function ForgotPasswordPage() {
         }
 
         button:disabled {
-          opacity: .6;
+          opacity: 0.6;
           cursor: not-allowed;
+        }
+
+        .secondaryButton {
+          margin-top: 12px;
+          background: #f2f2f2;
+          color: #171717;
         }
 
         .errorBox,
@@ -273,7 +396,6 @@ export default function ForgotPasswordPage() {
             font-size: 36px;
           }
         }
-
       `}</style>
     </main>
   );
