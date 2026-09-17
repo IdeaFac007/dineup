@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "../../../../lib/supabase/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
+import { consumeAdminRateLimit } from "../../../../lib/security/admin-rate-limit";
 
 function basicAuth(keyId: string, keySecret: string) {
   return `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}`;
@@ -23,6 +24,18 @@ export async function POST(request: Request) {
       .maybeSingle();
     if (adminError) return NextResponse.json({ error: "Unable to verify admin access." }, { status: 500 });
     if (!adminUser) return NextResponse.json({ error: "Admin access required." }, { status: 403 });
+
+    const allowed = await consumeAdminRateLimit(supabase, user.id, {
+      limit: 10,
+      windowSeconds: 60,
+    });
+
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Too many refund requests. Please wait before trying again." },
+        { status: 429, headers: { "Retry-After": "60" } }
+      );
+    }
 
     const body = await request.json();
     const bidId = Number(body.bidId);
