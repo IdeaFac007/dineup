@@ -41,7 +41,7 @@ export default async function AuthConfirmPage({
               password reset page.
             </p>
 
-            <form action="/auth/confirm" method="post">
+            <form action="/auth/confirm/submit" method="post">
               <input type="hidden" name="token_hash" value={tokenHash} />
               <input type="hidden" name="type" value="recovery" />
               <input type="hidden" name="next" value={next} />
