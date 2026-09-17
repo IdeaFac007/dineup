@@ -1,1 +1,0 @@
-Audit logging is wired at the database trigger layer for restaurant status/claim changes and application review transitions. Refund-route audit wiring remains pending until the existing route can be safely patched without replacing unrelated changes.
