@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
+import { TurnstileWidget } from "../../../components/turnstile-widget";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -10,6 +11,8 @@ export default function AdminLoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetNonce, setCaptchaResetNonce] = useState(0);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -18,6 +21,11 @@ export default function AdminLoginPage() {
 
     if (!email.trim() || !password) {
       setMessage("Please enter your email and password.");
+      return;
+    }
+
+    if (!captchaToken) {
+      setMessage("Please complete the security verification.");
       return;
     }
 
@@ -30,6 +38,7 @@ export default function AdminLoginPage() {
         await supabase.auth.signInWithPassword({
           email: email.trim().toLowerCase(),
           password,
+          options: { captchaToken },
         });
 
       if (authError) {
@@ -92,6 +101,10 @@ export default function AdminLoginPage() {
         "Something went wrong. Please try again."
       );
 
+      setLoading(false);
+    } finally {
+      setCaptchaToken(null);
+      setCaptchaResetNonce((current) => current + 1);
       setLoading(false);
     }
   }
@@ -294,11 +307,17 @@ export default function AdminLoginPage() {
               />
             </div>
 
+            <TurnstileWidget
+              action="admin-login"
+              onToken={setCaptchaToken}
+              resetNonce={captchaResetNonce}
+            />
+
             {/* BUTTON */}
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !captchaToken}
               style={{
                 width: "100%",
                 height: "56px",
@@ -310,9 +329,11 @@ export default function AdminLoginPage() {
                 color: "#ffffff",
                 fontSize: "15px",
                 fontWeight: 800,
-                cursor: loading
-                  ? "not-allowed"
-                  : "pointer",
+                cursor:
+                  loading || !captchaToken
+                    ? "not-allowed"
+                    : "pointer",
+                opacity: !captchaToken && !loading ? 0.65 : 1,
               }}
             >
               {loading
