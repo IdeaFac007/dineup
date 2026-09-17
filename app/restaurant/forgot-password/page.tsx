@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "../../../lib/supabase/client";
+import { TurnstileWidget } from "../../../components/turnstile-widget";
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -13,6 +14,8 @@ export default function ForgotPasswordPage() {
   const [token, setToken] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetNonce, setCaptchaResetNonce] = useState(0);
   const [step, setStep] = useState<"request" | "verify">("request");
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
@@ -45,19 +48,31 @@ export default function ForgotPasswordPage() {
       return false;
     }
 
-    const { error: resetError } =
-      await supabase.auth.resetPasswordForEmail(normalizedEmail);
-
-    if (resetError) {
-      console.error("Password reset error:", resetError);
-      setError(
-        resetError.message ||
-          "Unable to send password reset email."
-      );
+    if (!captchaToken) {
+      setError("Please complete the security verification.");
       return false;
     }
 
-    return true;
+    try {
+      const { error: resetError } =
+        await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+          captchaToken,
+        });
+
+      if (resetError) {
+        console.error("Password reset error:", resetError);
+        setError(
+          resetError.message ||
+            "Unable to send password reset email."
+        );
+        return false;
+      }
+
+      return true;
+    } finally {
+      setCaptchaToken(null);
+      setCaptchaResetNonce((current) => current + 1);
+    }
   }
 
   async function handleRequestReset(event: FormEvent<HTMLFormElement>) {
@@ -222,7 +237,13 @@ export default function ForgotPasswordPage() {
                 <div className="successBox">{message}</div>
               )}
 
-              <button type="submit" disabled={loading}>
+              <TurnstileWidget
+                action="restaurant-password-reset"
+                onToken={setCaptchaToken}
+                resetNonce={captchaResetNonce}
+              />
+
+              <button type="submit" disabled={loading || !captchaToken}>
                 {loading ? "Sending..." : "Send reset code →"}
               </button>
             </form>
@@ -290,11 +311,17 @@ export default function ForgotPasswordPage() {
               </button>
             </form>
 
+            <TurnstileWidget
+              action="restaurant-password-reset"
+              onToken={setCaptchaToken}
+              resetNonce={captchaResetNonce}
+            />
+
             <button
               type="button"
               className="secondaryButton"
               onClick={handleResendCode}
-              disabled={resendCooldown > 0 || resendLoading}
+              disabled={resendCooldown > 0 || resendLoading || !captchaToken}
             >
               {resendLoading
                 ? "Sending new code..."
@@ -313,6 +340,8 @@ export default function ForgotPasswordPage() {
                 setConfirmPassword("");
                 setMessage("");
                 setError("");
+                setCaptchaToken(null);
+                setCaptchaResetNonce((current) => current + 1);
                 setResendCooldown(0);
               }}
             >
@@ -342,7 +371,7 @@ export default function ForgotPasswordPage() {
         input:focus { border-color: #171717; }
         button { height: 54px; border: 0; border-radius: 10px; background: #171717; color: #fff; font-weight: 800; cursor: pointer; font-size: 15px; }
         button:disabled { opacity: 0.6; cursor: not-allowed; }
-        .secondaryButton { margin-top: 12px; background: #f2f2f2; color: #171717; }
+        .secondaryButton { margin-top: 12px; width: 100%; background: #f2f2f2; color: #171717; }
         .secondaryButtonLight { background: #fff; border: 1px solid #d9d9d9; }
         .errorBox, .successBox { padding: 13px; border-radius: 10px; font-size: 14px; margin-bottom: 15px; line-height: 1.5; }
         .errorBox { background: #fff1f1; border: 1px solid #ffd0d0; color: #c62828; }
