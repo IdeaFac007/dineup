@@ -16,7 +16,8 @@ type Profile = {
   description: string | null; price_range: string | null; owner_name: string | null; owner_designation: string | null;
 };
 
-type Step = { step: string; status: string; completed_at: string | null };\ntype Claim = { id:number; restaurant_id:number; user_id:string; owner_name:string; phone:string|null; email:string|null; message:string|null; status:string; admin_note:string|null; created_at:string; restaurant?: { name:string; city:string } | null };
+type Step = { step: string; status: string; completed_at: string | null };
+type Claim = { id:number; restaurant_id:number; user_id:string; owner_name:string; phone:string|null; email:string|null; message:string|null; status:string; admin_note:string|null; created_at:string; restaurant?: { name:string; city:string } | null };
 
 const supabase = createClient();
 
@@ -34,7 +35,9 @@ export default function AdminRestaurantsPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ name: "", city: "Lucknow", category: "", address: "" });\n  const [claims, setClaims] = useState<Claim[]>([]);\n  const [claimBusy, setClaimBusy] = useState<number | null>(null);
+  const [form, setForm] = useState({ name: "", city: "Lucknow", category: "", address: "" });
+  const [claims, setClaims] = useState<Claim[]>([]);
+  const [claimBusy, setClaimBusy] = useState<number | null>(null);
 
   async function load() {
     setLoading(true); setError("");
@@ -47,7 +50,10 @@ export default function AdminRestaurantsPage() {
         .select("id,name,city,category,address,current_bid,is_claimed,is_active,owner_id,created_at,claim_status,profile_completion_pct")
         .order("name");
       if (error) throw new Error(error.message);
-      setRestaurants((data || []) as Restaurant[]);\n      const { data: claimData, error: claimError } = await supabase.from("restaurant_claim_requests").select("id,restaurant_id,user_id,owner_name,phone,email,message,status,admin_note,created_at,restaurants(name,city)").eq("status","pending").order("created_at",{ascending:false});\n      if (claimError) throw new Error(claimError.message);\n      setClaims((claimData || []) as unknown as Claim[]);
+      setRestaurants((data || []) as Restaurant[]);
+      const { data: claimData, error: claimError } = await supabase.from("restaurant_claim_requests").select("id,restaurant_id,user_id,owner_name,phone,email,message,status,admin_note,created_at,restaurants(name,city)").eq("status","pending").order("created_at",{ascending:false});
+      if (claimError) throw new Error(claimError.message);
+      setClaims((claimData || []) as unknown as Claim[]);
     } catch (e) { setError(e instanceof Error ? e.message : "Unable to load restaurants."); }
     finally { setLoading(false); }
   }
@@ -75,7 +81,18 @@ export default function AdminRestaurantsPage() {
     finally { setBusyId(null); }
   }
 
-  async function reviewClaim(id:number,status:"approved"|"rejected"){\n    setClaimBusy(id); setError("");\n    try{\n      const note=status==="rejected" ? window.prompt("Reason for rejection (optional):") : null;\n      const {error:e}=await supabase.rpc("admin_review_restaurant_claim",{p_claim_id:id,p_status:status,p_admin_note:note||null,p_verification_method:"manual"});\n      if(e) throw new Error(e.message);\n      setClaims(cur=>cur.filter(x=>x.id!==id)); await load();\n    }catch(e){setError(e instanceof Error?e.message:"Unable to review claim.");}\n    finally{setClaimBusy(null)}\n  }\n\n  async function addRestaurant(e: React.FormEvent) {
+  async function reviewClaim(id:number,status:"approved"|"rejected"){
+    setClaimBusy(id); setError("");
+    try{
+      const note=status==="rejected" ? window.prompt("Reason for rejection (optional):") : null;
+      const {error:e}=await supabase.rpc("admin_review_restaurant_claim",{p_claim_id:id,p_status:status,p_admin_note:note||null,p_verification_method:"manual"});
+      if(e) throw new Error(e.message);
+      setClaims(cur=>cur.filter(x=>x.id!==id)); await load();
+    }catch(e){setError(e instanceof Error?e.message:"Unable to review claim.");}
+    finally{setClaimBusy(null)}
+  }
+
+  async function addRestaurant(e: React.FormEvent) {
     e.preventDefault(); if (!form.name.trim() || !form.city.trim()) return;
     setAdding(true); setError("");
     try {
