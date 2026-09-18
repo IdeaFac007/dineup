@@ -16,7 +16,7 @@ type Profile = {
   description: string | null; price_range: string | null; owner_name: string | null; owner_designation: string | null;
 };
 
-type Step = { step: string; status: string; completed_at: string | null };
+type Step = { step: string; status: string; completed_at: string | null };\ntype Claim = { id:number; restaurant_id:number; user_id:string; owner_name:string; phone:string|null; email:string|null; message:string|null; status:string; admin_note:string|null; created_at:string; restaurant?: { name:string; city:string } | null };
 
 const supabase = createClient();
 
@@ -34,7 +34,7 @@ export default function AdminRestaurantsPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ name: "", city: "Lucknow", category: "", address: "" });
+  const [form, setForm] = useState({ name: "", city: "Lucknow", category: "", address: "" });\n  const [claims, setClaims] = useState<Claim[]>([]);\n  const [claimBusy, setClaimBusy] = useState<number | null>(null);
 
   async function load() {
     setLoading(true); setError("");
@@ -47,7 +47,7 @@ export default function AdminRestaurantsPage() {
         .select("id,name,city,category,address,current_bid,is_claimed,is_active,owner_id,created_at,claim_status,profile_completion_pct")
         .order("name");
       if (error) throw new Error(error.message);
-      setRestaurants((data || []) as Restaurant[]);
+      setRestaurants((data || []) as Restaurant[]);\n      const { data: claimData, error: claimError } = await supabase.from("restaurant_claim_requests").select("id,restaurant_id,user_id,owner_name,phone,email,message,status,admin_note,created_at,restaurants(name,city)").eq("status","pending").order("created_at",{ascending:false});\n      if (claimError) throw new Error(claimError.message);\n      setClaims((claimData || []) as unknown as Claim[]);
     } catch (e) { setError(e instanceof Error ? e.message : "Unable to load restaurants."); }
     finally { setLoading(false); }
   }
@@ -75,7 +75,7 @@ export default function AdminRestaurantsPage() {
     finally { setBusyId(null); }
   }
 
-  async function addRestaurant(e: React.FormEvent) {
+  async function reviewClaim(id:number,status:"approved"|"rejected"){\n    setClaimBusy(id); setError("");\n    try{\n      const note=status==="rejected" ? window.prompt("Reason for rejection (optional):") : null;\n      const {error:e}=await supabase.rpc("admin_review_restaurant_claim",{p_claim_id:id,p_status:status,p_admin_note:note||null,p_verification_method:"manual"});\n      if(e) throw new Error(e.message);\n      setClaims(cur=>cur.filter(x=>x.id!==id)); await load();\n    }catch(e){setError(e instanceof Error?e.message:"Unable to review claim.");}\n    finally{setClaimBusy(null)}\n  }\n\n  async function addRestaurant(e: React.FormEvent) {
     e.preventDefault(); if (!form.name.trim() || !form.city.trim()) return;
     setAdding(true); setError("");
     try {
@@ -109,6 +109,13 @@ export default function AdminRestaurantsPage() {
       </header>
 
       {error && <div style={errorBox}>{error}</div>}
+
+      <section style={{...card,marginBottom:18}}>
+        <div style={toolbar}><div><strong style={{fontSize:15}}>Pending Restaurant Claims</strong><div style={muted}>{claims.length} awaiting review</div></div><span style={pill(claims.length?"pending":"verified")}>{claims.length?"Action required":"Clear"}</span></div>
+        {!claims.length ? <div style={empty}>No pending ownership claims.</div> : <div style={{overflowX:"auto"}}><table style={table}><thead><tr>{["Restaurant","Claimant","Contact","Message","Submitted","Actions"].map(x=><th key={x} style={th}>{x}</th>)}</tr></thead><tbody>
+        {claims.map(x=><tr key={x.id}><td style={td}><strong>{x.restaurant?.name||("#"+x.restaurant_id)}</strong><small>{x.restaurant?.city||"—"}</small></td><td style={td}><strong>{x.owner_name}</strong><small>{x.email||"—"}</small></td><td style={td}>{x.phone||"—"}</td><td style={{...td,maxWidth:250,color:"#777"}}>{x.message||"No message provided"}</td><td style={{...td,color:"#777"}}>{new Date(x.created_at).toLocaleDateString("en-IN")}</td><td style={td}><div style={row}><button disabled={claimBusy===x.id} onClick={()=>reviewClaim(x.id,"approved")} style={button(true)}>Approve</button><button disabled={claimBusy===x.id} onClick={()=>reviewClaim(x.id,"rejected")} style={button(false)}>Reject</button></div></td></tr>)}
+        </tbody></table></div>}
+      </section>
 
       <section style={card}>
         <div style={toolbar}>
