@@ -418,5 +418,3 @@ label{display:block;font-size:10px;font-weight:800}textarea{width:100%;margin-to
 .modalActions{justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
 @media(max-width:820px){.page{padding:22px 16px}.topbar{flex-direction:column}.stats{grid-template-columns:1fr 1fr}.toolbar{align-items:flex-start;flex-direction:column}.filters{width:100%}.filters input{width:100%;flex:1}.filters select{width:145px}.docCard{align-items:flex-start;flex-wrap:wrap}.docActions{margin-left:60px}.reviewInfo{grid-template-columns:1fr}}
 `;
-
-export default AdminVerificationPage;
