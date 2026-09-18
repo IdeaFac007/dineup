@@ -35,9 +35,10 @@ export async function updateSession(request: NextRequest) {
   const isAdminPage = pathname.startsWith("/admin/") && !pathname.startsWith("/admin/login");
   const isAdminApi = pathname.startsWith("/api/admin/");
   const isRestaurantProtected = pathname.startsWith("/restaurant/dashboard/") || pathname.startsWith("/restaurant/bid/");
+  const isCustomerProtected = pathname.startsWith("/account");
 
   // Admin login remains publicly reachable.
-  if (!isAdminPage && !isAdminApi && !isRestaurantProtected) {
+  if (!isAdminPage && !isAdminApi && !isRestaurantProtected && !isCustomerProtected) {
     return supabaseResponse;
   }
 
@@ -53,7 +54,7 @@ export async function updateSession(request: NextRequest) {
       }
 
       const loginUrl = request.nextUrl.clone();
-      loginUrl.pathname = isAdminPage ? "/admin/login" : "/restaurant/login";
+      loginUrl.pathname = isAdminPage ? "/admin/login" : isCustomerProtected ? "/login" : "/restaurant/login";
       loginUrl.search = "";
       return NextResponse.redirect(loginUrl);
     }
