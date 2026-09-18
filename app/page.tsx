@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import MarketplacePage from "../components/MarketplacePage";
 
 export default function Home() {
-  redirect("/marketplace");
+  return <MarketplacePage />;
 }
