@@ -7,6 +7,7 @@ import { createClient } from "../../../../lib/supabase/client";
 const emptyProfile = { phone: "", whatsapp: "", website_url: "", menu_url: "", description: "", price_range: "", cover_image_url: "", logo_image_url: "", instagram_url: "", google_maps_url: "", cuisine_tags: "", owner_name: "", owner_designation: "" };
 
 type Media = { id:number; media_type:"gallery"|"menu"; storage_path:string; public_url:string; title:string|null; caption:string|null; sort_order:number };
+type VerificationDoc = { id:number; document_type:string; file_name:string; mime_type:string; file_size:number; status:"pending"|"approved"|"rejected"; admin_note:string|null; created_at:string };
 
 export default function RestaurantProfileEditor() {
   const supabase = createClient();
@@ -18,6 +19,8 @@ export default function RestaurantProfileEditor() {
   const [uploading, setUploading] = useState<"logo"|"cover"|"menu"|"gallery"|null>(null);
   const [generating, setGenerating] = useState<"logo"|"cover"|null>(null);
   const [message, setMessage] = useState("");
+  const [verificationDocs, setVerificationDocs] = useState<VerificationDoc[]>([]);
+  const [verificationUploading, setVerificationUploading] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -26,12 +29,14 @@ export default function RestaurantProfileEditor() {
       const { data: r, error: re } = await supabase.from("restaurants").select("id,name,city,category,is_active").eq("owner_id", user.id).eq("is_active", true).limit(1).maybeSingle();
       if (re || !r) { setMessage(re?.message || "No active restaurant is linked to this account."); setLoading(false); return; }
       setRestaurant(r);
-      const [{ data: p, error: pe }, { data: media, error: me }] = await Promise.all([
+      const [{ data: p, error: pe }, { data: media, error: me }, { data: docs, error: de }] = await Promise.all([
         supabase.from("restaurant_profiles").select("phone,whatsapp,website_url,menu_url,description,price_range,cover_image_url,logo_image_url,instagram_url,google_maps_url,cuisine_tags,owner_name,owner_designation").eq("restaurant_id", Number(r.id)).maybeSingle(),
-        supabase.from("restaurant_media").select("id,media_type,storage_path,public_url,title,caption,sort_order").eq("restaurant_id", Number(r.id)).eq("media_type","gallery").eq("is_active",true).order("sort_order",{ascending:true}).order("created_at",{ascending:true})
+        supabase.from("restaurant_media").select("id,media_type,storage_path,public_url,title,caption,sort_order").eq("restaurant_id", Number(r.id)).eq("media_type","gallery").eq("is_active",true).order("sort_order",{ascending:true}).order("created_at",{ascending:true}),
+        supabase.from("restaurant_verification_documents").select("id,document_type,file_name,mime_type,file_size,status,admin_note,created_at").eq("restaurant_id", Number(r.id)).order("created_at",{ascending:false})
       ]);
       if (pe) setMessage(pe.message); else setForm({ ...emptyProfile, ...(p || {}), cuisine_tags: Array.isArray(p?.cuisine_tags) ? p.cuisine_tags.join(", ") : (p?.cuisine_tags || "") });
       if (me) setMessage(me.message); else setGallery((media || []) as Media[]);
+      if (de) setMessage(de.message); else setVerificationDocs((docs || []) as VerificationDoc[]);
       setLoading(false);
     }
     load();
@@ -75,6 +80,39 @@ export default function RestaurantProfileEditor() {
       set("menu_url", data.publicUrl);
       setMessage("Menu uploaded. Save the profile to publish it.");
     } catch (e:any) { setMessage(e?.message || "Menu upload failed."); } finally { setUploading(null); }
+  }
+
+  async function uploadVerificationDoc(file: File | undefined, documentType: string) {
+    if (!restaurant || !file) return;
+    const allowed = ["application/pdf","image/jpeg","image/png","image/webp"];
+    if (!allowed.includes(file.type) || file.size > 10 * 1024 * 1024) {
+      setMessage("Verification document must be PDF/JPG/PNG/WebP and up to 10 MB.");
+      return;
+    }
+    setVerificationUploading(true); setMessage("");
+    const safeType = documentType || "other";
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "pdf";
+      const safeExt = ["pdf","jpg","jpeg","png","webp"].includes(ext) ? ext : "pdf";
+      const path = String(restaurant.id) + "/" + crypto.randomUUID() + "-" + safeType + "." + safeExt;
+      const { error: uploadError } = await supabase.storage.from("restaurant-verification-docs").upload(path, file, {
+        upsert:false, cacheControl:"3600", contentType:file.type
+      });
+      if (uploadError) throw uploadError;
+      const { data: authData } = await supabase.auth.getUser();
+      const { data: row, error: rowError } = await supabase.from("restaurant_verification_documents").insert({
+        restaurant_id:Number(restaurant.id), user_id:authData.user?.id,
+        document_type:safeType, storage_path:path, file_name:file.name, mime_type:file.type, file_size:file.size, status:"pending"
+      }).select("id,document_type,file_name,mime_type,file_size,status,admin_note,created_at").single();
+      if (rowError) {
+        await supabase.storage.from("restaurant-verification-docs").remove([path]);
+        throw rowError;
+      }
+      setVerificationDocs(items => [row as VerificationDoc, ...items]);
+      setMessage("Verification document submitted. DineUp will review it.");
+    } catch (e:any) {
+      setMessage(e?.message || "Verification document upload failed.");
+    } finally { setVerificationUploading(false); }
   }
 
   async function uploadGallery(file?: File) {
@@ -169,6 +207,13 @@ export default function RestaurantProfileEditor() {
   <label><span>Cover image</span><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(e)=>uploadProfileImage("cover_image_url",e.target.files?.[0])}/><small>Wide restaurant photo • max 10 MB</small>{form.cover_image_url?<img src={form.cover_image_url} alt="Cover preview" className="cover"/>:<button type="button" className="generate" onClick={()=>generateImage("cover")} disabled={generating!==null||uploading!==null}>{generating==="cover"?"Creating cover…":"✨ Generate with DineUp"}</button>}</label>
   </div></div>
 
+  <div className="mediaSection"><h3>Restaurant verification</h3><p className="muted">Upload a business, GST, FSSAI or ownership document. These files are private and visible only to your account and DineUp admins.</p>
+  <div className="verificationGrid">
+    {[["business_license","Business license"],["gst","GST certificate"],["fssai","FSSAI certificate"],["ownership_proof","Ownership proof"]].map(([value,label])=><label key={value}><span>{label}</span><input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(e)=>uploadVerificationDoc(e.target.files?.[0],value)} disabled={verificationUploading}/></label>)}
+  </div>
+  {verificationDocs.length===0?<div className="empty">No verification documents submitted yet.</div>:<div className="verificationList">{verificationDocs.map(doc=><div className="verificationItem" key={doc.id}><div><strong>{doc.file_name}</strong><small>{doc.document_type.replaceAll("_"," ")} · {(doc.file_size/1024/1024).toFixed(2)} MB · {new Date(doc.created_at).toLocaleDateString("en-IN")}</small>{doc.admin_note&&<small>Admin note: {doc.admin_note}</small>}</div><span className={"verificationStatus "+doc.status}>{doc.status}</span></div>)}</div>}
+  </div>
+
   <div className="mediaSection"><h3>Menu</h3><p className="muted">Upload a menu PDF or image. Customers will see it on your public profile.</p><div className="menuRow"><input type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/gif" onChange={(e)=>uploadMenu(e.target.files?.[0])}/><small>PDF/JPG/PNG/WebP/GIF • max 10 MB</small>{form.menu_url&&<a className="button" href={form.menu_url} target="_blank" rel="noreferrer">Open current menu</a>}</div></div>
 
   <div className="mediaSection"><div className="sectionHead"><div><h3>Media gallery</h3><p className="muted">Add restaurant photos customers can browse.</p></div><label className="uploadButton"><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(e)=>uploadGallery(e.target.files?.[0])} disabled={uploading!==null}/>{uploading==="gallery"?"Uploading…":"＋ Add photo"}</label></div>
@@ -178,4 +223,4 @@ export default function RestaurantProfileEditor() {
   </section></div></main>;
 }
 
-const styles=`*{box-sizing:border-box}.page{min-height:100vh;background:#f6f7f9;color:#171717;font-family:Arial,sans-serif}header{height:72px;background:#fff;border-bottom:1px solid #e6e7eb;display:flex;align-items:center;justify-content:space-between;padding:0 6vw}.brand{font-size:27px;font-weight:800;color:#111;text-decoration:none}.brand span{color:#ff5a1f}.shell{max-width:980px;margin:0 auto;padding:40px 20px 70px}.heading{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-bottom:22px}.eyebrow{font-size:12px;font-weight:800;letter-spacing:.12em;color:#777}.heading h1{font-size:38px;margin:8px 0}.heading p,.muted{color:#737780}.card{background:#fff;border:1px solid #e6e7eb;border-radius:16px;padding:24px;box-shadow:0 5px 18px rgba(0,0,0,.04)}h2{margin-top:0}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}label{display:block;margin-top:16px}label span{display:block;font-size:13px;font-weight:700;margin-bottom:7px}input,select,textarea{width:100%;border:1px solid #d9dce1;border-radius:10px;padding:12px;font:inherit;background:#fff}textarea{min-height:130px;resize:vertical}small{display:block;color:#777;margin-top:5px}.mediaSection{border-top:1px solid #eee;margin-top:24px;padding-top:20px}.mediaSection h3{margin:0 0 5px}.images{display:grid;grid-template-columns:1fr 1fr;gap:16px}.logo{display:block;width:90px;height:90px;object-fit:cover;border-radius:12px;margin-top:10px}.cover{display:block;width:100%;max-height:180px;object-fit:cover;border-radius:12px;margin-top:10px}.generate,.uploadButton{display:inline-block;margin-top:12px;border:1px solid #ddd;background:#fff;color:#222;border-radius:10px;padding:11px 15px;font-weight:700;cursor:pointer}.generate:disabled,.uploadButton:has(input:disabled){opacity:.6;cursor:not-allowed}.uploadButton input{display:none}.menuRow{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end}.sectionHead{display:flex;justify-content:space-between;gap:15px;align-items:center}.sectionHead .muted{margin:0}.gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:15px}.galleryItem{position:relative;border-radius:12px;overflow:hidden;background:#eee;aspect-ratio:4/3}.galleryItem img{width:100%;height:100%;object-fit:cover}.remove{position:absolute;right:8px;bottom:8px;border:0;background:rgba(0,0,0,.75);color:#fff;border-radius:8px;padding:7px 9px;cursor:pointer;font-weight:700}.empty{margin-top:15px;border:1px dashed #d7d9dd;border-radius:12px;padding:25px;text-align:center;color:#777}.button{display:inline-block;border:1px solid #ddd;background:#fff;color:#222;text-decoration:none;border-radius:10px;padding:11px 15px;font-weight:700}.dark{background:#111;color:#fff;border-color:#111;cursor:pointer}.dark:disabled{opacity:.6}.message{margin-top:18px;padding:12px;border-radius:10px;background:#f3f4f6}.footer{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}@media(max-width:700px){.grid,.images{grid-template-columns:1fr}.gallery{grid-template-columns:1fr 1fr}.heading{align-items:flex-start;flex-direction:column}.menuRow{grid-template-columns:1fr}.sectionHead{align-items:flex-start;flex-direction:column}}@media(max-width:480px){.gallery{grid-template-columns:1fr}}`;
+const styles=`*{box-sizing:border-box}.page{min-height:100vh;background:#f6f7f9;color:#171717;font-family:Arial,sans-serif}header{height:72px;background:#fff;border-bottom:1px solid #e6e7eb;display:flex;align-items:center;justify-content:space-between;padding:0 6vw}.brand{font-size:27px;font-weight:800;color:#111;text-decoration:none}.brand span{color:#ff5a1f}.shell{max-width:980px;margin:0 auto;padding:40px 20px 70px}.heading{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-bottom:22px}.eyebrow{font-size:12px;font-weight:800;letter-spacing:.12em;color:#777}.heading h1{font-size:38px;margin:8px 0}.heading p,.muted{color:#737780}.card{background:#fff;border:1px solid #e6e7eb;border-radius:16px;padding:24px;box-shadow:0 5px 18px rgba(0,0,0,.04)}h2{margin-top:0}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}label{display:block;margin-top:16px}label span{display:block;font-size:13px;font-weight:700;margin-bottom:7px}input,select,textarea{width:100%;border:1px solid #d9dce1;border-radius:10px;padding:12px;font:inherit;background:#fff}textarea{min-height:130px;resize:vertical}small{display:block;color:#777;margin-top:5px}.mediaSection{border-top:1px solid #eee;margin-top:24px;padding-top:20px}.mediaSection h3{margin:0 0 5px}.images{display:grid;grid-template-columns:1fr 1fr;gap:16px}.logo{display:block;width:90px;height:90px;object-fit:cover;border-radius:12px;margin-top:10px}.cover{display:block;width:100%;max-height:180px;object-fit:cover;border-radius:12px;margin-top:10px}.generate,.uploadButton{display:inline-block;margin-top:12px;border:1px solid #ddd;background:#fff;color:#222;border-radius:10px;padding:11px 15px;font-weight:700;cursor:pointer}.generate:disabled,.uploadButton:has(input:disabled){opacity:.6;cursor:not-allowed}.uploadButton input{display:none} .verificationGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.verificationList{display:grid;gap:9px;margin-top:14px}.verificationItem{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px;border:1px solid #ececef;border-radius:10px}.verificationItem strong{display:block;font-size:13px}.verificationItem small{display:block;margin-top:4px}.verificationStatus{padding:5px 8px;border-radius:999px;font-size:9px;font-weight:800;text-transform:uppercase}.verificationStatus.pending{background:#fff7e6;color:#a56600}.verificationStatus.approved{background:#e9f7ef;color:#258150}.verificationStatus.rejected{background:#fff0f0;color:#a43b3b}.menuRow{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end}.sectionHead{display:flex;justify-content:space-between;gap:15px;align-items:center}.sectionHead .muted{margin:0}.gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:15px}.galleryItem{position:relative;border-radius:12px;overflow:hidden;background:#eee;aspect-ratio:4/3}.galleryItem img{width:100%;height:100%;object-fit:cover}.remove{position:absolute;right:8px;bottom:8px;border:0;background:rgba(0,0,0,.75);color:#fff;border-radius:8px;padding:7px 9px;cursor:pointer;font-weight:700}.empty{margin-top:15px;border:1px dashed #d7d9dd;border-radius:12px;padding:25px;text-align:center;color:#777}.button{display:inline-block;border:1px solid #ddd;background:#fff;color:#222;text-decoration:none;border-radius:10px;padding:11px 15px;font-weight:700}.dark{background:#111;color:#fff;border-color:#111;cursor:pointer}.dark:disabled{opacity:.6}.message{margin-top:18px;padding:12px;border-radius:10px;background:#f3f4f6}.footer{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}@media(max-width:700px){.grid,.images{grid-template-columns:1fr}.gallery{grid-template-columns:1fr 1fr}.heading{align-items:flex-start;flex-direction:column}.menuRow{grid-template-columns:1fr}.sectionHead{align-items:flex-start;flex-direction:column}}@media(max-width:480px){.gallery{grid-template-columns:1fr}}`;
