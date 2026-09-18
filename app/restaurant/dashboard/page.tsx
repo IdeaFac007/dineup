@@ -18,7 +18,8 @@ const defaultHours = {
 export default function RestaurantDashboard() {
   const supabase = createClient();
   const router = useRouter();
-  const [restaurant, setRestaurant] = useState<any>(null);\n  const [onboarding, setOnboarding] = useState<any[]>([]);
+  const [restaurant, setRestaurant] = useState<any>(null);
+  const [onboarding, setOnboarding] = useState<any[]>([]);
   const [rank, setRank] = useState(0);
   const [nextRank, setNextRank] = useState<number | null>(null);
   const [nextBid, setNextBid] = useState<number | null>(null);
@@ -73,7 +74,10 @@ export default function RestaurantDashboard() {
         opening_hours: { ...defaultHours, ...(p.opening_hours || {}) },
       }));
 
-      const { data: onboardingData, error: onboardingError } = await supabase.rpc("get_restaurant_onboarding_status", { p_restaurant_id: restaurantData.id });\n      if (onboardingError) console.error("Onboarding error:", onboardingError); else setOnboarding(onboardingData || []);\n\n      const { data: restaurants, error: leaderboardError } = await supabase.from("restaurants")
+      const { data: onboardingData, error: onboardingError } = await supabase.rpc("get_restaurant_onboarding_status", { p_restaurant_id: restaurantData.id });
+      if (onboardingError) console.error("Onboarding error:", onboardingError); else setOnboarding(onboardingData || []);
+
+      const { data: restaurants, error: leaderboardError } = await supabase.from("restaurants")
         .select("id, name, current_bid").eq("is_active", true).eq("city", restaurantData.city)
         .order("current_bid", { ascending: false });
       if (leaderboardError) throw leaderboardError;
