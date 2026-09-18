@@ -1,13 +1,13 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "../../../lib/supabase/client";
 import { TurnstileWidget } from "../../../components/turnstile-widget";
 import { trackMarketingEvent } from "../../../lib/marketing-attribution";
 
-export default function RestaurantLoginPage() {
+function RestaurantLoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next");
@@ -54,4 +54,12 @@ export default function RestaurantLoginPage() {
     <div style={{marginTop:"30px",paddingTop:"26px",borderTop:"1px solid #eeeeee",textAlign:"center"}}><p style={{margin:0,fontSize:"14px",color:"#6b7280"}}>Don&apos;t have a restaurant account?</p><Link href="/restaurant/signup" style={{display:"inline-block",marginTop:"9px",fontSize:"14px",fontWeight:800,color:"#d97927",textDecoration:"none"}}>Register your restaurant →</Link></div>
     <div style={{marginTop:"30px",textAlign:"center",fontSize:"12px",color:"#9ca3af"}}>DineUp · Where Restaurants Rise</div>
   </div></div><style jsx>{`@media (max-width:600px){main{padding:20px 12px !important}}`}</style></main>
+}
+
+export default function RestaurantLoginPage() {
+  return (
+    <Suspense fallback={<main style={{minHeight:"100vh",background:"#111111",display:"flex",alignItems:"center",justifyContent:"center",color:"#ffffff",fontFamily:"Inter, Arial, Helvetica, sans-serif"}}>Loading...</main>}>
+      <RestaurantLoginContent />
+    </Suspense>
+  );
 }
