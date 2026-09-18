@@ -48,6 +48,7 @@ type NavItem = { id: string; label: string; icon: string };
 const navItems: NavItem[] = [
   { id: "overview", label: "Overview", icon: "⌂" },
   { id: "applications", label: "Applications", icon: "✓" },
+  { id: "verification", label: "Verification", icon: "▣" },
   { id: "restaurants", label: "Restaurants", icon: "◉" },
   { id: "leaderboard", label: "Leaderboard", icon: "♛" },
   { id: "bids", label: "Bids", icon: "↗" },
@@ -334,7 +335,14 @@ export default function AdminDashboardPage() {
           <div className="sideSectionTitle">MANAGEMENT</div>
           <nav className="navigation">
             {navItems.map((item) => (
-              <button key={item.id} className={activeNav === item.id ? "navItem active" : "navItem"} onClick={() => { setActiveNav(item.id); setSearch(""); }}>
+              <button key={item.id} className={activeNav === item.id ? "navItem active" : "navItem"} onClick={() => {
+                  if (item.id === "verification") {
+                    router.push("/admin/verification");
+                    return;
+                  }
+                  setActiveNav(item.id);
+                  setSearch("");
+                }}>
                 <span className="navIcon">{item.icon}</span><span>{item.label}</span>
               </button>
             ))}
@@ -366,7 +374,7 @@ export default function AdminDashboardPage() {
                 <div className="panel"><div className="panelHeader"><div><h3>Live Leaderboard</h3><p>Restaurants ranked by current bid</p></div><button className="textButton" onClick={() => setActiveNav("leaderboard")}>View all →</button></div><div className="leaderboard">{topRestaurants.length ? topRestaurants.map((r, i) => <div className="leaderRow" key={r.id}><div className={i === 0 ? "rank first" : "rank"}>{i + 1}</div><div className="restaurantAvatar">{r.name.charAt(0).toUpperCase()}</div><div className="restaurantInfo"><strong>{r.name}</strong><span>{r.category} • {r.city}</span></div><div className="bidAmount">₹{Number(r.current_bid || 0).toLocaleString("en-IN")}</div><div className="statusPill">{r.is_active !== false ? "Active" : "Inactive"}</div></div>) : <EmptyState/>}</div></div>
                 <div className="panel"><div className="panelHeader"><div><h3>Market Snapshot</h3><p>Current marketplace overview</p></div></div><div className="snapshotList"><SnapshotRow label="Cities" value={String(stats.cities)}/><SnapshotRow label="Claimed Restaurants" value={String(stats.claimed)}/><SnapshotRow label="Unclaimed Restaurants" value={String(stats.total - stats.claimed)}/><SnapshotRow label="Total Bids" value={String(stats.totalBids)}/><SnapshotRow label="Captured Payments" value={String(stats.capturedPayments)}/><SnapshotRow label="Paid Amount" value={`₹${stats.capturedAmount.toLocaleString("en-IN")}`}/></div><div className="marketMessage"><span className="messageIcon">↗</span><div><strong>Marketplace is active</strong><p>Restaurants can compete for higher visibility.</p></div></div></div>
               </section>
-              <section className="quickSection"><div className="sectionTitle"><h3>Quick Management</h3><p>Jump directly to important admin sections.</p></div><div className="quickGrid"><QuickAction icon="✓" title="Applications" description={`${stats.pendingApplications} pending review`} onClick={() => setActiveNav("applications")}/><QuickAction icon="◉" title="Restaurants" description="Manage restaurant listings" onClick={() => setActiveNav("restaurants")}/><QuickAction icon="♛" title="Leaderboard" description="Monitor ranking positions" onClick={() => setActiveNav("leaderboard")}/><QuickAction icon="↗" title="Bids" description={`${stats.totalBids} bids recorded`} onClick={() => setActiveNav("bids")}/><QuickAction icon="₹" title="Payments" description={`${stats.capturedPayments} captured`} onClick={() => setActiveNav("payments")}/></div></section>
+              <section className="quickSection"><div className="sectionTitle"><h3>Quick Management</h3><p>Jump directly to important admin sections.</p></div><div className="quickGrid"><QuickAction icon="✓" title="Applications" description={`${stats.pendingApplications} pending review`} onClick={() => setActiveNav("applications")}/><QuickAction icon="▣" title="Verification" description="Review business documents" onClick={() => router.push("/admin/verification")}/><QuickAction icon="◉" title="Restaurants" description="Manage restaurant listings" onClick={() => setActiveNav("restaurants")}/><QuickAction icon="♛" title="Leaderboard" description="Monitor ranking positions" onClick={() => setActiveNav("leaderboard")}/><QuickAction icon="↗" title="Bids" description={`${stats.totalBids} bids recorded`} onClick={() => setActiveNav("bids")}/><QuickAction icon="₹" title="Payments" description={`${stats.capturedPayments} captured`} onClick={() => setActiveNav("payments")}/></div></section>
             </>}
 
             {activeNav === "applications" && (
