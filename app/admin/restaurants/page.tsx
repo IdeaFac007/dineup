@@ -18,7 +18,7 @@ type Profile = {
 
 type Step = { step: string; status: string; completed_at: string | null };
 type Claim = { id:number; restaurant_id:number; user_id:string; owner_name:string; phone:string|null; email:string|null; message:string|null; status:string; admin_note:string|null; created_at:string; restaurant?: { name:string; city:string } | null };
-type VerificationDoc = { id:number; restaurant_id:number; document_type:string; file_name:string; mime_type:string; file_size:number; status:"pending"|"approved"|"rejected"; admin_note:string|null; created_at:string; reviewed_at:string|null };
+type VerificationDoc = { id:number; restaurant_id:number; storage_path:string; document_type:string; file_name:string; mime_type:string; file_size:number; status:"pending"|"approved"|"rejected"; admin_note:string|null; created_at:string; reviewed_at:string|null };
 
 const supabase = createClient();
 
@@ -68,7 +68,7 @@ export default function AdminRestaurantsPage() {
     const [{ data: p }, { data: s }, { data: docs }] = await Promise.all([
       supabase.from("restaurant_profiles").select("restaurant_id,phone,whatsapp,website_url,menu_url,instagram_url,google_maps_url,description,price_range,owner_name,owner_designation").eq("restaurant_id", r.id).maybeSingle(),
       supabase.from("restaurant_onboarding_steps").select("step,status,completed_at").eq("restaurant_id", r.id).order("id"),
-      supabase.from("restaurant_verification_documents").select("id,restaurant_id,document_type,file_name,mime_type,file_size,status,admin_note,created_at,reviewed_at").eq("restaurant_id", r.id).order("created_at",{ascending:false}),
+      supabase.from("restaurant_verification_documents").select("id,restaurant_id,storage_path,document_type,file_name,mime_type,file_size,status,admin_note,created_at,reviewed_at").eq("restaurant_id", r.id).order("created_at",{ascending:false}),
     ]);
     setProfile((p || null) as Profile | null); setSteps((s || []) as Step[]); setVerificationDocs((docs || []) as VerificationDoc[]); setDetailLoading(false);
   }
@@ -96,7 +96,7 @@ export default function AdminRestaurantsPage() {
 
   async function openVerificationDoc(doc: VerificationDoc) {
     try {
-      const path = String(doc.restaurant_id) + "/" + doc.file_name;
+      const path = doc.storage_path;
       const { data, error } = await supabase.storage.from("restaurant-verification-docs").createSignedUrl(path, 300);
       if (error) throw error;
       if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener,noreferrer");
