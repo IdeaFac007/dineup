@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 
@@ -92,7 +92,7 @@ export default function AdminRestaurantsPage() {
     finally{setClaimBusy(null)}
   }
 
-  async function addRestaurant(e: React.FormEvent) {
+  async function addRestaurant(e: FormEvent<HTMLFormElement>) {
     e.preventDefault(); if (!form.name.trim() || !form.city.trim()) return;
     setAdding(true); setError("");
     try {
