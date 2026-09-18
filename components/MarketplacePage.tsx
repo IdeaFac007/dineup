@@ -92,7 +92,7 @@ export default function MarketplacePage(){
     let digits=raw.replace(/\D/g,"");
     if(digits.startsWith("00")) digits=digits.slice(2);
     if(digits.length===10) digits="91"+digits;
-    return digits;
+    return digits.length>=8 && digits.length<=15 ? digits : "";
   };
   const openRestaurant=(r:Restaurant)=>{
     void trackMarketingEvent("restaurant_view",r.id);
@@ -215,7 +215,7 @@ export default function MarketplacePage(){
           <div className="bid"><span>Current marketplace bid</span><strong>{money(r.current_bid)}</strong></div>
           <div className="actions">
             {r.profile?.phone&&<a href={`tel:${r.profile.phone}`} onClick={e=>{e.stopPropagation();action(r,"call")}}>☎ Call</a>}
-            {whatsapp(r)&&<a href={`https://wa.me/${whatsapp(r)}?text=${encodeURIComponent(`Hi, I found ${r.name} on DineUp. I would like to know more.`) }`} onClick={e=>{e.stopPropagation();action(r,"whatsapp")}}>WhatsApp</a>}
+            {whatsapp(r)&&<a href={`https://wa.me/${whatsapp(r)}?text=${encodeURIComponent(`Hi, I found ${r.name} on DineUp. I would like to know more.`) }`} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"whatsapp")}}>WhatsApp</a>}
             <a href={directions(r)} target="_blank" rel="noreferrer" onClick={e=>{e.stopPropagation();action(r,"directions")}}>Directions</a>
             {r.profile?.menu_url&&<a href={r.profile.menu_url} target="_blank" rel="noreferrer" onClick={e=>{e.stopPropagation();action(r,"menu")}}>Menu</a>}
             {r.profile?.website_url&&<a href={r.profile.website_url} target="_blank" rel="noreferrer" onClick={e=>{e.stopPropagation();action(r,"website")}}>Website</a>}
