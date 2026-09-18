@@ -77,18 +77,17 @@ export default function AdminRestaurantsPage() {
     setVerificationBusy(doc.id); setError("");
     try {
       const note = status === "rejected" ? window.prompt("Reason for rejection (optional):") : null;
-      const { data: { user } } = await supabase.auth.getUser();
-      const { error: docError } = await supabase.from("restaurant_verification_documents").update({
-        status, admin_note: note || null, reviewed_at: new Date().toISOString(), reviewed_by: user?.id || null
-      }).eq("id", doc.id);
-      if (docError) throw new Error(docError.message);
-      if (status === "approved") {
-        const { error: restaurantError } = await supabase.from("restaurants").update({
-          claim_status:"verified", is_claimed:true, claimed_at: new Date().toISOString(), verified_at:new Date().toISOString(), verification_method:"document"
-        }).eq("id", doc.restaurant_id);
-        if (restaurantError) throw new Error(restaurantError.message);
-      }
-      setVerificationDocs(items => items.map(x => x.id === doc.id ? {...x,status,admin_note:note||null,reviewed_at:new Date().toISOString()} : x));
+      const { data, error: reviewError } = await supabase.rpc(
+        "admin_review_restaurant_verification_document",
+        {
+          p_document_id: doc.id,
+          p_status: status,
+          p_admin_note: note || null,
+        }
+      );
+      if (reviewError) throw new Error(reviewError.message);
+      const updated = data as VerificationDoc;
+      setVerificationDocs(items => items.map(x => x.id === doc.id ? updated : x));
       await load();
     } catch(e) { setError(e instanceof Error ? e.message : "Unable to review verification document."); }
     finally { setVerificationBusy(null); }
