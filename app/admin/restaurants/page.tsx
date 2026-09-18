@@ -18,6 +18,7 @@ type Profile = {
 
 type Step = { step: string; status: string; completed_at: string | null };
 type Claim = { id:number; restaurant_id:number; user_id:string; owner_name:string; phone:string|null; email:string|null; message:string|null; status:string; admin_note:string|null; created_at:string; restaurant?: { name:string; city:string } | null };
+type VerificationDoc = { id:number; restaurant_id:number; document_type:string; file_name:string; mime_type:string; file_size:number; status:"pending"|"approved"|"rejected"; admin_note:string|null; created_at:string; reviewed_at:string|null };
 
 const supabase = createClient();
 
@@ -38,6 +39,8 @@ export default function AdminRestaurantsPage() {
   const [form, setForm] = useState({ name: "", city: "Lucknow", category: "", address: "" });
   const [claims, setClaims] = useState<Claim[]>([]);
   const [claimBusy, setClaimBusy] = useState<number | null>(null);
+  const [verificationDocs, setVerificationDocs] = useState<VerificationDoc[]>([]);
+  const [verificationBusy, setVerificationBusy] = useState<number | null>(null);
 
   async function load() {
     setLoading(true); setError("");
@@ -61,12 +64,45 @@ export default function AdminRestaurantsPage() {
   useEffect(() => { load(); }, []);
 
   async function openDetails(r: Restaurant) {
-    setSelected(r); setProfile(null); setSteps([]); setDetailLoading(true);
-    const [{ data: p }, { data: s }] = await Promise.all([
+    setSelected(r); setProfile(null); setSteps([]); setVerificationDocs([]); setDetailLoading(true);
+    const [{ data: p }, { data: s }, { data: docs }] = await Promise.all([
       supabase.from("restaurant_profiles").select("restaurant_id,phone,whatsapp,website_url,menu_url,instagram_url,google_maps_url,description,price_range,owner_name,owner_designation").eq("restaurant_id", r.id).maybeSingle(),
       supabase.from("restaurant_onboarding_steps").select("step,status,completed_at").eq("restaurant_id", r.id).order("id"),
+      supabase.from("restaurant_verification_documents").select("id,restaurant_id,document_type,file_name,mime_type,file_size,status,admin_note,created_at,reviewed_at").eq("restaurant_id", r.id).order("created_at",{ascending:false}),
     ]);
-    setProfile((p || null) as Profile | null); setSteps((s || []) as Step[]); setDetailLoading(false);
+    setProfile((p || null) as Profile | null); setSteps((s || []) as Step[]); setVerificationDocs((docs || []) as VerificationDoc[]); setDetailLoading(false);
+  }
+
+  async function reviewVerificationDoc(doc: VerificationDoc, status:"approved"|"rejected") {
+    setVerificationBusy(doc.id); setError("");
+    try {
+      const note = status === "rejected" ? window.prompt("Reason for rejection (optional):") : null;
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error: docError } = await supabase.from("restaurant_verification_documents").update({
+        status, admin_note: note || null, reviewed_at: new Date().toISOString(), reviewed_by: user?.id || null
+      }).eq("id", doc.id);
+      if (docError) throw new Error(docError.message);
+      if (status === "approved") {
+        const { error: restaurantError } = await supabase.from("restaurants").update({
+          claim_status:"verified", is_claimed:true, claimed_at: new Date().toISOString(), verified_at:new Date().toISOString(), verification_method:"document"
+        }).eq("id", doc.restaurant_id);
+        if (restaurantError) throw new Error(restaurantError.message);
+      }
+      setVerificationDocs(items => items.map(x => x.id === doc.id ? {...x,status,admin_note:note||null,reviewed_at:new Date().toISOString()} : x));
+      await load();
+    } catch(e) { setError(e instanceof Error ? e.message : "Unable to review verification document."); }
+    finally { setVerificationBusy(null); }
+  }
+
+  async function openVerificationDoc(doc: VerificationDoc) {
+    try {
+      const path = String(doc.restaurant_id) + "/" + doc.file_name;
+      const { data, error } = await supabase.storage.from("restaurant-verification-docs").createSignedUrl(path, 300);
+      if (error) throw error;
+      if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    } catch {
+      setError("Could not open this document. Use the latest uploaded file path if the stored filename has changed.");
+    }
   }
 
   async function updateRestaurant(id: number, patch: Partial<Restaurant>) {
@@ -159,6 +195,7 @@ export default function AdminRestaurantsPage() {
           <div style={statGrid}><Stat title="Claim" value={labelClaim(selected.claim_status)} /><Stat title="Profile" value={selected.profile_completion_pct+"%"} /><Stat title="Listing" value={selected.is_active === false ? "Inactive" : "Active"} /></div>
           <div style={section}><h3>Claim & Listing</h3><div style={row}><button disabled={busyId===selected.id} onClick={() => updateRestaurant(selected.id,{claim_status:selected.claim_status==="verified"?"unclaimed":"verified",is_claimed:selected.claim_status!=="verified"})} style={button(true)}>{selected.claim_status==="verified" ? "Mark Unclaimed" : "Verify Claim"}</button><button disabled={busyId===selected.id} onClick={() => updateRestaurant(selected.id,{is_active:selected.is_active===false})} style={button(false)}>{selected.is_active===false ? "Activate" : "Deactivate"}</button></div></div>
           <div style={section}><h3>Contact & Links</h3><Info label="Phone" value={profile?.phone}/><Info label="WhatsApp" value={profile?.whatsapp}/><Info label="Website" value={profile?.website_url}/><Info label="Instagram" value={profile?.instagram_url}/><Info label="Menu" value={profile?.menu_url}/><Info label="Maps" value={profile?.google_maps_url}/></div>
+          <div style={section}><h3>Verification documents</h3>{!verificationDocs.length ? <div style={empty}>No verification documents submitted.</div> : verificationDocs.map(doc => <div key={doc.id} style={docRow}><div><strong style={{fontSize:10}}>{pretty(doc.document_type)}</strong><div style={muted}>{doc.file_name} · {(doc.file_size/1024/1024).toFixed(2)} MB</div><div style={muted}>{new Date(doc.created_at).toLocaleDateString("en-IN")}</div></div><div style={row}><span style={pill(doc.status==="approved"?"verified":doc.status==="rejected"?"inactive":"pending")}>{doc.status}</span><button onClick={()=>openVerificationDoc(doc)} style={action}>Open</button>{doc.status==="pending"&&<><button disabled={verificationBusy===doc.id} onClick={()=>reviewVerificationDoc(doc,"approved")} style={button(true)}>Approve</button><button disabled={verificationBusy===doc.id} onClick={()=>reviewVerificationDoc(doc,"rejected")} style={button(false)}>Reject</button></>}</div></div>)}</div>
           <div style={section}><h3>Onboarding</h3>{steps.map(s=><div key={s.step} style={stepRow}><span>{pretty(s.step)}</span><span style={pill(s.status==="completed"?"verified":"neutral")}>{s.status}</span></div>)}</div>
           <div style={section}><h3>Owner</h3><Info label="Name" value={profile?.owner_name}/><Info label="Designation" value={profile?.owner_designation}/><Info label="Address" value={selected.address}/></div>
         </>}
@@ -187,4 +224,4 @@ const table={width:"100%",borderCollapse:"collapse" as const,minWidth:1050}; con
 const bar={width:55,height:5,background:"#eceef0",borderRadius:9,overflow:"hidden" as const}; const barFill={height:"100%",background:"#171717",borderRadius:9};
 function pill(v:string){const good=["verified","completed","active"].includes(v);const danger=["inactive"].includes(v);return {display:"inline-flex",padding:"5px 8px",borderRadius:999,fontSize:8,fontWeight:800,background:good?"#e9f7ef":danger?"#fff0f0":"#f0f1f3",color:good?"#258150":danger?"#a43b3b":"#777b80"}}
 const overlay={position:"fixed" as const,inset:0,background:"rgba(0,0,0,.28)",display:"flex",justifyContent:"flex-end",zIndex:50}; const drawer={width:440,maxWidth:"92vw",height:"100%",background:"#fff",padding:24,overflowY:"auto" as const,boxShadow:"-10px 0 30px rgba(0,0,0,.12)"}; const modal={width:430,maxWidth:"92vw",background:"#fff",borderRadius:16,padding:24,alignSelf:"center",margin:"auto",boxShadow:"0 20px 60px rgba(0,0,0,.18)"};
-const drawerHead={display:"flex",justifyContent:"space-between",gap:15,alignItems:"flex-start",marginBottom:18}; const close={border:0,background:"#f1f2f4",width:32,height:32,borderRadius:8,fontSize:20,cursor:"pointer"}; const statGrid={display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:20}; const stat={background:"#f7f7f8",borderRadius:10,padding:12}; const section={borderTop:"1px solid #ececef",paddingTop:17,marginTop:17}; const info={display:"flex",justifyContent:"space-between",gap:15,padding:"7px 0",fontSize:9}; const stepRow={display:"flex",justifyContent:"space-between",padding:"8px 0",fontSize:10}; const label={display:"block",fontSize:9,fontWeight:800,textTransform:"uppercase" as const,letterSpacing:".5px",marginBottom:12};
+const docRow={display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",padding:"10px 0",borderBottom:"1px solid #f0f0f1"}; const drawerHead={display:"flex",justifyContent:"space-between",gap:15,alignItems:"flex-start",marginBottom:18}; const close={border:0,background:"#f1f2f4",width:32,height:32,borderRadius:8,fontSize:20,cursor:"pointer"}; const statGrid={display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:20}; const stat={background:"#f7f7f8",borderRadius:10,padding:12}; const section={borderTop:"1px solid #ececef",paddingTop:17,marginTop:17}; const info={display:"flex",justifyContent:"space-between",gap:15,padding:"7px 0",fontSize:9}; const stepRow={display:"flex",justifyContent:"space-between",padding:"8px 0",fontSize:10}; const label={display:"block",fontSize:9,fontWeight:800,textTransform:"uppercase" as const,letterSpacing:".5px",marginBottom:12};
