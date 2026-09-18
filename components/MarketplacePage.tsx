@@ -16,7 +16,7 @@ export default function MarketplacePage(){
   const [restaurants,setRestaurants]=useState<Restaurant[]>([]);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
-  const [city,setCity]=useState("Lucknow");
+  const [city,setCity]=useState("All");
   const [category,setCategory]=useState("All");
   const [search,setSearch]=useState("");
   const [sort,setSort]=useState("recommended");
@@ -46,11 +46,14 @@ export default function MarketplacePage(){
   const categories=useMemo(()=>["All",...Array.from(new Set(restaurants.map(r=>normalize(r.category)).filter(Boolean)))],[restaurants]);
   const filtered=useMemo(()=>{
     const q=search.trim().toLowerCase();
+    const compact=(v:string)=>v.toLowerCase().replace(/[^a-z0-9]+/g,"");
+    const queryCompact=compact(q);
     return restaurants.filter(r=>{
       const cityMatch=city==="All"||r.city===city;
       const categoryMatch=category==="All"||normalize(r.category)===category;
       const cuisineText=(r.profile?.cuisine_tags||[]).join(" ");
-      const searchMatch=!q||[r.name,r.city,r.category,r.address||"",r.profile?.description||"",cuisineText].some(v=>v.toLowerCase().includes(q));
+      const searchable=[r.name,r.city,r.category,r.address||"",r.profile?.description||"",cuisineText];
+      const searchMatch=!q||searchable.some(v=>v.toLowerCase().includes(q))||searchable.some(v=>compact(v).includes(queryCompact));
       const verifiedMatch=!verifiedOnly||Boolean(r.is_claimed);
       return cityMatch&&categoryMatch&&searchMatch&&verifiedMatch;
     });
