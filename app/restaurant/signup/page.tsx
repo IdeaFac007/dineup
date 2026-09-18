@@ -72,7 +72,7 @@ export default function RestaurantSignupPage() {
   return <main className="signupPage"><section className="shell">
     <div className="intro">
       <Link href="/" className="brand"><span className="mark">D</span><span><strong>DineUp</strong><small>WHERE RESTAURANTS RISE</small></span></Link>
-      <div className="hero"><span className="eyebrow">FOR RESTAURANTS</span><h1>If you're not on DineUp, <em>customers can't discover you here.</em></h1><p>Register your restaurant to get a verified listing, showcase your menu and contact details, and compete for higher marketplace visibility.</p>
+      <div className="hero"><span className="eyebrow">FOR RESTAURANTS</span><h1>If you're not on<br/>DineUp,<br/><em>customers can't<br/>discover you here.</em></h1><p>Register your restaurant to get a verified listing, showcase your menu and contact details, and compete for higher marketplace visibility.</p>
       <div className="benefits"><Benefit icon="✓" title="Get your official listing" text="Your restaurant gets a dedicated DineUp presence."/><Benefit icon="↗" title="Increase your visibility" text="Compete for attention through marketplace placement."/><Benefit icon="☎" title="Connect directly" text="Let customers call, WhatsApp, view your menu or get directions."/><Benefit icon="★" title="Build trust" text="Complete your profile and become eligible for verification."/></div>
       <div className="steps"><Step n="1" title="Register" text="Create your restaurant account" active/><Step n="2" title="Get approved" text="We review your listing"/><Step n="3" title="Grow visibility" text="Complete your profile and use DineUp tools"/></div></div>
     </div>
