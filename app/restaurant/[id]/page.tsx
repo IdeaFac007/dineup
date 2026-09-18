@@ -43,7 +43,7 @@ export default function PublicRestaurantProfile(){
  if(loading)return <><Header/><div className="state"><span>DINEUP RESTAURANT</span><h1>Loading profile...</h1></div><style jsx global>{styles}</style></>;
  if(!restaurant||error)return <><Header/><div className="state"><span>DINEUP</span><h1>Restaurant unavailable</h1><p>{error||"Restaurant not found."}</p><Link href="/marketplace" className="primary">Back to marketplace</Link></div><style jsx global>{styles}</style></>;
  const bid=Number(restaurant.current_bid||0), sponsored=bid>0, hours=profile?.opening_hours||{}, phone=profile?.phone||"", whatsapp=profile?.whatsapp||phone;
- const normalizeWhatsApp=(value:string)=>{let digits=value.replace(/\D/g,""); if(digits.startsWith("00"))digits=digits.slice(2); if(digits.length===10)digits="91"+digits; return digits;};
+ const normalizeWhatsApp=(value:string)=>{let digits=value.replace(/\D/g,""); if(digits.startsWith("00"))digits=digits.slice(2); if(digits.length===10)digits="91"+digits; return digits.length>=8&&digits.length<=15?digits:"";};
  const whatsappNumber=normalizeWhatsApp(whatsapp);
  const whatsappMessage=encodeURIComponent(`Hi, I found ${restaurant.name} on DineUp. I would like to know more.`);
  const maps=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([restaurant.name,restaurant.address,restaurant.city].filter(Boolean).join(", "))}`;
