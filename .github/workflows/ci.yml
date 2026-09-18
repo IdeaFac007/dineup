@@ -1,0 +1,27 @@
+name: DineUp CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://xeabrfkenplmrrkhnbor.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+      SUPABASE_SERVICE_ROLE_KEY: ci-placeholder
+      RAZORPAY_KEY_ID: ci-placeholder
+      RAZORPAY_KEY_SECRET: ci-placeholder
+      RAZORPAY_WEBHOOK_SECRET: ci-placeholder
+      CRON_SECRET: ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install
+      - run: npm run build
