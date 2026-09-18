@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "../../../lib/supabase/client";
 import { TurnstileWidget } from "../../../components/turnstile-widget";
@@ -9,6 +9,8 @@ import { trackMarketingEvent } from "../../../lib/marketing-attribution";
 
 export default function RestaurantLoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = searchParams.get("next");
   const supabase = createClient();
   const [email, setEmail] = useState(""); const [password, setPassword] = useState("");
   const [captchaToken, setCaptchaToken] = useState<string | null>(null); const [captchaResetNonce, setCaptchaResetNonce] = useState(0);
@@ -25,6 +27,7 @@ export default function RestaurantLoginPage() {
       const {data:authData,error:authError}=await supabase.auth.signInWithPassword({email:email.trim().toLowerCase(),password,options:{captchaToken}});
       if(authError){console.error("LOGIN AUTH ERROR:",authError);showMessage("Invalid email or password.");setLoading(false);return}
       const user=authData.user;if(!user){showMessage("Unable to create login session.");setLoading(false);return}
+      if(nextPath && nextPath.startsWith("/restaurant/claim/")){showMessage("Login successful. Redirecting...","success");router.push(nextPath);router.refresh();return}
       const {data:applications,error:applicationError}=await supabase.from("restaurant_applications").select(`id,owner_id,restaurant_name,email,phone,city,category,address,status,admin_note,created_at,reviewed_at`).eq("owner_id",user.id).order("created_at",{ascending:false}).limit(1);
       if(applicationError){console.error("APPLICATION QUERY ERROR:",applicationError);await supabase.auth.signOut();showMessage("Unable to check your restaurant application. Please try again.");setLoading(false);return}
       const application=applications&&applications.length>0?applications[0]:null;
