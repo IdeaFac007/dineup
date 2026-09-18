@@ -7,7 +7,7 @@ import { createClient } from "../lib/supabase/client";
 import { trackMarketingEvent } from "../lib/marketing-attribution";
 
 type Profile={phone:string|null;whatsapp:string|null;website_url:string|null;description:string|null;price_range:string|null;menu_url:string|null;cover_image_url:string|null;logo_image_url:string|null;cuisine_tags:string[]|null};
-type Restaurant={id:number;name:string;city:string;category:string;address:string|null;current_bid:number|null;is_claimed:boolean|null;profile?:Profile|null};
+type Restaurant={id:number;name:string;city:string;category:string;address:string|null;current_bid:number|null;is_claimed:boolean|null;claim_status:string;profile?:Profile|null};
 
 const money=(n:number|null)=>`₹${Number(n||0).toLocaleString("en-IN")}`;
 const normalize=(v:string)=>v.toLowerCase().replace(/dinning/g,"dining").trim();
@@ -30,7 +30,7 @@ export default function MarketplacePage(){
   async function loadRestaurants(){
     setLoading(true);setError("");
     try{
-      const {data,error:restaurantError}=await supabase.from("restaurants").select("id,name,city,category,address,current_bid,is_claimed,is_active").eq("is_active",true).order("current_bid",{ascending:false,nullsFirst:false});
+      const {data,error:restaurantError}=await supabase.from("restaurants").select("id,name,city,category,address,current_bid,is_claimed,claim_status,is_active").eq("is_active",true).order("current_bid",{ascending:false,nullsFirst:false});
       if(restaurantError) throw restaurantError;
       const rows=(data||[]).map((r:any)=>({...r,id:Number(r.id),current_bid:Number(r.current_bid||0)})) as Restaurant[];
       if(rows.length){
@@ -73,7 +73,7 @@ export default function MarketplacePage(){
       const cuisineText=(r.profile?.cuisine_tags||[]).join(" ");
       const searchable=[r.name,r.city,r.category,r.address||"",r.profile?.description||"",cuisineText];
       const searchMatch=!q||searchable.some(v=>v.toLowerCase().includes(q))||searchable.some(v=>compact(v).includes(queryCompact));
-      const verifiedMatch=!verifiedOnly||Boolean(r.is_claimed);
+      const verifiedMatch=!verifiedOnly||r.claim_status==="verified";
       return cityMatch&&categoryMatch&&searchMatch&&verifiedMatch;
     });
   },[restaurants,city,category,search,verifiedOnly]);
@@ -147,7 +147,7 @@ export default function MarketplacePage(){
           <div className="panelTop"><span>🔥 Trending near you</span><b>{restaurants.length || "—"} places</b></div>
           {top.slice(0,2).map((r)=><button className="heroRestaurant" key={r.id} onClick={()=>openRestaurant(r)}>
             {r.profile?.cover_image_url?<img src={r.profile.cover_image_url} alt=""/>:<div className="heroThumb">{r.name.slice(0,1).toUpperCase()}</div>}
-            <div><strong>{r.name}</strong><span>{r.city} · {r.category}</span><small>{r.is_claimed?"✓ Verified":"View profile"} <b>→</b></small></div>
+            <div><strong>{r.name}</strong><span>{r.city} · {r.category}</span><small>{r.claim_status==="verified"?"✓ Verified":"View profile"} <b>→</b></small></div>
           </button>)}
           {top.length===0&&!loading&&<div className="heroEmpty">Restaurants will appear here as they go live.</div>}
           <button className="seeAll" onClick={()=>document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}>Explore all restaurants <span>→</span></button>
@@ -157,7 +157,7 @@ export default function MarketplacePage(){
 
     <section className="statsBar"><div className="statsInner">
       <div><b>🍽</b><span><strong>{restaurants.length||"0"}+</strong><small>Restaurants</small></span></div>
-      <div><b>★</b><span><strong>{restaurants.filter(r=>r.is_claimed).length||"0"}</strong><small>Verified places</small></span></div>
+      <div><b>★</b><span><strong>{restaurants.filter(r=>r.claim_status==="verified").length||"0"}</strong><small>Verified places</small></span></div>
       <div><b>⌖</b><span><strong>{Math.max(0,cities.length-1)}</strong><small>Cities</small></span></div>
       <div><b>♥</b><span><strong>Direct</strong><small>Restaurant contact</small></span></div>
     </div></section>
@@ -167,7 +167,7 @@ export default function MarketplacePage(){
         <div className="sectionHeader"><div><span className="sectionKicker">POPULAR NEAR YOU</span><h2>Restaurants worth discovering</h2><p>Explore places diners are checking out on DineUp.</p></div><button className="textLink" onClick={()=>document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}>See all <span>→</span></button></div>
         <div className="popularGrid">{top.slice(0,3).map((r,i)=><button className="popularCard" key={r.id} onClick={()=>openRestaurant(r)}>
           {r.profile?.cover_image_url?<img src={r.profile.cover_image_url} alt=""/>:<div className="popularPlaceholder">{r.name.slice(0,1).toUpperCase()}</div>}
-          <div className="popularOverlay"></div><button className={`favoriteBtn ${favoriteIds.has(r.id)?"saved":""}`} aria-label={favoriteIds.has(r.id)?"Remove from favourites":"Save restaurant"} onClick={e=>{e.stopPropagation();void toggleFavorite(r)}}>{favoriteIds.has(r.id)?"♥":"♡"}</button><div className="popularInfo"><div className="popularTag">{r.is_claimed?"✓ VERIFIED":"ON DINEUP"}</div><strong>{r.name}</strong><span>{r.city} · {r.category}</span></div><b className="popularArrow">↗</b>
+          <div className="popularOverlay"></div><button className={`favoriteBtn ${favoriteIds.has(r.id)?"saved":""}`} aria-label={favoriteIds.has(r.id)?"Remove from favourites":"Save restaurant"} onClick={e=>{e.stopPropagation();void toggleFavorite(r)}}>{favoriteIds.has(r.id)?"♥":"♡"}</button><div className="popularInfo"><div className="popularTag">{r.claim_status==="verified"?"✓ VERIFIED":"ON DINEUP"}</div><strong>{r.name}</strong><span>{r.city} · {r.category}</span></div><b className="popularArrow">↗</b>
         </button>)}</div>
       </div>
     </section>
@@ -210,7 +210,7 @@ export default function MarketplacePage(){
         <div className="cards">{top.map((r,i)=><article className="restaurantCard" key={r.id} role="link" tabIndex={0} onClick={()=>openRestaurant(r)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();openRestaurant(r)}}}>
           <div className="cardClickHint">View restaurant <span>↗</span></div><button className={`favoriteBtn cardFavorite ${favoriteIds.has(r.id)?"saved":""}`} aria-label={favoriteIds.has(r.id)?"Remove from favourites":"Save restaurant"} onClick={e=>{e.stopPropagation();void toggleFavorite(r)}}>{favoriteIds.has(r.id)?"♥":"♡"}</button>
           {r.profile?.cover_image_url?<img className="cover" src={r.profile.cover_image_url} alt=""/>:<div className="cover placeholder"><span>{r.name.slice(0,1).toUpperCase()}</span></div>}
-          <div className="cardBody"><div className="cardTop"><div><div className="tag">{i===0?"TRENDING":"FEATURED"}</div><h3>{r.name}</h3><p>{r.city} <b>·</b> {r.category}{r.profile?.cuisine_tags?.length ? <> <b>·</b> {r.profile.cuisine_tags.slice(0,2).join(", ")}</> : null}</p></div>{r.is_claimed&&<span className="verified">✓ Verified</span>}</div>
+          <div className="cardBody"><div className="cardTop"><div><div className="tag">{i===0?"TRENDING":"FEATURED"}</div><h3>{r.name}</h3><p>{r.city} <b>·</b> {r.category}{r.profile?.cuisine_tags?.length ? <> <b>·</b> {r.profile.cuisine_tags.slice(0,2).join(", ")}</> : null}</p></div>{r.claim_status==="verified"&&<span className="verified">✓ Verified</span>}</div>
           <p className="description">{r.profile?.description||r.address||"Discover this restaurant on DineUp."}</p>
           <div className="bid"><span>Current marketplace bid</span><strong>{money(r.current_bid)}</strong></div>
           <div className="actions">
