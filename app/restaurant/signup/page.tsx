@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 import { TurnstileWidget } from "../../../components/turnstile-widget";
-import { getMarketingAttribution, trackMarketingEvent } from "../../../lib/marketing-attribution";
+import { trackMarketingEvent } from "../../../lib/marketing-attribution";
 
 const categories = ["Fine Dining","North Indian","South Indian","Mughlai","Chinese","Cafe","Fast Food","Bakery","Desserts","Other"];
 
@@ -30,7 +30,6 @@ export default function RestaurantSignupPage() {
   async function handleSignup(e: FormEvent<HTMLFormElement>) {
     e.preventDefault(); setMessage(""); setSuccess(false);
     const name=restaurantName.trim(), mail=email.trim().toLowerCase(), cleanCity=city.trim(), cleanAddress=address.trim();
-    const attribution=getMarketingAttribution();
     if(!name||!mail||!cleanCity||(onboardingMode==="full"&&!cleanAddress)){setMessage("Please fill all required fields.");return;}
     if(password.length<8){setMessage("Password must be at least 8 characters.");return;}
     if(password!==confirmPassword){setMessage("Passwords do not match.");return;}
