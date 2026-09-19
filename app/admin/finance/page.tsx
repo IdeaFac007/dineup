@@ -109,7 +109,7 @@ export default function AdminFinancePage() {
         <div>
           <div className="crumb">DineUp / Admin / Finance</div>
           <h1>Finance & Reconciliation</h1>
-          <p>Gross collections, refunds and net collected from successful Razorpay payments.</p>
+          <p>Gross collections and net collected from successful Razorpay payments.</p>
         </div>
         <div className="actions">
           <button className="secondary" onClick={() => router.push("/admin/dashboard")}>← Dashboard</button>
@@ -119,15 +119,12 @@ export default function AdminFinancePage() {
 
       <section className="stats">
         <Stat label="Gross Captured" value={money(stats.gross)} tone="dark" />
-        <Stat label="Total Refunded" value={money(stats.refunded)} tone="refund" />
         <Stat label="Net Collected" value={money(stats.net)} tone="net" />
         <Stat label="Successful Payments" value={String(stats.successful)} />
       </section>
 
       <section className="substats">
         <div><span>Currently captured</span><strong>{bids.filter((b) => b.payment_status === "captured").length}</strong></div>
-        <div><span>Fully refunded</span><strong>{stats.fullyRefunded}</strong></div>
-        <div><span>Partially refunded</span><strong>{stats.partiallyRefunded}</strong></div>
         <div><span>Pending payments</span><strong>0</strong></div>
       </section>
 
@@ -141,7 +138,7 @@ export default function AdminFinancePage() {
         {loading ? <div className="empty">Loading financial data…</div> : (
           <div className="tableWrap">
             <table>
-              <thead><tr><th>Bid</th><th>Restaurant</th><th>Original</th><th>Refunded</th><th>Net</th><th>Payment</th><th>Refund</th></tr></thead>
+              <thead><tr><th>Bid</th><th>Restaurant</th><th>Original</th><th>Net</th><th>Payment</th></tr></thead>
               <tbody>
                 {filtered.map((b) => {
                   const original = Number(b.amount || 0);
@@ -153,10 +150,8 @@ export default function AdminFinancePage() {
                       <td><strong>#{b.id}</strong><small>{new Date(b.created_at).toLocaleDateString("en-IN")}</small></td>
                       <td><strong>{r?.name || "Unknown restaurant"}</strong><small>{r?.city || "—"}</small></td>
                       <td>{money(original)}</td>
-                      <td className={refunded > 0 ? "refund" : "muted"}>{money(refunded)}</td>
                       <td className="net">{money(net)}</td>
                       <td><span className={`pill ${b.payment_status === "captured" ? "ok" : "neutral"}`}>{b.payment_status}</span></td>
-                      <td><span className={`pill ${b.refund_status === "processed" ? "refundPill" : "neutral"}`}>{b.refund_status || "none"}</span></td>
                     </tr>
                   );
                 })}
@@ -166,11 +161,6 @@ export default function AdminFinancePage() {
         )}
       </section>
 
-      <div className="note">
-        <strong>Accounting logic</strong>
-        <span>Refunds reduce net collected automatically. Fully refunded bids are excluded from the active marketplace state through bid reconciliation.</span>
-        <button onClick={() => router.push("/admin/refunds")}>Open Refund Management →</button>
-      </div>
 
       <style jsx global>{styles}</style>
     </main>
