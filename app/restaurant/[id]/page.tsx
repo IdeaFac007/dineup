@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
-import { safeGoogleMapsUrl } from "../../../lib/google-maps";
+import { googleMapsSearchUrl, safeGoogleMapsUrl } from "../../../lib/google-maps";
 
 type ClaimStatus = ""|"verified"|"verification_pending"|"unclaimed"|"claimed";
 type Restaurant = { id:number; name:string; city:string; category:string; address:string|null; current_bid:number; is_claimed:boolean; claim_status:ClaimStatus };
@@ -197,8 +197,7 @@ export default function PublicRestaurantProfile(){
      input.setAttribute("readonly","");
      input.style.position="fixed";
      input.style.opacity="0";
-     document.body.appendChild(input);
-     input.select();
+     document.body.appendChild(input);     input.select();
      document.execCommand("copy");
      input.remove();
      setShareMessage("Profile link copied.");
