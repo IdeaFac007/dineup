@@ -192,7 +192,8 @@ export default async function RestaurantProfileLayout({
         const websiteUrl = safeExternalUrl(profileRow.website_url);
         const instagramUrl = safeExternalUrl(profileRow.instagram_url);
         const menuUrl = safeExternalUrl(profileRow.menu_url);
-        const mapsUrl = safeExternalUrl(profileRow.google_maps_url);
+        const fallbackMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([row.name, row.address, row.city].filter(Boolean).join(", "))}`;
+        const mapsUrl = safeExternalUrl(profileRow.google_maps_url) || fallbackMapsUrl;
         const telephone = normalizeSchemaPhone(profileRow.phone);
         const cuisineTags = normalizeCuisineTags(profileRow.cuisine_tags);
         const sameAs = [websiteUrl, instagramUrl].filter(Boolean);
