@@ -4,7 +4,9 @@ export function safeExternalUrl(value: string | null | undefined) {
   try {
     const candidate = /^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : "https://" + raw;
     const url = new URL(candidate);
-    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : "";
+    const isHttp = url.protocol === "http:" || url.protocol === "https:";
+    const hasCredentials = Boolean(url.username || url.password);
+    return isHttp && !hasCredentials ? url.toString() : "";
   } catch {
     return "";
   }
