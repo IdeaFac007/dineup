@@ -243,6 +243,7 @@ export default async function RestaurantProfileLayout({
           "@type": "Restaurant",
           name: row.name,
           url: canonicalUrl,
+          mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl },
           description: cleanDescription(
             profileRow.description,
             `${row.name} is a ${row.category || "restaurant"} in ${row.city}.`
