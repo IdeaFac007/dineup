@@ -311,7 +311,7 @@ export default async function RestaurantProfileLayout({
           ...(priceRange ? { priceRange } : {}),
           address: {
             "@type": "PostalAddress",
-            streetAddress: row.address?.trim() || undefined,
+            streetAddress: normalizeOptionalText(row.address) || undefined,
             ...(city ? { addressLocality: city } : {}),
             addressCountry: "IN",
           },
