@@ -11,7 +11,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Webhook is not configured." }, { status: 500 });
     }
 
+    const contentLength = Number(request.headers.get("content-length") || "0");
+    if (contentLength > 1_048_576) {
+      return NextResponse.json({ error: "Webhook payload is too large." }, { status: 413 });
+    }
+
     const rawBody = await request.text();
+    if (Buffer.byteLength(rawBody, "utf8") > 1_048_576) {
+      return NextResponse.json({ error: "Webhook payload is too large." }, { status: 413 });
+    }
     const signature = request.headers.get("x-razorpay-signature") || "";
 
     if (!signature) {
