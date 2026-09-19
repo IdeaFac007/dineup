@@ -87,11 +87,14 @@ export default function MarketplacePage(){
 
   const top=sorted.slice(0,3);
   const directions=(r:Restaurant)=>{
-    const configured=r.profile?.google_maps_url?.trim()||"";
-    if(configured){
+    const rawMapsUrl=r.profile?.google_maps_url?.trim()||"";
+    if(rawMapsUrl){
       try{
-        const url=new URL(configured);
-        if(url.protocol==="https:"||url.protocol==="http:") return url.toString();
+        const candidate=/^[a-z][a-z0-9+.-]*:/i.test(rawMapsUrl)?rawMapsUrl:"https://"+rawMapsUrl;
+        const url=new URL(candidate);
+        const host=url.hostname.toLowerCase();
+        const isGoogleMapsHost=host==="google.com"||host.endsWith(".google.com")||host==="maps.app.goo.gl"||host==="goo.gl";
+        if((url.protocol==="https:"||url.protocol==="http:")&&isGoogleMapsHost) return url.toString();
       }catch{}
     }
     const mapsContext=[r.address?.trim(),r.city?.trim()].filter(Boolean).join(", ");
