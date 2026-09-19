@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import { createClient } from "../../../../lib/supabase/server";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 import { consumeAdminRateLimit } from "../../../../lib/security/admin-rate-limit";
@@ -73,12 +74,18 @@ export async function POST(request: Request) {
     const refundAmountPaise = requestedAmount === null ? remainingPaise : Math.round(requestedAmount * 100);
     if (refundAmountPaise <= 0 || refundAmountPaise > remainingPaise) return NextResponse.json({ error: "Refund amount exceeds the refundable balance." }, { status: 400 });
 
+    const refundRequestKey = crypto
+      .createHash("sha256")
+      .update(`${bid.id}:${refundAmountPaise}:${refundedAmountPaise}`)
+      .digest("hex")
+      .slice(0, 24);
+
     const refundResponse = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(bid.razorpay_payment_id)}/refund`, {
       method: "POST",
       headers: { Authorization: basicAuth(keyId, keySecret), "Content-Type": "application/json" },
       body: JSON.stringify({
         amount: refundAmountPaise,
-        receipt: `dineup_refund_${bid.id}_${Date.now()}`,
+        receipt: `dineup_ref_${refundRequestKey}`,
         notes: { bid_id: String(bid.id), restaurant_id: String(bid.restaurant_id), reason: reason.slice(0, 200) },
       }),
       cache: "no-store",
