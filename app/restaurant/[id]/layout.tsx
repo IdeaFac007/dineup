@@ -55,6 +55,14 @@ function normalizeSchemaTime(value: string) {
   const match24 = raw.match(/^([01]\d|2[0-3]):([0-5]\d)$/);
   return match24 ? match24[0] : "";
 }
+function normalizeSchemaPhone(value: string | null | undefined) {
+  const raw = value?.trim();
+  if (!raw) return "";
+  const hasPlus = raw.startsWith("+");
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length < 8 || digits.length > 15) return "";
+  return `${hasPlus ? "+" : ""}${digits}`;
+}
 
 export async function generateMetadata({
   params,
@@ -171,6 +179,7 @@ export default async function RestaurantProfileLayout({
         const instagramUrl = safeExternalUrl(profileRow.instagram_url);
         const menuUrl = safeExternalUrl(profileRow.menu_url);
         const mapsUrl = safeExternalUrl(profileRow.google_maps_url);
+        const telephone = normalizeSchemaPhone(profileRow.phone);
         const sameAs = [websiteUrl, instagramUrl].filter(Boolean);
         const image = [profileRow.cover_image_url, profileRow.logo_image_url].map((value) => safeExternalUrl(value)).filter(Boolean);
         const addressText = row.address
@@ -237,7 +246,7 @@ export default async function RestaurantProfileLayout({
           ...(row.category ? { servesCuisine: row.category } : {}),
           ...(profileRow.cuisine_tags?.length ? { knowsAbout: profileRow.cuisine_tags } : {}),
           ...(image.length ? { image } : {}),
-          ...(profileRow.phone ? { telephone: profileRow.phone } : {}),
+          ...(telephone ? { telephone } : {}),
           ...(profileRow.price_range ? { priceRange: profileRow.price_range } : {}),
           address: {
             "@type": "PostalAddress",
