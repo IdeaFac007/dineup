@@ -118,10 +118,13 @@ export async function generateMetadata({
 
     const row = restaurant as RestaurantPageData;
     const profileRow = (profile || {}) as ProfileData;
-    const title = `${row.name} — ${row.city} | DineUp`;
+    const city = row.city?.trim() || "";
+    const title = city ? `${row.name} — ${city} | DineUp` : `${row.name} | DineUp`;
     const description = cleanDescription(
       profileRow.description,
-      `${row.name} is a ${row.category || "restaurant"} in ${row.city}. Discover the profile, menu, contact details and more on DineUp.`
+      city
+        ? `${row.name} is a ${row.category || "restaurant"} in ${city}. Discover the profile, menu, contact details and more on DineUp.`
+        : `Discover ${row.name} on DineUp. View the profile, menu, contact details and more.`
     );
     const canonical = `https://dineupindia.com/restaurant/${row.id}`;
     const image = safeExternalUrl(profileRow.cover_image_url) || safeExternalUrl(profileRow.logo_image_url) || undefined;
@@ -199,19 +202,21 @@ export default async function RestaurantProfileLayout({
       if (restaurant) {
         const row = restaurant as RestaurantPageData;
         const profileRow = (profile || {}) as ProfileData;
+        const city = row.city?.trim() || "";
         const websiteUrl = safeExternalUrl(profileRow.website_url);
         const instagramUrl = safeExternalUrl(profileRow.instagram_url);
         const menuUrl = safeExternalUrl(profileRow.menu_url);
-        const fallbackMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([row.name, row.address, row.city].filter(Boolean).join(", "))}`;
+        const fallbackMapsQuery = [row.name?.trim(), row.address?.trim(), city].filter(Boolean).join(", ");
+        const fallbackMapsUrl = fallbackMapsQuery
+          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fallbackMapsQuery)}`
+          : "https://www.google.com/maps";
         const mapsUrl = safeExternalUrl(profileRow.google_maps_url) || fallbackMapsUrl;
         const telephone = normalizeSchemaPhone(profileRow.phone);
         const cuisineTags = normalizeCuisineTags(profileRow.cuisine_tags);
         const sameAs = [websiteUrl, instagramUrl].filter(Boolean);
         const image = [profileRow.cover_image_url, profileRow.logo_image_url].map((value) => safeExternalUrl(value)).filter(Boolean);
         const logoUrl = safeExternalUrl(profileRow.logo_image_url);
-        const addressText = row.address
-          ? `${row.address}, ${row.city}, India`
-          : `${row.city}, India`;
+        const addressText = [row.address?.trim(), city, "India"].filter(Boolean).join(", ");
         const hours = profileRow.opening_hours || {};
         const dayMap: Record<string, string> = {
           monday: "Monday",
@@ -248,14 +253,16 @@ export default async function RestaurantProfileLayout({
               name: "DineUp Marketplace",
               item: "https://dineupindia.com/marketplace",
             },
+            ...(city
+              ? [{
+                  "@type": "ListItem",
+                  position: 2,
+                  name: city,
+                }]
+              : []),
             {
               "@type": "ListItem",
-              position: 2,
-              name: row.city,
-            },
-            {
-              "@type": "ListItem",
-              position: 3,
+              position: city ? 3 : 2,
               name: row.name,
               item: canonicalUrl,
             },
@@ -271,7 +278,9 @@ export default async function RestaurantProfileLayout({
           mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl },
           description: cleanDescription(
             profileRow.description,
-            `${row.name} is a ${row.category || "restaurant"} in ${row.city}.`
+            city
+              ? `${row.name} is a ${row.category || "restaurant"} in ${city}.`
+              : `Discover ${row.name} on DineUp.`
           ),
           ...(cuisineTags.length ? { servesCuisine: cuisineTags } : row.category ? { servesCuisine: row.category } : {}),
           ...(cuisineTags.length ? { knowsAbout: cuisineTags } : {}),
@@ -281,8 +290,8 @@ export default async function RestaurantProfileLayout({
           ...(profileRow.price_range ? { priceRange: profileRow.price_range } : {}),
           address: {
             "@type": "PostalAddress",
-            streetAddress: row.address || undefined,
-            addressLocality: row.city,
+            streetAddress: row.address?.trim() || undefined,
+            ...(city ? { addressLocality: city } : {}),
             addressCountry: "IN",
           },
           ...(menuUrl ? { hasMenu: menuUrl } : {}),
