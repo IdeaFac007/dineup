@@ -62,7 +62,7 @@ function normalizeSchemaTime(value: string) {
   return match24 ? match24[0] : "";
 }
 function normalizeSchemaPhone(value: string | null | undefined) {
-  const raw = value?.trim();
+  const raw = value?.replace(/\s+/g, " ").trim();
   if (!raw) return "";
   const hasPlus = raw.startsWith("+");
   const digits = raw.replace(/\D/g, "");
