@@ -230,9 +230,10 @@ export default async function RestaurantProfileLayout({
           sunday: "Sunday",
         };
         const openingHoursSpecification = Object.entries(hours)
+          .map(([day, value]) => [day.trim().toLowerCase(), value] as const)
           .filter(([day, value]) => dayMap[day] && typeof value === "string" && value.trim())
           .map(([day, value]) => {
-            const parts = value.split(/\s*-\s*/).map((part) => normalizeSchemaTime(part));
+            const parts = value.split(/\s*[–—-]\s*/).map((part) => normalizeSchemaTime(part));
             if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
             return {
               "@type": "OpeningHoursSpecification",
