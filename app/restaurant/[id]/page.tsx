@@ -32,7 +32,10 @@ function safeRestaurantMediaUrl(value:string|null|undefined){
  }
 }
 function normalizeCuisineTags(value:string[]|null|undefined){
- return Array.from(new Set((value||[]).map(tag=>tag.trim()).filter(Boolean))).slice(0,12);
+ const seen=new Set<string>();
+ const tags:(string)[]=[];
+ for(const tag of value||[]){const clean=tag.trim(); const key=clean.toLocaleLowerCase("en-IN"); if(!clean||seen.has(key))continue; seen.add(key); tags.push(clean); if(tags.length===12)break;}
+ return tags;
 }
 const DAYS = [["monday","Monday"],["tuesday","Tuesday"],["wednesday","Wednesday"],["thursday","Thursday"],["friday","Friday"],["saturday","Saturday"],["sunday","Sunday"]] as const;
 
