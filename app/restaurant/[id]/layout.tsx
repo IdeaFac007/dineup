@@ -86,7 +86,7 @@ export async function generateMetadata({
       `${row.name} is a ${row.category || "restaurant"} in ${row.city}. Discover the profile, menu, contact details and more on DineUp.`
     );
     const canonical = `https://dineupindia.com/restaurant/${row.id}`;
-    const image = profileRow.cover_image_url || profileRow.logo_image_url || undefined;
+    const image = safeExternalUrl(profileRow.cover_image_url) || safeExternalUrl(profileRow.logo_image_url) || undefined;
 
     return {
       title,
@@ -155,7 +155,7 @@ export default async function RestaurantProfileLayout({
         const menuUrl = safeExternalUrl(profileRow.menu_url);
         const mapsUrl = safeExternalUrl(profileRow.google_maps_url);
         const sameAs = [websiteUrl, instagramUrl].filter(Boolean);
-        const image = [profileRow.cover_image_url, profileRow.logo_image_url].filter(Boolean);
+        const image = [profileRow.cover_image_url, profileRow.logo_image_url].map((value) => safeExternalUrl(value)).filter(Boolean);
         const addressText = row.address
           ? `${row.address}, ${row.city}, India`
           : `${row.city}, India`;
