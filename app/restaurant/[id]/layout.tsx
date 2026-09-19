@@ -229,6 +229,7 @@ export default async function RestaurantProfileLayout({
         breadcrumbSchema = {
           "@context": "https://schema.org",
           "@type": "BreadcrumbList",
+          "@id": `${canonicalUrl}#breadcrumb`,
           itemListElement: [
             {
               "@type": "ListItem",
@@ -253,6 +254,7 @@ export default async function RestaurantProfileLayout({
         schema = {
           "@context": "https://schema.org",
           "@type": "Restaurant",
+          "@id": `${canonicalUrl}#restaurant`,
           inLanguage: "en-IN",
           name: row.name,
           url: canonicalUrl,
