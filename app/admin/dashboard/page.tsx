@@ -320,7 +320,9 @@ export default function AdminDashboardPage() {
   }, [bids, restaurantMap, search]);
 
   const leaderboardRestaurants = useMemo(() => {
-    const scoped = leaderboardCity === "All" ? restaurants : restaurants.filter((r) => r.city === leaderboardCity);\n    return [...scoped].filter((r) => r.is_active !== false).sort((a, b) => Number(b.current_bid || 0) - Number(a.current_bid || 0)).slice(0, 5);\n  }, [restaurants, leaderboardCity]);
+    const scoped = leaderboardCity === "All" ? restaurants : restaurants.filter((r) => r.city === leaderboardCity);
+    return [...scoped].filter((r) => r.is_active !== false).sort((a, b) => Number(b.current_bid || 0) - Number(a.current_bid || 0)).slice(0, 5);
+  }, [restaurants, leaderboardCity]);
 
   if (loading) {
     return <div className="loadingScreen"><div className="loadingLogo">D</div><div><strong>DineUp Admin</strong><span>Loading dashboard...</span></div><style jsx global>{loadingCss}</style></div>;
