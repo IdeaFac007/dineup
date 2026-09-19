@@ -22,6 +22,19 @@ function safeExternalUrl(value:string|null|undefined){
    return "";
  }
 }
+function safeGoogleMapsUrl(value:string|null|undefined){
+ const raw=value?.trim();
+ if(!raw)return "";
+ try{
+   const candidate=/^[a-z][a-z0-9+.-]*:/i.test(raw)?raw:"https://"+raw;
+   const url=new URL(candidate);
+   const host=url.hostname.toLowerCase();
+   const isGoogleMapsHost=host==="google.com"||host.endsWith(".google.com")||host==="maps.app.goo.gl"||host==="goo.gl";
+   return (url.protocol==="http:"||url.protocol==="https:")&&isGoogleMapsHost ? url.toString() : "";
+ }catch{
+   return "";
+ }
+}
 function safeRestaurantMediaUrl(value:string|null|undefined){
  const safe=safeExternalUrl(value);
  if(!safe)return "";
@@ -115,7 +128,7 @@ export default function PublicRestaurantProfile(){
  const whatsappMessage=encodeURIComponent(`Hi, I found ${restaurant.name} on DineUp. I would like to know more.`);
  const mapsContext=[restaurant.address?.trim(),restaurant.city?.trim()].filter(Boolean).join(", ");
  const mapsQuery=mapsContext?`${restaurant.name?.trim()}, ${mapsContext}`: ""; const fallbackMaps=mapsQuery?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`:"https://www.google.com/maps";
- const maps=safeExternalUrl(profile?.google_maps_url)||fallbackMaps;
+ const maps=safeGoogleMapsUrl(profile?.google_maps_url)||fallbackMaps;
  const menuUrl=safeExternalUrl(profile?.menu_url);
  const websiteUrl=safeExternalUrl(profile?.website_url);
  const instagramUrl=safeExternalUrl(profile?.instagram_url);
