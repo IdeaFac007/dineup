@@ -8,9 +8,11 @@ export function safeGoogleMapsUrl(value: string | null | undefined) {
     const isGoogleMapsHost =
       host === "google.com" ||
       host.endsWith(".google.com") ||
-      host === "maps.app.goo.gl" ||
-      host === "goo.gl";
-    return (url.protocol === "http:" || url.protocol === "https:") && isGoogleMapsHost
+      host === "maps.app.goo.gl";
+    const hasCredentials = Boolean(url.username || url.password);
+    return (url.protocol === "http:" || url.protocol === "https:") &&
+      isGoogleMapsHost &&
+      !hasCredentials
       ? url.toString()
       : "";
   } catch {
