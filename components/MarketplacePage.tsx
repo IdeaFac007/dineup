@@ -87,7 +87,9 @@ export default function MarketplacePage(){
     return rows;
   },[filtered,sort]);
 
-  const top=sorted.slice(0,3);\n  const featured=sorted.slice(0,6);\n  const activeCityCount=new Set(restaurants.map(r=>r.city).filter(Boolean)).size;
+  const top=sorted.slice(0,3);
+  const featured=sorted.slice(0,6);
+  const activeCityCount=new Set(restaurants.map(r=>r.city).filter(Boolean)).size;
   const directions=(r:Restaurant)=>{
     const configured=safeGoogleMapsUrl(r.profile?.google_maps_url);
     return configured || googleMapsSearchUrl(r.name, r.address, r.city);
