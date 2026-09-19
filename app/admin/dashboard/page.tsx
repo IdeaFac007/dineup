@@ -39,6 +39,9 @@ type Application = {
   category: string;
   address: string | null;
   onboarding_mode?: "full" | "bid_only" | null;
+  acquisition_source?: string | null;
+  acquisition_medium?: string | null;
+  acquisition_campaign?: string | null;
   status: "pending" | "approved" | "rejected";
   admin_note: string | null;
   created_at: string;
@@ -117,7 +120,7 @@ export default function AdminDashboardPage() {
           .order("created_at", { ascending: false }),
         supabase
           .from("restaurant_applications")
-          .select("id, owner_id, email, restaurant_name, phone, city, category, address, onboarding_mode, status, admin_note, created_at, reviewed_at")
+          .select("id, owner_id, email, restaurant_name, phone, city, category, address, onboarding_mode, acquisition_source, acquisition_medium, acquisition_campaign, status, admin_note, created_at, reviewed_at")
           .order("created_at", { ascending: false }),
       ]);
 
@@ -656,6 +659,8 @@ function ApplicationModal({
           <DetailItem label="City" value={application.city}/>
           <DetailItem label="Category" value={application.category}/><DetailItem label="Onboarding mode" value={application.onboarding_mode === "bid_only" ? "Bid-Only" : "Full Listing"}/>
           <DetailItem label="Address" value={application.address || "Not provided"}/>
+          <DetailItem label="Acquisition source" value={application.acquisition_source || "Direct / Organic"}/>
+          <DetailItem label="Acquisition campaign" value={application.acquisition_campaign || "Not tagged"}/>
           <DetailItem label="Owner ID" value={application.owner_id}/>
           <DetailItem label="Submitted" value={formatDate(application.created_at)}/>
           <DetailItem label="Status" value={application.status.toUpperCase()}/>
