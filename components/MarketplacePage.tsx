@@ -156,7 +156,7 @@ export default function MarketplacePage(){
         <p>Discover great restaurants around you, explore what people are talking about, and connect directly with your next favourite place.</p>
         <div className="searchbox">
           <span>⌕</span>
-          <input value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}} placeholder="Search restaurants, cuisine or location..."/>
+          <input aria-label="Search restaurants, cuisine or location" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}} placeholder="Search restaurants, cuisine or location..."/>
           <label className="heroLocation" aria-label="Choose city"><span>⌖</span><select value={city==="All"?"Lucknow":city} onChange={e=>setCity(e.target.value)}>{cities.filter(c=>c!=="All").map(c=><option key={c} value={c}>{c}</option>)}</select><span>⌄</span></label>
           <button type="button" onClick={()=>document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}>⌕ <span>Search</span></button>
         </div>
