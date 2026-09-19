@@ -256,7 +256,6 @@ export default async function RestaurantProfileLayout({
           "@context": "https://schema.org",
           "@type": "Restaurant",
           "@id": `${canonicalUrl}#restaurant`,
-          inLanguage: "en-IN",
           name: row.name,
           url: canonicalUrl,
           mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl },
