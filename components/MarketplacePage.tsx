@@ -135,7 +135,10 @@ export default function MarketplacePage(){
       void trackMarketingEvent("customer_action",r.id,{action:"favorite_added"});
     }
   };
-  const action=(r:Restaurant,name:string)=>{void trackMarketingEvent("customer_action",r.id,{action:name})};
+  const action=(r:Restaurant,name:string)=>{void trackMarketingEvent("customer_action",r.id,{action:name})};\n  const externalLinks=(r:Restaurant)=>({
+    menu:safeExternalUrl(r.profile?.menu_url),
+    website:safeExternalUrl(r.profile?.website_url),
+  });
 
   return <main className="market">
     <nav className="nav">
@@ -236,8 +239,8 @@ export default function MarketplacePage(){
             {phone(r)&&<a href={phone(r)} onClick={e=>{e.stopPropagation();action(r,"call")}}>☎ Call</a>}
             {whatsappUrl(r)&&<a href={whatsappUrl(r)} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"whatsapp")}}>WhatsApp</a>}
             <a href={directions(r)} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"directions")}}>Directions</a>
-            {safeExternalUrl(r.profile?.menu_url)&&<a href={safeExternalUrl(r.profile?.menu_url)} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"menu")}}>Menu</a>}
-            {safeExternalUrl(r.profile?.website_url)&&<a href={safeExternalUrl(r.profile?.website_url)} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"website")}}>Website</a>}
+            {externalLinks(r).menu&&<a href={externalLinks(r).menu} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"menu")}}>Menu</a>}
+            {externalLinks(r).website&&<a href={externalLinks(r).website} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"website")}}>Website</a>}
           </div></div></article>)}</div></>}
 
         <div className="allHead"><div><span className="sectionKicker">ALL RESTAURANTS</span><h2>Explore the marketplace</h2></div></div>
