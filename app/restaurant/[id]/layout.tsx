@@ -135,7 +135,17 @@ export async function generateMetadata({
         description,
         ...(image ? { images: [image] } : {}),
       },
-      robots: { index: true, follow: true },
+      robots: {
+        index: true,
+        follow: true,
+        googleBot: {
+          index: true,
+          follow: true,
+          "max-image-preview": "large",
+          "max-video-preview": -1,
+          "max-snippet": -1,
+        },
+      },
     };
   } catch (error) {
     console.error("Restaurant metadata error:", error);
