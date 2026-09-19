@@ -136,10 +136,11 @@ export default function MarketplacePage(){
     }
   };
   const action=(r:Restaurant,name:string)=>{void trackMarketingEvent("customer_action",r.id,{action:name})};
-  const externalLinks=(r:Restaurant)=>({
-    menu:safeExternalUrl(r.profile?.menu_url),
-    website:safeExternalUrl(r.profile?.website_url),
-  });
+  const externalLinks=(r:Restaurant)=>{
+    const menu=safeExternalUrl(r.profile?.menu_url);
+    const website=safeExternalUrl(r.profile?.website_url);
+    return {menu,website};
+  };
 
   return <main className="market">
     <nav className="nav">
