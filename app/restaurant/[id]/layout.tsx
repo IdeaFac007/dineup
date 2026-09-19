@@ -117,6 +117,7 @@ export default async function RestaurantProfileLayout({
   const { id } = await params;
   const restaurantId = Number(id);
   let schema: Record<string, unknown> | null = null;
+  let breadcrumbSchema: Record<string, unknown> | null = null;
 
   if (Number.isInteger(restaurantId) && restaurantId > 0) {
     try {
@@ -167,11 +168,36 @@ export default async function RestaurantProfileLayout({
           })
           .filter(Boolean);
 
+        const canonicalUrl = `https://dineupindia.com/restaurant/${row.id}`;
+        breadcrumbSchema = {
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            {
+              "@type": "ListItem",
+              position: 1,
+              name: "DineUp Marketplace",
+              item: "https://dineupindia.com/marketplace",
+            },
+            {
+              "@type": "ListItem",
+              position: 2,
+              name: row.city,
+            },
+            {
+              "@type": "ListItem",
+              position: 3,
+              name: row.name,
+              item: canonicalUrl,
+            },
+          ],
+        };
+
         schema = {
           "@context": "https://schema.org",
           "@type": "Restaurant",
           name: row.name,
-          url: `https://dineupindia.com/restaurant/${row.id}`,
+          url: canonicalUrl,
           description: cleanDescription(
             profileRow.description,
             `${row.name} is a ${row.category || "restaurant"} in ${row.city}.`
@@ -205,6 +231,14 @@ export default async function RestaurantProfileLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify(schema).replace(/</g, "\\u003c"),
+          }}
+        />
+      ) : null}
+      {breadcrumbSchema ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(breadcrumbSchema).replace(/</g, "\\u003c"),
           }}
         />
       ) : null}
