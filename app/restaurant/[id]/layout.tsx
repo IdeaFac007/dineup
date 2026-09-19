@@ -65,6 +65,7 @@ function normalizeSchemaPhone(value: string | null | undefined) {
   const raw = value?.replace(/\s+/g, " ").trim();
   if (!raw) return "";
   const hasPlus = raw.startsWith("+");
+  if (raw.includes("+", 1)) return "";
   const digits = raw.replace(/\D/g, "");
   if (digits.length < 8 || digits.length > 15) return "";
   return `${hasPlus ? "+" : ""}${digits}`;
