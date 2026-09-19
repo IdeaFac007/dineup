@@ -35,7 +35,9 @@ function safeExternalUrl(value: string | null | undefined) {
   }
 }
 function cleanDescription(value: string | null, fallback: string) {
-  const text = (value || fallback).replace(/\s+/g, " ").trim();
+  const candidate = (value || "").replace(/\s+/g, " ").trim();
+  const fallbackText = fallback.replace(/\s+/g, " ").trim();
+  const text = candidate || fallbackText;
   return text.length > 160 ? `${text.slice(0, 157)}…` : text;
 }
 function normalizeOptionalText(value: string | null | undefined) {
