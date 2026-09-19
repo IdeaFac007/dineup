@@ -21,6 +21,9 @@ export default function RestaurantDashboard() {
   const [restaurant, setRestaurant] = useState<any>(null);
   const [onboarding, setOnboarding] = useState<any[]>([]);
   const [rank, setRank] = useState(0);
+  const [indiaRank, setIndiaRank] = useState(0);
+  const [indiaTotal, setIndiaTotal] = useState(0);
+  const [leaderboardMode, setLeaderboardMode] = useState<"city" | "india">("city");
   const [nextRank, setNextRank] = useState<number | null>(null);
   const [nextBid, setNextBid] = useState<number | null>(null);
   const [bids, setBids] = useState<any[]>([]);
@@ -78,14 +81,18 @@ export default function RestaurantDashboard() {
       if (onboardingError) console.error("Onboarding error:", onboardingError); else setOnboarding(onboardingData || []);
 
       const { data: restaurants, error: leaderboardError } = await supabase.from("restaurants")
-        .select("id, name, current_bid").eq("is_active", true).eq("city", restaurantData.city)
-        .order("current_bid", { ascending: false });
+        .select("id, name, city, current_bid").eq("is_active", true)
+        .order("current_bid", { ascending: false }).order("id", { ascending: true });
       if (leaderboardError) throw leaderboardError;
-      const lb = (restaurants || []).map((x: any) => ({ ...x, id: Number(x.id), current_bid: Number(x.current_bid || 0) }));
-      const idx = lb.findIndex((x: any) => x.id === restaurantData.id);
-      if (idx >= 0) {
-        setRank(idx + 1);
-        if (idx > 0) { setNextRank(idx); setNextBid(lb[idx - 1].current_bid); }
+      const allLb = (restaurants || []).map((x: any) => ({ ...x, id: Number(x.id), current_bid: Number(x.current_bid || 0) }));
+      const cityLb = allLb.filter((x: any) => String(x.city || "").toLowerCase() === String(restaurantData.city || "").toLowerCase());
+      const cityIdx = cityLb.findIndex((x: any) => x.id === restaurantData.id);
+      const indiaIdx = allLb.findIndex((x: any) => x.id === restaurantData.id);
+      setIndiaRank(indiaIdx >= 0 ? indiaIdx + 1 : 0);
+      setIndiaTotal(allLb.length);
+      if (cityIdx >= 0) {
+        setRank(cityIdx + 1);
+        if (cityIdx > 0) { setNextRank(cityIdx); setNextBid(cityLb[cityIdx - 1].current_bid); }
         else { setNextRank(null); setNextBid(null); }
       } else { setRank(0); setNextRank(null); setNextBid(null); }
 
@@ -189,7 +196,7 @@ export default function RestaurantDashboard() {
 
       <section className="panel onboardingPanel"><div className="panelTitle"><div><b>Restaurant onboarding</b><p className="muted panelSub">Complete the key steps to make your listing customer-ready.</p></div><span className="completionBadge">{onboardingPercent}% complete</span></div><div className="progressTrack"><div className="progressFill" style={{width:`${onboardingPercent}%`}}/></div><div className="progressMeta"><span>{completedOnboarding} of {onboarding.length || 8} onboarding steps completed</span><b>{onboardingPercent}%</b></div>{nextOnboardingStep && <div className="nextStepBanner"><div><small>NEXT STEP</small><b>{nextOnboardingStep.label}</b><span>{nextOnboardingStep.status === "in_progress" ? "In progress" : "Not completed yet"}</span></div><Link className="primary small" href={nextOnboardingStep.action_url}>{nextOnboardingStep.step === "payment" ? "Promote" : "Continue →"}</Link></div>}{!nextOnboardingStep && <div className="nextStepBanner complete"><div><small>ALL SET</small><b>Your onboarding is complete</b><span>Your restaurant has completed the DineUp onboarding checklist.</span></div></div>}<div className="onboardingSteps">{onboarding.map((item:any)=><div className={`onboardingStep ${item.completed?"done":""}`} key={item.step}><div className="stepIcon">{item.completed?"✓":"•"}</div><div className="stepBody"><b>{item.label}</b><span>{item.completed?"Completed":item.status==="in_progress"?"In progress":"Pending"}</span></div>{item.completed?<span className="stepStatus">DONE</span>:<Link className="secondary small" href={item.action_url}>{item.step==="payment"?"Promote":"Continue"}</Link>}</div>)}</div></section>
       <div className="stats">
-        <div className="stat"><span>Current rank</span><strong>{rank ? `#${rank}` : "—"}</strong><small>in {restaurant.city}</small></div>
+        <div className="stat"><span>{leaderboardMode === "city" ? "Current rank" : "India rank"}</span><strong>{leaderboardMode === "city" ? (rank ? `#${rank}` : "—") : (indiaRank ? `#${indiaRank}` : "—")}</strong><small>{leaderboardMode === "city" ? `in ${restaurant.city}` : `of ${indiaTotal} active restaurants`}</small></div>
         <div className="stat"><span>Current bid</span><strong>{formatMoney(restaurant.current_bid)}</strong><small>live marketplace bid</small></div>
         <div className="stat"><span>Profile views</span><strong>{analytics.profile_view}</strong><small>customer visits</small></div>
         <div className="stat"><span>Customer actions</span><strong>{customerActions}</strong><small>calls, WhatsApp & clicks</small></div>
@@ -198,7 +205,7 @@ export default function RestaurantDashboard() {
       </div>
 
       <div className="grid">
-        <section className="panel"><div className="panelTitle"><b>Live campaign</b><span className="status">ACTIVE</span></div><div className="rankBox"><div><small>Your position</small><strong>{rank ? `#${rank}` : "—"}</strong></div><div className="arrow">↑</div><div><small>{nextRank ? "Next position" : "Marketplace leader"}</small><strong>{nextRank ? `#${nextRank}` : "TOP"}</strong></div></div><div className="row"><span>Current bid</span><b>{formatMoney(restaurant.current_bid)}</b></div><div className="row"><span>{nextBid ? `Bid to reach #${nextRank}` : "You are #1"}</span><b>{nextBid ? formatMoney(nextBid + 1) : "—"}</b></div>{nextBid && <div className="notice"><b>You are one bid away</b><p>Bid <b>{formatMoney(nextBid + 1)}</b> or more to move to #{nextRank}.</p></div>}<Link href={`/restaurant/bid?id=${restaurant.id}`} className="primary full">Increase visibility ↑</Link></section>
+        <section className="panel"><div className="panelTitle"><b>Live campaign</b><span className="status">ACTIVE</span></div><div className="leaderboardToggle" role="group" aria-label="Leaderboard scope"><button type="button" className={leaderboardMode === "city" ? "active" : ""} onClick={() => setLeaderboardMode("city")}>📍 {restaurant.city}</button><button type="button" className={leaderboardMode === "india" ? "active" : ""} onClick={() => setLeaderboardMode("india")}>🇮🇳 India</button></div><div className="rankBox"><div><small>{leaderboardMode === "city" ? `Your position in ${restaurant.city}` : "Your India position"}</small><strong>{leaderboardMode === "city" ? (rank ? `#${rank}` : "—") : (indiaRank ? `#${indiaRank}` : "—")}</strong></div><div className="arrow">↑</div><div><small>{nextRank ? "Next position" : "Marketplace leader"}</small><strong>{nextRank ? `#${nextRank}` : "TOP"}</strong></div></div><div className="row"><span>Current bid</span><b>{formatMoney(restaurant.current_bid)}</b></div><div className="row"><span>{nextBid ? `Bid to reach #${nextRank}` : "You are #1"}</span><b>{nextBid ? formatMoney(nextBid + 1) : "—"}</b></div>{nextBid && <div className="notice"><b>You are one bid away</b><p>Bid <b>{formatMoney(nextBid + 1)}</b> or more to move to #{nextRank}.</p></div>}<Link href={`/restaurant/bid?id=${restaurant.id}`} className="primary full">Increase visibility ↑</Link></section>
         <section className="panel"><div className="panelTitle"><b>Restaurant profile</b><div className="titleActions"><span className="status">LIVE</span><button type="button" className="secondary small" onClick={() => { setProfileMessage(""); setProfileOpen(true); }}>Edit profile</button></div></div><div className="summary"><div><small>Restaurant</small><b>{restaurant.name}</b></div><div><small>Location</small><b>{restaurant.city}</b>{restaurant.address && <p>{restaurant.address}</p>}</div><div><small>Category</small><b>{restaurant.category}</b></div></div><div className="actions"><Link href="/marketplace" className="secondary">View marketplace</Link><Link href={`/restaurant/${restaurant.id}`} className="secondary">View public profile</Link><Link href={`/restaurant/bid?id=${restaurant.id}`} className="primary">Promote restaurant</Link></div></section>
       </div>
 
