@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
+import RestaurantAcquisitionPanel from "../../../components/RestaurantAcquisitionPanel";
 
 type Restaurant = {
   id: number;
@@ -381,6 +382,7 @@ export default function AdminDashboardPage() {
 
             {activeNav === "overview" && <>
               <section className="welcomeCard"><div><span className="eyebrow">DINEUP CONTROL CENTER</span><h2>Where Restaurants Rise.</h2><p>Monitor restaurants, bids and marketplace activity from one place.</p></div><div className="welcomeBadge"><span>LIVE</span><strong>{stats.total} Restaurants</strong></div></section>
+              <RestaurantAcquisitionPanel />
               <section className="statsGrid">
                 <StatCard label="Total Restaurants" value={String(stats.total)} icon="◉" note="Listed on DineUp"/>
                 <StatCard label="Active Restaurants" value={String(stats.active)} icon="✓" note="Currently active"/>
