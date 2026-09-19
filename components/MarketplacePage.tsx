@@ -135,7 +135,8 @@ export default function MarketplacePage(){
       void trackMarketingEvent("customer_action",r.id,{action:"favorite_added"});
     }
   };
-  const action=(r:Restaurant,name:string)=>{void trackMarketingEvent("customer_action",r.id,{action:name})};\n  const externalLinks=(r:Restaurant)=>({
+  const action=(r:Restaurant,name:string)=>{void trackMarketingEvent("customer_action",r.id,{action:name})};
+  const externalLinks=(r:Restaurant)=>({
     menu:safeExternalUrl(r.profile?.menu_url),
     website:safeExternalUrl(r.profile?.website_url),
   });
