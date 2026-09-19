@@ -197,6 +197,7 @@ export default async function RestaurantProfileLayout({
         const cuisineTags = normalizeCuisineTags(profileRow.cuisine_tags);
         const sameAs = [websiteUrl, instagramUrl].filter(Boolean);
         const image = [profileRow.cover_image_url, profileRow.logo_image_url].map((value) => safeExternalUrl(value)).filter(Boolean);
+        const logoUrl = safeExternalUrl(profileRow.logo_image_url);
         const addressText = row.address
           ? `${row.address}, ${row.city}, India`
           : `${row.city}, India`;
@@ -263,6 +264,7 @@ export default async function RestaurantProfileLayout({
           ...(cuisineTags.length ? { servesCuisine: cuisineTags } : row.category ? { servesCuisine: row.category } : {}),
           ...(cuisineTags.length ? { knowsAbout: cuisineTags } : {}),
           ...(image.length ? { image } : {}),
+          ...(logoUrl ? { logo: logoUrl } : {}),
           ...(telephone ? { telephone } : {}),
           ...(profileRow.price_range ? { priceRange: profileRow.price_range } : {}),
           address: {
