@@ -93,7 +93,7 @@ export default function MarketplacePage(){
     return configured || googleMapsSearchUrl(r.name, r.address, r.city);
   };
   const phone=(r:Restaurant)=>{
-    let digits=(r.profile?.phone||"").replace(/\\D/g,"");
+    let digits=(r.profile?.phone||"").replace(/\D/g,"");
     if(digits.startsWith("00")) digits=digits.slice(2);
     if(digits.length===10) digits="91"+digits;
     return digits.length>=8&&digits.length<=15 ? `tel:+${digits}` : "";
