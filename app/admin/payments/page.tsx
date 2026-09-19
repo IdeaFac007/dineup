@@ -123,7 +123,7 @@ export default function AdminPaymentsPage() {
         <div>
           <div className="crumb">DineUp / Admin / Payments</div>
           <h1>Payment Management</h1>
-          <p>Track captured payments, refunds, net collections and Razorpay references in one place.</p>
+          <p>Track captured payments, net collections and Razorpay references in one place.</p>
         </div>
         <div className="topActions">
           <button className="secondary" onClick={() => router.push("/admin/dashboard")}>← Dashboard</button>
@@ -136,7 +136,6 @@ export default function AdminPaymentsPage() {
 
       <section className="summary">
         <Card label="Gross Captured" value={money(summary.gross)} />
-        <Card label="Refunded" value={money(summary.refunded)} tone="refund" />
         <Card label="Net Collected" value={money(summary.net)} tone="net" />
         <Card label="Successful Payments" value={String(summary.successful)} />
       </section>
@@ -145,7 +144,6 @@ export default function AdminPaymentsPage() {
         <Mini label="Currently captured" value={summary.captured} />
         <Mini label="Pending" value={summary.pending} />
         <Mini label="Finance" value="Open" onClick={() => router.push("/admin/finance")} />
-        <Mini label="Refund management" value="Open" onClick={() => router.push("/admin/refunds")} />
       </section>
 
       <section className="panel">
@@ -165,7 +163,7 @@ export default function AdminPaymentsPage() {
             <table>
               <thead>
                 <tr>
-                  <th>Bid</th><th>Restaurant</th><th>Original</th><th>Refunded</th><th>Net</th><th>Payment</th><th>Refund</th><th>Payment ID</th><th>Date</th>
+                  <th>Bid</th><th>Restaurant</th><th>Original</th><th>Net</th><th>Payment</th><th>Payment ID</th><th>Date</th>
                 </tr>
               </thead>
               <tbody>
@@ -179,10 +177,8 @@ export default function AdminPaymentsPage() {
                       <td><strong>#{b.id}</strong></td>
                       <td><strong>{r?.name || "Unknown"}</strong><small>{r?.city || "—"}</small></td>
                       <td>{money(original)}</td>
-                      <td className={refunded > 0 ? "refundText" : "muted"}>{money(refunded)}</td>
                       <td className="netText">{money(net)}</td>
                       <td><span className={b.payment_status === "captured" ? "badge good" : b.payment_status === "refunded" ? "badge neutral" : "badge warn"}>{b.payment_status}</span></td>
-                      <td><span className={b.refund_status === "processed" ? "badge good" : b.refund_status === "pending" ? "badge warn" : b.refund_status === "failed" ? "badge bad" : "badge neutral"}>{b.refund_status || "none"}</span></td>
                       <td className="mono">{b.razorpay_payment_id || "—"}</td>
                       <td>{new Date(b.created_at).toLocaleDateString("en-IN")}</td>
                     </tr>
@@ -195,7 +191,6 @@ export default function AdminPaymentsPage() {
       </section>
 
       <div className="footerLinks">
-        <button onClick={() => router.push("/admin/refunds")}>Manage refunds →</button>
         <button onClick={() => router.push("/admin/finance")}>Open finance & reconciliation →</button>
       </div>
 
