@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createClient } from "../../../lib/supabase/server";
+import { safeExternalUrl } from "../../../lib/external-url";
 import { googleMapsSearchUrl, safeGoogleMapsUrl } from "../../../lib/google-maps";
 
 type RestaurantPageData = {
@@ -24,17 +25,6 @@ type ProfileData = {
   opening_hours: Record<string, string> | null;
 };
 
-function safeExternalUrl(value: string | null | undefined) {
-  const raw = value?.trim();
-  if (!raw) return "";
-  try {
-    const candidate = /^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : "https://" + raw;
-    const url = new URL(candidate);
-    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : "";
-  } catch {
-    return "";
-  }
-}
 function cleanDescription(value: string | null, fallback: string) {
   const candidate = (value || "").replace(/\s+/g, " ").trim();
   const fallbackText = fallback.replace(/\s+/g, " ").trim();
