@@ -8,7 +8,7 @@ import { createClient } from "../../../lib/supabase/client";
 
 type ClaimStatus = ""|"verified"|"verification_pending"|"unclaimed"|"claimed";
 type Restaurant = { id:number; name:string; city:string; category:string; address:string|null; current_bid:number; is_claimed:boolean; claim_status:ClaimStatus };
-type Profile = { phone:string|null; whatsapp:string|null; website_url:string|null; description:string|null; price_range:string|null; menu_url:string|null; cover_image_url:string|null; logo_image_url:string|null; opening_hours:Record<string,string>|null; instagram_url:string|null; google_maps_url:string|null; cuisine_tags:string[]|null };
+type Profile = { phone:string|null; whatsapp:string|null; website_url:string|null; description:string|null; price_range:string|null; menu_url:string|null; cover_image_url:string|null; logo_image_url:string|null; opening_hours:Record<string,string>; instagram_url:string|null; google_maps_url:string|null; cuisine_tags:string[] };
 type Media = { id:number; media_type:"gallery"|"menu"; public_url:string; title:string|null; caption:string|null; sort_order:number };
 
 function safeExternalUrl(value:string|null|undefined){
