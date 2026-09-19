@@ -126,6 +126,7 @@ export async function generateMetadata({
         url: canonical,
         siteName: "DineUp",
         type: "website",
+        locale: "en_IN",
         ...(image ? { images: [{ url: image, alt: `${row.name} on DineUp` }] } : {}),
       },
       twitter: {
@@ -241,6 +242,7 @@ export default async function RestaurantProfileLayout({
         schema = {
           "@context": "https://schema.org",
           "@type": "Restaurant",
+          inLanguage: "en-IN",
           name: row.name,
           url: canonicalUrl,
           mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl },
