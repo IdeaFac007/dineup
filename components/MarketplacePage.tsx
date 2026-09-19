@@ -93,7 +93,7 @@ export default function MarketplacePage(){
     return configured || googleMapsSearchUrl(r.name, r.address, r.city);
   };
   const phone=(r:Restaurant)=>{
-    let digits=(r.profile?.phone||"").replace(/\\D/g,"");
+    let digits=(r.profile?.phone||"").replace(/\D/g,"");
     if(digits.startsWith("00")) digits=digits.slice(2);
     if(digits.length===10) digits="91"+digits;
     return digits.length>=8&&digits.length<=15 ? `tel:+${digits}` : "";
@@ -252,7 +252,7 @@ export default function MarketplacePage(){
           </div></div></article>})}</div></>}
 
         <div className="allHead"><div><span className="sectionKicker">ALL RESTAURANTS</span><h2>Explore the marketplace</h2></div></div>
-        <div className="list">{sorted.slice(3).map(r=><Link className="listItem" key={r.id} href={`/restaurant/${r.id}`} onClick={()=>trackRestaurantView(r)}><div className="miniLogo">{imageUrl(r.profile?.logo_image_url)?<img src={imageUrl(r.profile?.logo_image_url)} alt=""/>:r.name.slice(0,1)}</div><div className="listInfo"><strong>{r.name}</strong><span>{r.city} · {r.category}</span></div><div className="listBid"><span>Live bid</span><b>{money(r.current_bid)}</b></div><span className="arrow">→</span></Link>)}
+        <div className="list">{sorted.slice(3).map(r=>{const logoImageUrl=imageUrl(r.profile?.logo_image_url);return <Link className="listItem" key={r.id} href={`/restaurant/${r.id}`} onClick={()=>trackRestaurantView(r)}><div className="miniLogo">{logoImageUrl?<img src={logoImageUrl} alt=""/>:r.name.slice(0,1)}</div><div className="listInfo"><strong>{r.name}</strong><span>{r.city} · {r.category}</span></div><div className="listBid"><span>Live bid</span><b>{money(r.current_bid)}</b></div><span className="arrow">→</span></Link>)}
         {filtered.length===0&&<div className="empty"><div>⌕</div><h3>No restaurants found</h3><p>Try another city, cuisine or search term.</p><button type="button" onClick={()=>{setSearch("");setCategory("All");setCity("All")}}>Clear filters</button></div>}</div>
       </>}
     </section>
