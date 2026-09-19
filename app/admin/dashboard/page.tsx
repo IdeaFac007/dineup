@@ -281,10 +281,12 @@ export default function AdminDashboardPage() {
     const highestBid = total ? Math.max(...restaurants.map((r) => Number(r.current_bid || 0))) : 0;
     const cities = new Set(restaurants.map((r) => r.city)).size;
     const captured = bids.filter((b) => b.payment_status === "captured");
+    const failed = bids.filter((b) => ["failed", "cancelled", "canceled"].includes((b.payment_status || "").toLowerCase()));
+    const awaiting = bids.filter((b) => !["captured", "failed", "cancelled", "canceled"].includes((b.payment_status || "").toLowerCase()));
     const pending = bids.filter((b) => b.payment_status !== "captured");
     const pendingApplications = applications.filter((a) => a.status === "pending").length;
     const capturedAmount = captured.reduce((sum, b) => sum + Number(b.amount || 0), 0);
-    return { total, active, claimed, totalBidValue, highestBid, cities, totalBids: bids.length, capturedPayments: captured.length, pendingPayments: pending.length, capturedAmount, pendingApplications };
+    return { total, active, claimed, totalBidValue, highestBid, cities, totalBids: bids.length, capturedPayments: captured.length, pendingPayments: pending.length, failedPayments: failed.length, awaitingPayments: awaiting.length, capturedAmount, pendingApplications };
   }, [restaurants, bids, applications]);
 
   const filteredApplications = useMemo(() => {
@@ -417,7 +419,7 @@ export default function AdminDashboardPage() {
 
             {activeNav === "bids" && <section className="panel fullPanel"><PanelHeader title="Bid Management" subtitle="Complete bidding activity and history." search={search} setSearch={setSearch} placeholder="Search bids..."/><div className="miniStats"><MiniStat label="Total Bids" value={stats.totalBids}/><MiniStat label="Captured" value={stats.capturedPayments}/><MiniStat label="Pending" value={stats.pendingPayments}/><MiniStat label="Highest Bid" value={`₹${stats.highestBid.toLocaleString("en-IN")}`}/></div><BidTable bids={filteredBids} restaurantMap={restaurantMap}/></section>}
 
-            {activeNav === "payments" && <section className="panel fullPanel"><PanelHeader title="Payment Management" subtitle="Razorpay payment activity and verification status." search={search} setSearch={setSearch} placeholder="Search payments..."/><div className="paymentSummary"><MiniStat label="Captured Payments" value={stats.capturedPayments}/><MiniStat label="Captured Amount" value={`₹${stats.capturedAmount.toLocaleString("en-IN")}`}/><MiniStat label="Pending" value={stats.pendingPayments}/><MiniStat label="Mode" value="TEST"/></div><PaymentTable bids={filteredBids} restaurantMap={restaurantMap}/></section>}
+            {activeNav === "payments" && <section className="panel fullPanel"><PanelHeader title="Payment Management" subtitle="Razorpay payment activity and verification status." search={search} setSearch={setSearch} placeholder="Search payments..."/><div className="paymentSummary"><MiniStat label="Captured Payments" value={stats.capturedPayments}/><MiniStat label="Captured Amount" value={`₹${stats.capturedAmount.toLocaleString("en-IN")}`}/><MiniStat label="Pending" value={stats.pendingPayments}/><MiniStat label="Failed" value={stats.failedPayments}/></div><div className="monitorNotice"><strong>Payment monitoring</strong><span>Pending and failed payments stay visible here for reconciliation. Only captured payments are counted in captured revenue.</span></div><PaymentTable bids={filteredBids} restaurantMap={restaurantMap}/></section>}
           </main>
           <footer className="footer"><span>DineUp Admin • Where Restaurants Rise</span><span>Production Dashboard</span></footer>
         </div>
