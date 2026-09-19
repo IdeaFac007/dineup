@@ -113,8 +113,8 @@ export default function PublicRestaurantProfile(){
  const formatHours=(value:unknown)=>typeof value==="string"&&value.trim()?value.trim():"Hours not provided";
  const whatsappNumber=normalizeWhatsApp(whatsapp);
  const whatsappMessage=encodeURIComponent(`Hi, I found ${restaurant.name} on DineUp. I would like to know more.`);
- const mapsQuery=[restaurant.name?.trim(),restaurant.address?.trim(),restaurant.city?.trim()].filter(Boolean).join(", ");
- const fallbackMaps=mapsQuery?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`:"https://www.google.com/maps";
+ const mapsContext=[restaurant.address?.trim(),restaurant.city?.trim()].filter(Boolean).join(", ");
+ const mapsQuery=mapsContext?`${restaurant.name?.trim()}, ${mapsContext}`: ""; const fallbackMaps=mapsQuery?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`:"https://www.google.com/maps";
  const maps=safeExternalUrl(profile?.google_maps_url)||fallbackMaps;
  const menuUrl=safeExternalUrl(profile?.menu_url);
  const websiteUrl=safeExternalUrl(profile?.website_url);

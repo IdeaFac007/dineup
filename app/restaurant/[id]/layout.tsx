@@ -227,7 +227,8 @@ export default async function RestaurantProfileLayout({
         const websiteUrl = safeExternalUrl(profileRow.website_url);
         const instagramUrl = safeExternalUrl(profileRow.instagram_url);
         const menuUrl = safeExternalUrl(profileRow.menu_url);
-        const fallbackMapsQuery = [restaurantName, row.address?.trim(), city].filter(Boolean).join(", ");
+        const fallbackMapsContext = [row.address?.trim(), city].filter(Boolean).join(", ");
+        const fallbackMapsQuery = fallbackMapsContext ? `${restaurantName}, ${fallbackMapsContext}` : "";
         const fallbackMapsUrl = fallbackMapsQuery
           ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fallbackMapsQuery)}`
           : "https://www.google.com/maps";
