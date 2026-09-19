@@ -189,7 +189,7 @@ export default function MarketplacePage(){
         <div className="sectionHeader"><div><span className="sectionKicker">POPULAR NEAR YOU</span><h2>Restaurants worth discovering</h2><p>Explore places diners are checking out on DineUp.</p></div><button type="button" className="textLink" onClick={()=>document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}>See all <span>→</span></button></div>
         <div className="popularGrid">{top.slice(0,3).map((r,i)=>{const coverImageUrl=imageUrl(r.profile?.cover_image_url);return <article className="popularCard" key={r.id}>
           <Link className="popularCardMain" aria-label={`View ${r.name}`} href={`/restaurant/${r.id}`} onClick={()=>trackRestaurantView(r)}>
-            {coverImageUrl?<img src={coverImageUrl} alt=""/>:<div className="popularPlaceholder">{r.name.slice(0,1).toUpperCase()}</div>}
+            {coverImageUrl?<img src={coverImageUrl} alt="" loading="lazy"/>:<div className="popularPlaceholder">{r.name.slice(0,1).toUpperCase()}</div>}
             <div className="popularOverlay"></div><div className="popularInfo"><div className="popularTag">{r.claim_status==="verified"?"✓ VERIFIED":"ON DINEUP"}</div><strong>{r.name}</strong><span>{r.city} · {r.category}</span></div><b className="popularArrow">↗</b>
           </Link>
           <button type="button" className={`favoriteBtn ${favoriteIds.has(r.id)?"saved":""}`} aria-label={favoriteIds.has(r.id)?"Remove from favourites":"Save restaurant"} onClick={e=>{e.stopPropagation();void toggleFavorite(r)}}>{favoriteIds.has(r.id)?"♥":"♡"}</button>
@@ -239,7 +239,7 @@ export default function MarketplacePage(){
           const coverImageUrl=imageUrl(r.profile?.cover_image_url);
           return <article className="restaurantCard" key={r.id}>
           <Link className="cardClickHint" href={`/restaurant/${r.id}`} aria-label={`View ${r.name}`} onClick={e=>{e.stopPropagation();trackRestaurantView(r)}}>View restaurant <span>↗</span></Link><button type="button" className={`favoriteBtn cardFavorite ${favoriteIds.has(r.id)?"saved":""}`} aria-label={favoriteIds.has(r.id)?"Remove from favourites":"Save restaurant"} onClick={e=>{e.stopPropagation();void toggleFavorite(r)}}>{favoriteIds.has(r.id)?"♥":"♡"}</button>
-          {coverImageUrl?<img className="cover" src={coverImageUrl} alt=""/>:<div className="cover placeholder"><span>{r.name.slice(0,1).toUpperCase()}</span></div>}
+          {coverImageUrl?<img className="cover" src={coverImageUrl} alt="" loading="lazy"/>:<div className="cover placeholder"><span>{r.name.slice(0,1).toUpperCase()}</span></div>}
           <div className="cardBody"><div className="cardTop"><div><div className="tag">{i===0?"TRENDING":"FEATURED"}</div><h3>{r.name}</h3><p>{r.city} <b>·</b> {r.category}{r.profile?.cuisine_tags?.length ? <> <b>·</b> {r.profile.cuisine_tags.slice(0,2).join(", ")}</> : null}</p></div>{r.claim_status==="verified"&&<span className="verified">✓ Verified</span>}</div>
           <p className="description">{r.profile?.description||r.address||"Discover this restaurant on DineUp."}</p>
           <div className="bid"><span>Current marketplace bid</span><strong>{money(r.current_bid)}</strong></div>
@@ -252,7 +252,7 @@ export default function MarketplacePage(){
           </div></div></article>})}</div></>}
 
         <div className="allHead"><div><span className="sectionKicker">ALL RESTAURANTS</span><h2>Explore the marketplace</h2></div></div>
-        <div className="list">{sorted.slice(3).map(r=><Link className="listItem" key={r.id} href={`/restaurant/${r.id}`} onClick={()=>trackRestaurantView(r)}><div className="miniLogo">{imageUrl(r.profile?.logo_image_url)?<img src={imageUrl(r.profile?.logo_image_url)} alt=""/>:r.name.slice(0,1)}</div><div className="listInfo"><strong>{r.name}</strong><span>{r.city} · {r.category}</span></div><div className="listBid"><span>Live bid</span><b>{money(r.current_bid)}</b></div><span className="arrow">→</span></Link>)}
+        <div className="list">{sorted.slice(3).map(r=><Link className="listItem" key={r.id} href={`/restaurant/${r.id}`} onClick={()=>trackRestaurantView(r)}><div className="miniLogo">{imageUrl(r.profile?.logo_image_url)?<img src={imageUrl(r.profile?.logo_image_url)} alt="" loading="lazy"/>:r.name.slice(0,1)}</div><div className="listInfo"><strong>{r.name}</strong><span>{r.city} · {r.category}</span></div><div className="listBid"><span>Live bid</span><b>{money(r.current_bid)}</b></div><span className="arrow">→</span></Link>)}
         {filtered.length===0&&<div className="empty"><div>⌕</div><h3>No restaurants found</h3><p>Try another city, cuisine or search term.</p><button type="button" onClick={()=>{setSearch("");setCategory("All");setCity("All")}}>Clear filters</button></div>}</div>
       </>}
     </section>
