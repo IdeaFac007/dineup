@@ -87,12 +87,13 @@ export default function PublicRestaurantProfile(){
  const formatHours=(value:unknown)=>typeof value==="string"&&value.trim()?value.trim():"Hours not provided";
  const whatsappNumber=normalizeWhatsApp(whatsapp);
  const whatsappMessage=encodeURIComponent(`Hi, I found ${restaurant.name} on DineUp. I would like to know more.`);
- const fallbackMaps=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([restaurant.name,restaurant.address,restaurant.city].filter(Boolean).join(", "))}`;
+ const mapsQuery=[restaurant.name?.trim(),restaurant.address?.trim(),restaurant.city?.trim()].filter(Boolean).join(", ");
+ const fallbackMaps=mapsQuery?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`:"https://www.google.com/maps";
  const maps=safeExternalUrl(profile?.google_maps_url)||fallbackMaps;
  const menuUrl=safeExternalUrl(profile?.menu_url);
  const websiteUrl=safeExternalUrl(profile?.website_url);
  const instagramUrl=safeExternalUrl(profile?.instagram_url);
- const addressText=[restaurant.address,restaurant.city].filter(Boolean).join(", ");
+ const addressText=[restaurant.address?.trim(),restaurant.city?.trim()].filter(Boolean).join(", ");
  const copyAddress=async()=>{
    if(!addressText)return;
    setAddressMessage("");
