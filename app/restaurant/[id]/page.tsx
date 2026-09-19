@@ -70,7 +70,7 @@ export default function PublicRestaurantProfile(){
  if(!restaurant||error)return <><Header/><div className="state" role="alert"><span>DINEUP</span><h1>Restaurant unavailable</h1><p>{error||"Restaurant not found."}</p><div className="stateActions"><button type="button" className="primary stateRetry" onClick={()=>window.location.reload()}>Retry</button><Link href="/marketplace" className="secondary">Back to marketplace</Link></div></div><style jsx global>{styles}</style></>;
  const bid=Number(restaurant.current_bid||0), sponsored=bid>0, hours=profile?.opening_hours||{}, phone=profile?.phone?.trim()||"", whatsapp=profile?.whatsapp||phone;
  const phoneHref=phone.startsWith("+")?"+"+phone.slice(1).replace(/\D/g,""):phone.replace(/\D/g,"");
- const normalizeWhatsApp=(value:string)=>{let digits=value.replace(/\D/g,""); if(digits.startsWith("00"))digits=digits.slice(2); if(digits.startsWith("0")&&digits.length===11)digits=digits.slice(1); if(digits.length===10)digits="91"+digits; return digits.length>=8&&digits.length<=15?digits:"";};
+ const normalizeWhatsApp=(value:string)=>{let digits=value.replace(/\D/g,""); if(digits.startsWith("00"))digits=digits.slice(2); if(digits.startsWith("0")&&digits.length===11)digits=digits.slice(1); if(digits.length===10)digits="91"+digits; return digits.length>=10&&digits.length<=15?digits:"";};
  const whatsappNumber=normalizeWhatsApp(whatsapp);
  const whatsappMessage=encodeURIComponent(`Hi, I found ${restaurant.name} on DineUp. I would like to know more.`);
  const fallbackMaps=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([restaurant.name,restaurant.address,restaurant.city].filter(Boolean).join(", "))}`;
