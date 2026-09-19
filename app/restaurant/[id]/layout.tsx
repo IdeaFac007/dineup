@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { createClient } from "../../../lib/supabase/server";
-import { safeGoogleMapsUrl } from "../../../lib/google-maps";
+import { googleMapsSearchUrl, safeGoogleMapsUrl } from "../../../lib/google-maps";
 
 type RestaurantPageData = {
   id: number;
@@ -197,8 +197,7 @@ export default async function RestaurantProfileLayout({
   children: React.ReactNode;
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const restaurantId = Number(id);
+  const { id } = await params;  const restaurantId = Number(id);
   let schema: Record<string, unknown> | null = null;
   let breadcrumbSchema: Record<string, unknown> | null = null;
 
@@ -228,12 +227,9 @@ export default async function RestaurantProfileLayout({
         const websiteUrl = safeExternalUrl(profileRow.website_url);
         const instagramUrl = safeExternalUrl(profileRow.instagram_url);
         const menuUrl = safeExternalUrl(profileRow.menu_url);
-        const fallbackMapsContext = [row.address?.trim(), city].filter(Boolean).join(", ");
-        const fallbackMapsQuery = fallbackMapsContext ? `${restaurantName}, ${fallbackMapsContext}` : "";
-        const fallbackMapsUrl = fallbackMapsQuery
-          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fallbackMapsQuery)}`
-          : "https://www.google.com/maps";
-        const mapsUrl = safeGoogleMapsUrl(profileRow.google_maps_url) || fallbackMapsUrl;
+        const mapsUrl =
+          safeGoogleMapsUrl(profileRow.google_maps_url) ||
+          googleMapsSearchUrl(restaurantName, row.address, city);
         const telephone = normalizeSchemaPhone(profileRow.phone);
         const priceRange = normalizeOptionalText(profileRow.price_range);
         const cuisineTags = normalizeCuisineTags(profileRow.cuisine_tags);
