@@ -34,6 +34,25 @@ function safeExternalUrl(value: string | null | undefined) {
     return "";
   }
 }
+function safeGoogleMapsUrl(value: string | null | undefined) {
+  const raw = value?.trim();
+  if (!raw) return "";
+  try {
+    const candidate = /^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : "https://" + raw;
+    const url = new URL(candidate);
+    const host = url.hostname.toLowerCase();
+    const isGoogleMapsHost =
+      host === "google.com" ||
+      host.endsWith(".google.com") ||
+      host === "maps.app.goo.gl" ||
+      host === "goo.gl";
+    return (url.protocol === "http:" || url.protocol === "https:") && isGoogleMapsHost
+      ? url.toString()
+      : "";
+  } catch {
+    return "";
+  }
+}
 function cleanDescription(value: string | null, fallback: string) {
   const candidate = (value || "").replace(/\s+/g, " ").trim();
   const fallbackText = fallback.replace(/\s+/g, " ").trim();
@@ -232,7 +251,7 @@ export default async function RestaurantProfileLayout({
         const fallbackMapsUrl = fallbackMapsQuery
           ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fallbackMapsQuery)}`
           : "https://www.google.com/maps";
-        const mapsUrl = safeExternalUrl(profileRow.google_maps_url) || fallbackMapsUrl;
+        const mapsUrl = safeGoogleMapsUrl(profileRow.google_maps_url) || fallbackMapsUrl;
         const telephone = normalizeSchemaPhone(profileRow.phone);
         const priceRange = normalizeOptionalText(profileRow.price_range);
         const cuisineTags = normalizeCuisineTags(profileRow.cuisine_tags);
