@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
+import { safeExternalUrl } from "../../../lib/external-url";
 import { googleMapsSearchUrl, safeGoogleMapsUrl } from "../../../lib/google-maps";
 
 type ClaimStatus = ""|"verified"|"verification_pending"|"unclaimed"|"claimed";
@@ -12,18 +13,8 @@ type Restaurant = { id:number; name:string; city:string; category:string; addres
 type Profile = { phone:string|null; whatsapp:string|null; website_url:string|null; description:string|null; price_range:string|null; menu_url:string|null; cover_image_url:string|null; logo_image_url:string|null; opening_hours:Record<string,string>; instagram_url:string|null; google_maps_url:string|null; cuisine_tags:string[] };
 type Media = { id:number; media_type:"gallery"|"menu"; public_url:string; title:string|null; caption:string|null; sort_order:number };
 
-function safeExternalUrl(value:string|null|undefined){
- const raw=value?.trim();
- if(!raw)return "";
- try{
-   const candidate=/^[a-z][a-z0-9+.-]*:/i.test(raw)?raw:"https://"+raw;
-   const url=new URL(candidate);
-   return url.protocol==="http:"||url.protocol==="https:" ? url.toString() : "";
- }catch{
-   return "";
- }
-}
 function safeRestaurantMediaUrl(value:string|null|undefined){
+ const safe=safeExternalUrl(value);(value:string|null|undefined){
  const safe=safeExternalUrl(value);
  if(!safe)return "";
  try{
