@@ -38,6 +38,10 @@ function cleanDescription(value: string | null, fallback: string) {
   const text = (value || fallback).replace(/\s+/g, " ").trim();
   return text.length > 160 ? `${text.slice(0, 157)}…` : text;
 }
+function normalizeOptionalText(value: string | null | undefined) {
+  const clean = value?.replace(/\s+/g, " ").trim();
+  return clean || "";
+}
 function normalizeSchemaTime(value: string) {
   const raw = value.trim().toUpperCase().replace(/\./g, "").replace(/\s+/g, " ");
   const match12 = raw.match(/^(\d{1,2})(?::([0-5]\d))?\s*(AM|PM)$/);
@@ -215,6 +219,7 @@ export default async function RestaurantProfileLayout({
           : "https://www.google.com/maps";
         const mapsUrl = safeExternalUrl(profileRow.google_maps_url) || fallbackMapsUrl;
         const telephone = normalizeSchemaPhone(profileRow.phone);
+        const priceRange = normalizeOptionalText(profileRow.price_range);
         const cuisineTags = normalizeCuisineTags(profileRow.cuisine_tags);
         const sameAs = [websiteUrl, instagramUrl].filter(Boolean);
         const image = [profileRow.cover_image_url, profileRow.logo_image_url].map((value) => safeExternalUrl(value)).filter(Boolean);
@@ -290,7 +295,7 @@ export default async function RestaurantProfileLayout({
           ...(image.length ? { image } : {}),
           ...(logoUrl ? { logo: logoUrl } : {}),
           ...(telephone ? { telephone } : {}),
-          ...(profileRow.price_range ? { priceRange: profileRow.price_range } : {}),
+          ...(priceRange ? { priceRange } : {}),
           address: {
             "@type": "PostalAddress",
             streetAddress: row.address?.trim() || undefined,
