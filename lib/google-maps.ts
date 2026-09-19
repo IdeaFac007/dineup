@@ -25,12 +25,20 @@ export function googleMapsSearchUrl(
   address: string | null | undefined,
   city: string | null | undefined,
 ) {
-  const name = restaurantName?.replace(/\s+/g, " ").trim() || "";
-  const context = [address, city]
-    .map((value) => value?.replace(/\s+/g, " ").trim() || "")
-    .filter(Boolean)
+  const normalize = (value: string | null | undefined) =>
+    value?.replace(/\s+/g, " ").trim() || "";
+  const name = normalize(restaurantName);
+  const contextParts = [normalize(address), normalize(city)].filter(Boolean);
+  const seen = new Set<string>();
+  const context = contextParts
+    .filter((value) => {
+      const key = value.toLocaleLowerCase("en-IN");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
     .join(", ");
-  const query = context ? [name, context].filter(Boolean).join(", ") : name;
+  const query = [name, context].filter(Boolean).join(", ");
   return query
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
     : "https://www.google.com/maps";
