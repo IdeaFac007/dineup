@@ -235,7 +235,7 @@ export default async function RestaurantProfileLayout({
         const priceRange = normalizeOptionalText(profileRow.price_range);
         const cuisineTags = normalizeCuisineTags(profileRow.cuisine_tags);
         const sameAs = Array.from(new Set([websiteUrl, instagramUrl].filter(Boolean)));
-        const image = [profileRow.cover_image_url, profileRow.logo_image_url].map((value) => safeExternalUrl(value)).filter(Boolean);
+        const image = Array.from(new Set([profileRow.cover_image_url, profileRow.logo_image_url].map((value) => safeExternalUrl(value)).filter(Boolean)));
         const logoUrl = safeExternalUrl(profileRow.logo_image_url);
         const hours = normalizeOpeningHours(profileRow.opening_hours);
         const dayMap: Record<string, string> = {
