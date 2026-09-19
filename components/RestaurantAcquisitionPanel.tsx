@@ -286,7 +286,7 @@ export default function RestaurantAcquisitionPanel() {
         </div>
       </div>
 
-      <style jsx>{\`
+      <style jsx>{`
         .acquisitionPanel{margin-top:22px;padding:24px;border:1px solid #e8e8e8;border-radius:22px;background:#fff;box-shadow:0 12px 40px rgba(20,20,20,.05)}
         .acquisitionHeader{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.acquisitionHeader h3{margin:6px 0 5px;font-size:22px;letter-spacing:-.5px}.acquisitionHeader p{margin:0;color:#777;font-size:13px}.acquisitionHeader select{border:1px solid #ddd;border-radius:10px;padding:10px 12px;background:#fff;font-weight:700}
         .acquisitionStats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:20px 0}.mini{padding:15px;border-radius:14px;background:#f7f7f7}.mini span{display:block;color:#888;font-size:11px}.mini strong{display:block;margin-top:5px;font-size:22px}
@@ -297,7 +297,7 @@ export default function RestaurantAcquisitionPanel() {
         .emptyAcquisition{padding:24px 4px;color:#888;font-size:12px}.acquisitionError{margin-top:14px;padding:11px 13px;border-radius:10px;background:#fff3f3;color:#b42318;font-size:12px}
         @media(max-width:850px){.acquisitionStats{grid-template-columns:repeat(2,1fr)}.acquisitionGrid{grid-template-columns:1fr}.acquisitionHeader{flex-direction:column}.acquisitionHeader select{width:100%}.acquisitionSummary{grid-template-columns:repeat(2,1fr)}}
         @media(max-width:600px){.sourceRow{grid-template-columns:1fr 1fr 1fr}.sourceMetric.conversion{grid-column:1/-1;text-align:left;padding-top:3px}.acquisitionSummary{grid-template-columns:1fr}}
-      \`}</style>
+      `}</style>
     </section>
   );
 }
