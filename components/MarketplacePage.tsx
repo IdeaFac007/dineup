@@ -230,19 +230,24 @@ export default function MarketplacePage(){
     <section className="content">
       {loading?<div className="loading">Finding restaurants...</div>:<>
         {top.length>0&&<><div className="featuredHead"><div><span className="sectionKicker">TRENDING ON DINEUP</span><h2>Places getting attention</h2></div><span className="count">{sorted.length} places</span></div>
-        <div className="cards">{top.map((r,i)=><article className="restaurantCard" key={r.id}>
+        <div className="cards">{top.map((r,i)=>{
+          const links=externalLinks(r);
+          const callUrl=phone(r);
+          const whatsappLink=whatsappUrl(r);
+          const directionsUrl=directions(r);
+          return <article className="restaurantCard" key={r.id}>
           <Link className="cardClickHint" href={`/restaurant/${r.id}`} aria-label={`View ${r.name}`} onClick={e=>{e.stopPropagation();trackRestaurantView(r)}}>View restaurant <span>↗</span></Link><button type="button" className={`favoriteBtn cardFavorite ${favoriteIds.has(r.id)?"saved":""}`} aria-label={favoriteIds.has(r.id)?"Remove from favourites":"Save restaurant"} onClick={e=>{e.stopPropagation();void toggleFavorite(r)}}>{favoriteIds.has(r.id)?"♥":"♡"}</button>
           {r.profile?.cover_image_url?<img className="cover" src={r.profile.cover_image_url} alt=""/>:<div className="cover placeholder"><span>{r.name.slice(0,1).toUpperCase()}</span></div>}
           <div className="cardBody"><div className="cardTop"><div><div className="tag">{i===0?"TRENDING":"FEATURED"}</div><h3>{r.name}</h3><p>{r.city} <b>·</b> {r.category}{r.profile?.cuisine_tags?.length ? <> <b>·</b> {r.profile.cuisine_tags.slice(0,2).join(", ")}</> : null}</p></div>{r.claim_status==="verified"&&<span className="verified">✓ Verified</span>}</div>
           <p className="description">{r.profile?.description||r.address||"Discover this restaurant on DineUp."}</p>
           <div className="bid"><span>Current marketplace bid</span><strong>{money(r.current_bid)}</strong></div>
           <div className="actions">
-            {phone(r)&&<a href={phone(r)} onClick={e=>{e.stopPropagation();action(r,"call")}}>☎ Call</a>}
-            {whatsappUrl(r)&&<a href={whatsappUrl(r)} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"whatsapp")}}>WhatsApp</a>}
-            <a href={directions(r)} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"directions")}}>Directions</a>
-            {externalLinks(r).menu&&<a href={externalLinks(r).menu} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"menu")}}>Menu</a>}
-            {externalLinks(r).website&&<a href={externalLinks(r).website} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"website")}}>Website</a>}
-          </div></div></article>)}</div></>}
+            {callUrl&&<a href={callUrl} onClick={e=>{e.stopPropagation();action(r,"call")}}>☎ Call</a>}
+            {whatsappLink&&<a href={whatsappLink} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"whatsapp")}}>WhatsApp</a>}
+            <a href={directionsUrl} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"directions")}}>Directions</a>
+            {links.menu&&<a href={links.menu} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"menu")}}>Menu</a>}
+            {links.website&&<a href={links.website} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"website")}}>Website</a>}
+          </div></div></article>})}</div></>}
 
         <div className="allHead"><div><span className="sectionKicker">ALL RESTAURANTS</span><h2>Explore the marketplace</h2></div></div>
         <div className="list">{sorted.slice(3).map(r=><Link className="listItem" key={r.id} href={`/restaurant/${r.id}`} onClick={()=>trackRestaurantView(r)}><div className="miniLogo">{r.profile?.logo_image_url?<img src={r.profile.logo_image_url} alt=""/>:r.name.slice(0,1)}</div><div className="listInfo"><strong>{r.name}</strong><span>{r.city} · {r.category}</span></div><div className="listBid"><span>Live bid</span><b>{money(r.current_bid)}</b></div><span className="arrow">→</span></Link>)}
