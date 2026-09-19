@@ -238,7 +238,7 @@ export default function MarketplacePage(){
           const directionsUrl=directions(r);
           return <article className="restaurantCard" key={r.id}>
           <Link className="cardClickHint" href={`/restaurant/${r.id}`} aria-label={`View ${r.name}`} onClick={e=>{e.stopPropagation();trackRestaurantView(r)}}>View restaurant <span>↗</span></Link><button type="button" className={`favoriteBtn cardFavorite ${favoriteIds.has(r.id)?"saved":""}`} aria-label={favoriteIds.has(r.id)?"Remove from favourites":"Save restaurant"} onClick={e=>{e.stopPropagation();void toggleFavorite(r)}}>{favoriteIds.has(r.id)?"♥":"♡"}</button>
-          {r.profile?.cover_image_url?<img className="cover" src={r.profile.cover_image_url} alt=""/>:<div className="cover placeholder"><span>{r.name.slice(0,1).toUpperCase()}</span></div>}
+          {imageUrl(r.profile?.cover_image_url)?<img className="cover" src={imageUrl(r.profile?.cover_image_url)} alt=""/>:<div className="cover placeholder"><span>{r.name.slice(0,1).toUpperCase()}</span></div>}
           <div className="cardBody"><div className="cardTop"><div><div className="tag">{i===0?"TRENDING":"FEATURED"}</div><h3>{r.name}</h3><p>{r.city} <b>·</b> {r.category}{r.profile?.cuisine_tags?.length ? <> <b>·</b> {r.profile.cuisine_tags.slice(0,2).join(", ")}</> : null}</p></div>{r.claim_status==="verified"&&<span className="verified">✓ Verified</span>}</div>
           <p className="description">{r.profile?.description||r.address||"Discover this restaurant on DineUp."}</p>
           <div className="bid"><span>Current marketplace bid</span><strong>{money(r.current_bid)}</strong></div>
