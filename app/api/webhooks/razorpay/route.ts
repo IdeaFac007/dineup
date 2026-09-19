@@ -207,5 +207,5 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  return NextResponse.json({ ok: true, service: "dineup-razorpay-webhook" });
+  return NextResponse.json({ ok: true });
 }
