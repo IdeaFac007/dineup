@@ -39,7 +39,7 @@ function cleanDescription(value: string | null, fallback: string) {
   return text.length > 160 ? `${text.slice(0, 157)}…` : text;
 }
 function normalizeSchemaTime(value: string) {
-  const raw = value.trim().toUpperCase().replace(/\./g, "");
+  const raw = value.trim().toUpperCase().replace(/\./g, "").replace(/\s+/g, " ");
   const match12 = raw.match(/^(\d{1,2})(?::([0-5]\d))?\s*(AM|PM)$/);
   if (match12) {
     let hour = Number(match12[1]);
