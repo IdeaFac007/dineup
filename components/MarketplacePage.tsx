@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "../lib/supabase/client";
 import { trackMarketingEvent } from "../lib/marketing-attribution";
+import { safeGoogleMapsUrl } from "../lib/google-maps";
 
 type Profile={phone:string|null;whatsapp:string|null;website_url:string|null;google_maps_url:string|null;description:string|null;price_range:string|null;menu_url:string|null;cover_image_url:string|null;logo_image_url:string|null;cuisine_tags:string[]|null};
 type Restaurant={id:number;name:string;city:string;category:string;address:string|null;current_bid:number|null;is_claimed:boolean|null;claim_status:string;profile?:Profile|null};
@@ -87,16 +88,8 @@ export default function MarketplacePage(){
 
   const top=sorted.slice(0,3);
   const directions=(r:Restaurant)=>{
-    const rawMapsUrl=r.profile?.google_maps_url?.trim()||"";
-    if(rawMapsUrl){
-      try{
-        const candidate=/^[a-z][a-z0-9+.-]*:/i.test(rawMapsUrl)?rawMapsUrl:"https://"+rawMapsUrl;
-        const url=new URL(candidate);
-        const host=url.hostname.toLowerCase();
-        const isGoogleMapsHost=host==="google.com"||host.endsWith(".google.com")||host==="maps.app.goo.gl"||host==="goo.gl";
-        if((url.protocol==="https:"||url.protocol==="http:")&&isGoogleMapsHost) return url.toString();
-      }catch{}
-    }
+    const configured=safeGoogleMapsUrl(r.profile?.google_maps_url);
+    if(configured)return configured;
     const mapsContext=[r.address?.trim(),r.city?.trim()].filter(Boolean).join(", ");
     const mapsQuery=mapsContext?`${r.name.trim()}, ${mapsContext}`:"";
     return mapsQuery?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`:"https://www.google.com/maps";
