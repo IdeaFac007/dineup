@@ -15,10 +15,12 @@ type Media = { id:number; media_type:"gallery"|"menu"; public_url:string; title:
 
 function safeRestaurantMediaUrl(value:string|null|undefined){
  const safe=safeExternalUrl(value);
- if(!safe)return "";
+ const configured=process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+ if(!safe||!configured)return "";
  try{
    const url=new URL(safe);
-   return url.protocol==="https:"&&url.hostname==="xeabrfkenplmrrkhnbor.supabase.co"&&url.pathname.startsWith("/storage/v1/object/public/")?url.toString():"";
+   const base=new URL(configured);
+   return url.protocol==="https:"&&url.hostname===base.hostname&&url.pathname.startsWith("/storage/v1/object/public/")?url.toString():"";
  }catch{
    return "";
  }
