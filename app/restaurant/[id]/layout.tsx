@@ -247,7 +247,7 @@ export default async function RestaurantProfileLayout({
             profileRow.description,
             `${row.name} is a ${row.category || "restaurant"} in ${row.city}.`
           ),
-          ...(row.category ? { servesCuisine: row.category } : {}),
+          ...(cuisineTags.length ? { servesCuisine: cuisineTags } : row.category ? { servesCuisine: row.category } : {}),
           ...(cuisineTags.length ? { knowsAbout: cuisineTags } : {}),
           ...(image.length ? { image } : {}),
           ...(telephone ? { telephone } : {}),
