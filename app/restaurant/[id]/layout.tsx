@@ -155,7 +155,7 @@ export async function generateMetadata({
         siteName: "DineUp",
         type: "website",
         locale: "en_IN",
-        ...(image ? { images: [{ url: image, alt: `${row.name} on DineUp` }] } : {}),
+        ...(image ? { images: [{ url: image, alt: `${restaurantName} on DineUp` }] } : {}),
       },
       twitter: {
         card: image ? "summary_large_image" : "summary",
