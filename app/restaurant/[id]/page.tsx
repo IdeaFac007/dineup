@@ -6,7 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 
-type Restaurant = { id:number; name:string; city:string; category:string; address:string|null; current_bid:number|null; is_claimed:boolean|null; claim_status:string };
+type ClaimStatus = ""|"verified"|"verification_pending"|"unclaimed"|"claimed";
+type Restaurant = { id:number; name:string; city:string; category:string; address:string|null; current_bid:number|null; is_claimed:boolean|null; claim_status:ClaimStatus };
 type Profile = { phone:string|null; whatsapp:string|null; website_url:string|null; description:string|null; price_range:string|null; menu_url:string|null; cover_image_url:string|null; logo_image_url:string|null; opening_hours:Record<string,string>|null; instagram_url:string|null; google_maps_url:string|null; cuisine_tags:string[]|null };
 type Media = { id:number; media_type:"gallery"|"menu"; public_url:string; title:string|null; caption:string|null; sort_order:number };
 
@@ -41,7 +42,7 @@ function normalizeOptionalText(value:string|null|undefined){
  const clean=value?.replace(/\s+/g," ").trim();
  return clean||null;
 }
-function normalizeClaimStatus(value:unknown){
+function normalizeClaimStatus(value:unknown):ClaimStatus{
  const clean=String(value??"").trim().toLowerCase();
  return clean==="verified"||clean==="verification_pending"||clean==="unclaimed"||clean==="claimed"?clean:"";
 }
