@@ -111,14 +111,13 @@ export default function MarketplacePage(){
     const text=encodeURIComponent(`Hi, I found ${r.name} on DineUp. I would like to know more.`);
     return `https://wa.me/${number}?text=${text}`;
   };
-  const openRestaurant=(r:Restaurant)=>{
+  const trackRestaurantView=(r:Restaurant)=>{
     void trackMarketingEvent("restaurant_view",r.id);
     try{
       const key="dineup_recently_viewed";
       const ids=JSON.parse(localStorage.getItem(key)||"[]") as number[];
       localStorage.setItem(key,JSON.stringify([r.id,...ids.filter(id=>id!==r.id)].slice(0,8)));
     }catch{}
-    window.location.href=`/restaurant/${r.id}`;
   };
   const toggleFavorite=async(r:Restaurant)=>{
     if(!user){router.push("/login");return;}
@@ -167,7 +166,7 @@ export default function MarketplacePage(){
         <div className="foodCopy">Good<br/>Food<br/>Brighter<br/>Days</div>
         <div className="heroPanel">
           <div className="panelTop"><span>🔥 Trending near you</span><b>{restaurants.length || "—"} places</b></div>
-          {top.slice(0,2).map((r)=><Link className="heroRestaurant" key={r.id} href={`/restaurant/${r.id}`} aria-label={`View ${r.name}`} onClick={()=>void trackMarketingEvent("restaurant_view",r.id)}>
+          {top.slice(0,2).map((r)=><Link className="heroRestaurant" key={r.id} href={`/restaurant/${r.id}`} aria-label={`View ${r.name}`} onClick={()=>trackRestaurantView(r)}>
             {r.profile?.cover_image_url?<img src={r.profile.cover_image_url} alt=""/>:<div className="heroThumb">{r.name.slice(0,1).toUpperCase()}</div>}
             <div><strong>{r.name}</strong><span>{r.city} · {r.category}</span><small>{r.claim_status==="verified"?"✓ Verified":"View profile"} <b>→</b></small></div>
           </Link>)}
@@ -188,7 +187,7 @@ export default function MarketplacePage(){
       <div className="sectionWrap">
         <div className="sectionHeader"><div><span className="sectionKicker">POPULAR NEAR YOU</span><h2>Restaurants worth discovering</h2><p>Explore places diners are checking out on DineUp.</p></div><button type="button" className="textLink" onClick={()=>document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}>See all <span>→</span></button></div>
         <div className="popularGrid">{top.slice(0,3).map((r,i)=><article className="popularCard" key={r.id}>
-          <Link className="popularCardMain" aria-label={`View ${r.name}`} href={`/restaurant/${r.id}`} onClick={()=>void trackMarketingEvent("restaurant_view",r.id)}>
+          <Link className="popularCardMain" aria-label={`View ${r.name}`} href={`/restaurant/${r.id}`} onClick={()=>trackRestaurantView(r)}>
             {r.profile?.cover_image_url?<img src={r.profile.cover_image_url} alt=""/>:<div className="popularPlaceholder">{r.name.slice(0,1).toUpperCase()}</div>}
             <div className="popularOverlay"></div><div className="popularInfo"><div className="popularTag">{r.claim_status==="verified"?"✓ VERIFIED":"ON DINEUP"}</div><strong>{r.name}</strong><span>{r.city} · {r.category}</span></div><b className="popularArrow">↗</b>
           </Link>
@@ -232,7 +231,7 @@ export default function MarketplacePage(){
       {loading?<div className="loading">Finding restaurants...</div>:<>
         {top.length>0&&<><div className="featuredHead"><div><span className="sectionKicker">TRENDING ON DINEUP</span><h2>Places getting attention</h2></div><span className="count">{sorted.length} places</span></div>
         <div className="cards">{top.map((r,i)=><article className="restaurantCard" key={r.id}>
-          <Link className="cardClickHint" href={`/restaurant/${r.id}`} aria-label={`View ${r.name}`} onClick={e=>{e.stopPropagation();void trackMarketingEvent("restaurant_view",r.id)}}>View restaurant <span>↗</span></Link><button type="button" className={`favoriteBtn cardFavorite ${favoriteIds.has(r.id)?"saved":""}`} aria-label={favoriteIds.has(r.id)?"Remove from favourites":"Save restaurant"} onClick={e=>{e.stopPropagation();void toggleFavorite(r)}}>{favoriteIds.has(r.id)?"♥":"♡"}</button>
+          <Link className="cardClickHint" href={`/restaurant/${r.id}`} aria-label={`View ${r.name}`} onClick={e=>{e.stopPropagation();trackRestaurantView(r)}}>View restaurant <span>↗</span></Link><button type="button" className={`favoriteBtn cardFavorite ${favoriteIds.has(r.id)?"saved":""}`} aria-label={favoriteIds.has(r.id)?"Remove from favourites":"Save restaurant"} onClick={e=>{e.stopPropagation();void toggleFavorite(r)}}>{favoriteIds.has(r.id)?"♥":"♡"}</button>
           {r.profile?.cover_image_url?<img className="cover" src={r.profile.cover_image_url} alt=""/>:<div className="cover placeholder"><span>{r.name.slice(0,1).toUpperCase()}</span></div>}
           <div className="cardBody"><div className="cardTop"><div><div className="tag">{i===0?"TRENDING":"FEATURED"}</div><h3>{r.name}</h3><p>{r.city} <b>·</b> {r.category}{r.profile?.cuisine_tags?.length ? <> <b>·</b> {r.profile.cuisine_tags.slice(0,2).join(", ")}</> : null}</p></div>{r.claim_status==="verified"&&<span className="verified">✓ Verified</span>}</div>
           <p className="description">{r.profile?.description||r.address||"Discover this restaurant on DineUp."}</p>
@@ -246,7 +245,7 @@ export default function MarketplacePage(){
           </div></div></article>)}</div></>}
 
         <div className="allHead"><div><span className="sectionKicker">ALL RESTAURANTS</span><h2>Explore the marketplace</h2></div></div>
-        <div className="list">{sorted.slice(3).map(r=><Link className="listItem" key={r.id} href={`/restaurant/${r.id}`} onClick={()=>void trackMarketingEvent("restaurant_view",r.id)}><div className="miniLogo">{r.profile?.logo_image_url?<img src={r.profile.logo_image_url} alt=""/>:r.name.slice(0,1)}</div><div className="listInfo"><strong>{r.name}</strong><span>{r.city} · {r.category}</span></div><div className="listBid"><span>Live bid</span><b>{money(r.current_bid)}</b></div><span className="arrow">→</span></Link>)}
+        <div className="list">{sorted.slice(3).map(r=><Link className="listItem" key={r.id} href={`/restaurant/${r.id}`} onClick={()=>trackRestaurantView(r)}><div className="miniLogo">{r.profile?.logo_image_url?<img src={r.profile.logo_image_url} alt=""/>:r.name.slice(0,1)}</div><div className="listInfo"><strong>{r.name}</strong><span>{r.city} · {r.category}</span></div><div className="listBid"><span>Live bid</span><b>{money(r.current_bid)}</b></div><span className="arrow">→</span></Link>)}
         {filtered.length===0&&<div className="empty"><div>⌕</div><h3>No restaurants found</h3><p>Try another city, cuisine or search term.</p><button type="button" onClick={()=>{setSearch("");setCategory("All");setCity("All")}}>Clear filters</button></div>}</div>
       </>}
     </section>
