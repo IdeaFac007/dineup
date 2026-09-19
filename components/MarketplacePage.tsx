@@ -86,7 +86,11 @@ export default function MarketplacePage(){
   },[filtered,sort]);
 
   const top=sorted.slice(0,3);
-  const directions=(r:Restaurant)=>{\n    const mapsContext=[r.address?.trim(),r.city?.trim()].filter(Boolean).join(", ");\n    const mapsQuery=mapsContext?`${r.name.trim()}, ${mapsContext}`:"";\n    return mapsQuery?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`:"https://www.google.com/maps";\n  };
+  const directions=(r:Restaurant)=>{
+    const mapsContext=[r.address?.trim(),r.city?.trim()].filter(Boolean).join(", ");
+    const mapsQuery=mapsContext?`${r.name.trim()}, ${mapsContext}`:"";
+    return mapsQuery?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`:"https://www.google.com/maps";
+  };
   const whatsapp=(r:Restaurant)=>{
     const raw=r.profile?.whatsapp||r.profile?.phone||"";
     let digits=raw.replace(/\D/g,"");
