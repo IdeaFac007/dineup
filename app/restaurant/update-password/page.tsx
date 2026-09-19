@@ -25,8 +25,6 @@ export default function UpdatePasswordPage() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log("Auth event:", event);
-
         if (!mounted) return;
 
         if (event === "PASSWORD_RECOVERY") {
