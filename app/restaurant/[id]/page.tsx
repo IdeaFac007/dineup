@@ -131,7 +131,7 @@ export default function PublicRestaurantProfile(){
  };
  const shareProfile=async()=>{
    if(typeof window==="undefined"||!restaurant)return;
-   const url=`${window.location.origin}/restaurant/${id}`;
+   const url=`https://dineupindia.com/restaurant/${id}`;
    const title=restaurant.name+" on DineUp";
    const text=`Discover ${restaurant.name} in ${restaurant.city} on DineUp.`;
    setShareMessage("");
