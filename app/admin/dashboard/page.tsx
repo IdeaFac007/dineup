@@ -656,8 +656,6 @@ function ApplicationModal({
           <DetailItem label="City" value={application.city}/>
           <DetailItem label="Category" value={application.category}/><DetailItem label="Onboarding mode" value={application.onboarding_mode === "bid_only" ? "Bid-Only" : "Full Listing"}/>
           <DetailItem label="Address" value={application.address || "Not provided"}/>
-          <DetailItem label="Acquisition source" value={application.acquisition_source || "Direct / Organic"}/>
-          <DetailItem label="Acquisition campaign" value={application.acquisition_campaign || "Not tagged"}/>
           <DetailItem label="Owner ID" value={application.owner_id}/>
           <DetailItem label="Submitted" value={formatDate(application.created_at)}/>
           <DetailItem label="Status" value={application.status.toUpperCase()}/>
