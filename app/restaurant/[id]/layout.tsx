@@ -80,6 +80,16 @@ function normalizeCuisineTags(value: string[] | null | undefined) {
   }
   return tags;
 }
+function normalizeOpeningHours(value: Record<string, string> | null | undefined) {
+  const normalized: Record<string, string> = {};
+  for (const [day, hours] of Object.entries(value || {})) {
+    const key = day.trim().toLowerCase();
+    const clean = typeof hours === "string" ? hours.replace(/\s+/g, " ").trim() : "";
+    if (!/^(monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/.test(key) || !clean || normalized[key]) continue;
+    normalized[key] = clean;
+  }
+  return normalized;
+}
 
 export async function generateMetadata({
   params,
@@ -224,7 +234,7 @@ export default async function RestaurantProfileLayout({
         const sameAs = [websiteUrl, instagramUrl].filter(Boolean);
         const image = [profileRow.cover_image_url, profileRow.logo_image_url].map((value) => safeExternalUrl(value)).filter(Boolean);
         const logoUrl = safeExternalUrl(profileRow.logo_image_url);
-        const hours = profileRow.opening_hours || {};
+        const hours = normalizeOpeningHours(profileRow.opening_hours);
         const dayMap: Record<string, string> = {
           monday: "Monday",
           tuesday: "Tuesday",
