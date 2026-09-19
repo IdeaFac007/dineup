@@ -63,6 +63,9 @@ function normalizeSchemaPhone(value: string | null | undefined) {
   if (digits.length < 8 || digits.length > 15) return "";
   return `${hasPlus ? "+" : ""}${digits}`;
 }
+function normalizeCuisineTags(value: string[] | null | undefined) {
+  return Array.from(new Set((value || []).map((tag) => tag.trim()).filter(Boolean))).slice(0, 12);
+}
 
 export async function generateMetadata({
   params,
@@ -180,6 +183,7 @@ export default async function RestaurantProfileLayout({
         const menuUrl = safeExternalUrl(profileRow.menu_url);
         const mapsUrl = safeExternalUrl(profileRow.google_maps_url);
         const telephone = normalizeSchemaPhone(profileRow.phone);
+        const cuisineTags = normalizeCuisineTags(profileRow.cuisine_tags);
         const sameAs = [websiteUrl, instagramUrl].filter(Boolean);
         const image = [profileRow.cover_image_url, profileRow.logo_image_url].map((value) => safeExternalUrl(value)).filter(Boolean);
         const addressText = row.address
@@ -244,7 +248,7 @@ export default async function RestaurantProfileLayout({
             `${row.name} is a ${row.category || "restaurant"} in ${row.city}.`
           ),
           ...(row.category ? { servesCuisine: row.category } : {}),
-          ...(profileRow.cuisine_tags?.length ? { knowsAbout: profileRow.cuisine_tags } : {}),
+          ...(cuisineTags.length ? { knowsAbout: cuisineTags } : {}),
           ...(image.length ? { image } : {}),
           ...(telephone ? { telephone } : {}),
           ...(profileRow.price_range ? { priceRange: profileRow.price_range } : {}),
