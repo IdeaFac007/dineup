@@ -303,7 +303,7 @@ export default async function RestaurantProfileLayout({
               ? `${restaurantName} is a ${category.toLowerCase()} in ${city}.`
               : `Discover ${restaurantName} on DineUp.`
           ),
-          ...(cuisineTags.length ? { servesCuisine: cuisineTags } : row.category?.trim() ? { servesCuisine: row.category.trim() } : {}),
+          ...(cuisineTags.length ? { servesCuisine: cuisineTags } : { servesCuisine: category }),
           ...(cuisineTags.length ? { knowsAbout: cuisineTags } : {}),
           ...(image.length ? { image } : {}),
           ...(logoUrl ? { logo: logoUrl } : {}),
