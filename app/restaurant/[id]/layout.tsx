@@ -64,7 +64,17 @@ function normalizeSchemaPhone(value: string | null | undefined) {
   return `${hasPlus ? "+" : ""}${digits}`;
 }
 function normalizeCuisineTags(value: string[] | null | undefined) {
-  return Array.from(new Set((value || []).map((tag) => tag.trim()).filter(Boolean))).slice(0, 12);
+  const seen = new Set<string>();
+  const tags: string[] = [];
+  for (const tag of value || []) {
+    const clean = tag.trim();
+    const key = clean.toLocaleLowerCase("en-IN");
+    if (!clean || seen.has(key)) continue;
+    seen.add(key);
+    tags.push(clean);
+    if (tags.length === 12) break;
+  }
+  return tags;
 }
 
 export async function generateMetadata({
