@@ -6,7 +6,7 @@ import Link from "next/link";
 import { createClient } from "../lib/supabase/client";
 import { trackMarketingEvent } from "../lib/marketing-attribution";
 
-type Profile={phone:string|null;whatsapp:string|null;website_url:string|null;description:string|null;price_range:string|null;menu_url:string|null;cover_image_url:string|null;logo_image_url:string|null;cuisine_tags:string[]|null};
+type Profile={phone:string|null;whatsapp:string|null;website_url:string|null;google_maps_url:string|null;description:string|null;price_range:string|null;menu_url:string|null;cover_image_url:string|null;logo_image_url:string|null;cuisine_tags:string[]|null};
 type Restaurant={id:number;name:string;city:string;category:string;address:string|null;current_bid:number|null;is_claimed:boolean|null;claim_status:string;profile?:Profile|null};
 
 const money=(n:number|null)=>`₹${Number(n||0).toLocaleString("en-IN")}`;
@@ -35,7 +35,7 @@ export default function MarketplacePage(){
       const rows=(data||[]).map((r:any)=>({...r,id:Number(r.id),current_bid:Number(r.current_bid||0)})) as Restaurant[];
       if(rows.length){
         const ids=rows.map(r=>r.id);
-        const {data:profiles}=await supabase.from("restaurant_profiles").select("restaurant_id,phone,whatsapp,website_url,description,price_range,menu_url,cover_image_url,logo_image_url,cuisine_tags").in("restaurant_id",ids);
+        const {data:profiles}=await supabase.from("restaurant_profiles").select("restaurant_id,phone,whatsapp,website_url,google_maps_url,description,price_range,menu_url,cover_image_url,logo_image_url,cuisine_tags").in("restaurant_id",ids);
         const map=new Map<number,Profile>();
         (profiles||[]).forEach((p:any)=>map.set(Number(p.restaurant_id),p));
         rows.forEach(r=>{r.profile=map.get(r.id)||null});
@@ -87,6 +87,13 @@ export default function MarketplacePage(){
 
   const top=sorted.slice(0,3);
   const directions=(r:Restaurant)=>{
+    const configured=r.profile?.google_maps_url?.trim()||"";
+    if(configured){
+      try{
+        const url=new URL(configured);
+        if(url.protocol==="https:"||url.protocol==="http:") return url.toString();
+      }catch{}
+    }
     const mapsContext=[r.address?.trim(),r.city?.trim()].filter(Boolean).join(", ");
     const mapsQuery=mapsContext?`${r.name.trim()}, ${mapsContext}`:"";
     return mapsQuery?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`:"https://www.google.com/maps";
