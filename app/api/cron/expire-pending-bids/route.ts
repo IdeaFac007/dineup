@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import { createAdminClient } from "../../../../lib/supabase/admin";
 
 export async function GET(request: Request) {
@@ -11,7 +12,14 @@ export async function GET(request: Request) {
 
   const authorization = request.headers.get("authorization");
 
-  if (authorization !== `Bearer ${cronSecret}`) {
+  const providedSecret = authorization?.startsWith("Bearer ") ? authorization.slice(7) : "";
+  const expectedBuffer = Buffer.from(cronSecret, "utf8");
+  const providedBuffer = Buffer.from(providedSecret, "utf8");
+  const validSecret =
+    expectedBuffer.length === providedBuffer.length &&
+    crypto.timingSafeEqual(expectedBuffer, providedBuffer);
+
+  if (!validSecret) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
