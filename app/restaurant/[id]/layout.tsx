@@ -38,6 +38,23 @@ function cleanDescription(value: string | null, fallback: string) {
   const text = (value || fallback).replace(/\s+/g, " ").trim();
   return text.length > 160 ? `${text.slice(0, 157)}…` : text;
 }
+function normalizeSchemaTime(value: string) {
+  const raw = value.trim().toUpperCase().replace(/\./g, "");
+  const match12 = raw.match(/^(\d{1,2})(?::([0-5]\d))?\s*(AM|PM)$/);
+  if (match12) {
+    let hour = Number(match12[1]);
+    const minute = match12[2] || "00";
+    if (hour < 1 || hour > 12) return "";
+    if (match12[3] === "AM") {
+      if (hour === 12) hour = 0;
+    } else if (hour !== 12) {
+      hour += 12;
+    }
+    return `${String(hour).padStart(2, "0")}:${minute}`;
+  }
+  const match24 = raw.match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+  return match24 ? match24[0] : "";
+}
 
 export async function generateMetadata({
   params,
@@ -172,8 +189,8 @@ export default async function RestaurantProfileLayout({
         const openingHoursSpecification = Object.entries(hours)
           .filter(([day, value]) => dayMap[day] && typeof value === "string" && value.trim())
           .map(([day, value]) => {
-            const parts = value.split(/\s*-\s*/).map((part) => part.trim());
-            if (parts.length !== 2) return null;
+            const parts = value.split(/\s*-\s*/).map((part) => normalizeSchemaTime(part));
+            if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
             return {
               "@type": "OpeningHoursSpecification",
               dayOfWeek: dayMap[day],
