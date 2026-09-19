@@ -222,9 +222,9 @@ export default function MarketplacePage(){
           <div className="actions">
             {r.profile?.phone&&<a href={`tel:${r.profile.phone}`} onClick={e=>{e.stopPropagation();action(r,"call")}}>☎ Call</a>}
             {whatsapp(r)&&<a href={`https://wa.me/${whatsapp(r)}?text=${encodeURIComponent(`Hi, I found ${r.name} on DineUp. I would like to know more.`) }`} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"whatsapp")}}>WhatsApp</a>}
-            <a href={directions(r)} target="_blank" rel="noreferrer" onClick={e=>{e.stopPropagation();action(r,"directions")}}>Directions</a>
-            {r.profile?.menu_url&&<a href={r.profile.menu_url} target="_blank" rel="noreferrer" onClick={e=>{e.stopPropagation();action(r,"menu")}}>Menu</a>}
-            {r.profile?.website_url&&<a href={r.profile.website_url} target="_blank" rel="noreferrer" onClick={e=>{e.stopPropagation();action(r,"website")}}>Website</a>}
+            <a href={directions(r)} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"directions")}}>Directions</a>
+            {r.profile?.menu_url&&<a href={r.profile.menu_url} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"menu")}}>Menu</a>}
+            {r.profile?.website_url&&<a href={r.profile.website_url} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"website")}}>Website</a>}
           </div></div></article>)}</div></>}
 
         <div className="allHead"><div><span className="sectionKicker">ALL RESTAURANTS</span><h2>Explore the marketplace</h2></div></div>
