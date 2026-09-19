@@ -23,6 +23,17 @@ type ProfileData = {
   opening_hours: Record<string, string> | null;
 };
 
+function safeExternalUrl(value: string | null | undefined) {
+  const raw = value?.trim();
+  if (!raw) return "";
+  try {
+    const candidate = /^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : "https://" + raw;
+    const url = new URL(candidate);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : "";
+  } catch {
+    return "";
+  }
+}
 function cleanDescription(value: string | null, fallback: string) {
   const text = (value || fallback).replace(/\s+/g, " ").trim();
   return text.length > 160 ? `${text.slice(0, 157)}…` : text;
@@ -139,7 +150,11 @@ export default async function RestaurantProfileLayout({
       if (restaurant) {
         const row = restaurant as RestaurantPageData;
         const profileRow = (profile || {}) as ProfileData;
-        const sameAs = [profileRow.website_url, profileRow.instagram_url].filter(Boolean);
+        const websiteUrl = safeExternalUrl(profileRow.website_url);
+        const instagramUrl = safeExternalUrl(profileRow.instagram_url);
+        const menuUrl = safeExternalUrl(profileRow.menu_url);
+        const mapsUrl = safeExternalUrl(profileRow.google_maps_url);
+        const sameAs = [websiteUrl, instagramUrl].filter(Boolean);
         const image = [profileRow.cover_image_url, profileRow.logo_image_url].filter(Boolean);
         const addressText = row.address
           ? `${row.address}, ${row.city}, India`
@@ -213,9 +228,9 @@ export default async function RestaurantProfileLayout({
             addressLocality: row.city,
             addressCountry: "IN",
           },
-          ...(profileRow.menu_url ? { hasMenu: profileRow.menu_url } : {}),
+          ...(menuUrl ? { hasMenu: menuUrl } : {}),
           ...(sameAs.length ? { sameAs } : {}),
-          ...(profileRow.google_maps_url ? { hasMap: profileRow.google_maps_url } : {}),
+          ...(mapsUrl ? { hasMap: mapsUrl } : {}),
           ...(openingHoursSpecification.length ? { openingHoursSpecification } : {}),
         };
       }
