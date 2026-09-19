@@ -140,21 +140,21 @@ export default function MarketplacePage(){
           <span>⌕</span>
           <input value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}} placeholder="Search restaurants, cuisine or location..."/>
           <label className="heroLocation" aria-label="Choose city"><span>⌖</span><select value={city==="All"?"Lucknow":city} onChange={e=>setCity(e.target.value)}>{cities.filter(c=>c!=="All").map(c=><option key={c} value={c}>{c}</option>)}</select><span>⌄</span></label>
-          <button onClick={()=>document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}>⌕ <span>Search</span></button>
+          <button type="button" onClick={()=>document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}>⌕ <span>Search</span></button>
         </div>
-        <div className="quick">{categories.filter(c=>c!=="All").slice(0,6).map(c=><button key={c} onClick={()=>{setCategory(c);document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}}>{c}</button>)}</div>
+        <div className="quick">{categories.filter(c=>c!=="All").slice(0,6).map(c=><button type="button" key={c} onClick={()=>{setCategory(c);document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}}>{c}</button>)}</div>
       </div>
       <div className="heroVisual">
         <div className="foodBackdrop"></div>
         <div className="foodCopy">Good<br/>Food<br/>Brighter<br/>Days</div>
         <div className="heroPanel">
           <div className="panelTop"><span>🔥 Trending near you</span><b>{restaurants.length || "—"} places</b></div>
-          {top.slice(0,2).map((r)=><button className="heroRestaurant" key={r.id} onClick={()=>openRestaurant(r)}>
+          {top.slice(0,2).map((r)=><button type="button" className="heroRestaurant" key={r.id} onClick={()=>openRestaurant(r)}>
             {r.profile?.cover_image_url?<img src={r.profile.cover_image_url} alt=""/>:<div className="heroThumb">{r.name.slice(0,1).toUpperCase()}</div>}
             <div><strong>{r.name}</strong><span>{r.city} · {r.category}</span><small>{r.claim_status==="verified"?"✓ Verified":"View profile"} <b>→</b></small></div>
           </button>)}
           {top.length===0&&!loading&&<div className="heroEmpty">Restaurants will appear here as they go live.</div>}
-          <button className="seeAll" onClick={()=>document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}>Explore all restaurants <span>→</span></button>
+          <button type="button" className="seeAll" onClick={()=>document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}>Explore all restaurants <span>→</span></button>
         </div>
       </div>
     </div></section>
@@ -168,7 +168,7 @@ export default function MarketplacePage(){
 
     <section className="popularSection">
       <div className="sectionWrap">
-        <div className="sectionHeader"><div><span className="sectionKicker">POPULAR NEAR YOU</span><h2>Restaurants worth discovering</h2><p>Explore places diners are checking out on DineUp.</p></div><button className="textLink" onClick={()=>document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}>See all <span>→</span></button></div>
+        <div className="sectionHeader"><div><span className="sectionKicker">POPULAR NEAR YOU</span><h2>Restaurants worth discovering</h2><p>Explore places diners are checking out on DineUp.</p></div><button type="button" className="textLink" onClick={()=>document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}>See all <span>→</span></button></div>
         <div className="popularGrid">{top.slice(0,3).map((r,i)=><article className="popularCard" key={r.id}>
           <button type="button" className="popularCardMain" aria-label={`View ${r.name}`} onClick={()=>openRestaurant(r)}>
             {r.profile?.cover_image_url?<img src={r.profile.cover_image_url} alt=""/>:<div className="popularPlaceholder">{r.name.slice(0,1).toUpperCase()}</div>}
@@ -182,7 +182,7 @@ export default function MarketplacePage(){
     <section className="cuisineSection">
       <div className="sectionWrap">
         <div className="sectionHeader compact"><div><span className="sectionKicker">EXPLORE BY CUISINE</span><h2>What are you craving?</h2></div></div>
-        <div className="cuisineRow">{categories.filter(c=>c!=="All").slice(0,8).map(c=><button key={c} className="cuisineChip" onClick={()=>{setCategory(c);document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}}><span>{({ "North Indian":"🍛","Chinese":"🥟","Fast Food":"🍔","South Indian":"🥘","Cafe":"☕","Desserts":"🍰","Fine Dining":"🍽️","Continental":"🥗"} as Record<string,string>)[c]||"🍴"}</span><strong>{c}</strong><i>→</i></button>)}</div>
+        <div className="cuisineRow">{categories.filter(c=>c!=="All").slice(0,8).map(c=><button type="button" key={c} className="cuisineChip" onClick={()=>{setCategory(c);document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}}><span>{({ "North Indian":"🍛","Chinese":"🥟","Fast Food":"🍔","South Indian":"🥘","Cafe":"☕","Desserts":"🍰","Fine Dining":"🍽️","Continental":"🥗"} as Record<string,string>)[c]||"🍴"}</span><strong>{c}</strong><i>→</i></button>)}</div>
       </div>
     </section>
 
@@ -197,7 +197,7 @@ export default function MarketplacePage(){
         </div>
         <div className="cityGrid">
           {Array.from(new Set(restaurants.map(r=>r.city).filter(Boolean))).slice(0,8).map(c=>{
-            const count=restaurants.filter(r=>r.city===c).length;            return <button key={c} className="cityCard" onClick={()=>{setCity(c);document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}}>
+            const count=restaurants.filter(r=>r.city===c).length;            return <button type="button" key={c} className="cityCard" onClick={()=>{setCity(c);document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}}>
               <div><span>⌖</span><strong>{c}</strong><small>{count} {count===1?"restaurant":"restaurants"}</small></div>
               <b>→</b>
             </button>
@@ -229,7 +229,7 @@ export default function MarketplacePage(){
 
         <div className="allHead"><div><span className="sectionKicker">ALL RESTAURANTS</span><h2>Explore the marketplace</h2></div></div>
         <div className="list">{sorted.slice(3).map(r=><Link className="listItem" key={r.id} href={`/restaurant/${r.id}`} onClick={()=>void trackMarketingEvent("restaurant_view",r.id)}><div className="miniLogo">{r.profile?.logo_image_url?<img src={r.profile.logo_image_url} alt=""/>:r.name.slice(0,1)}</div><div className="listInfo"><strong>{r.name}</strong><span>{r.city} · {r.category}</span></div><div className="listBid"><span>Live bid</span><b>{money(r.current_bid)}</b></div><span className="arrow">→</span></Link>)}
-        {filtered.length===0&&<div className="empty"><div>⌕</div><h3>No restaurants found</h3><p>Try another city, cuisine or search term.</p><button onClick={()=>{setSearch("");setCategory("All");setCity("All")}}>Clear filters</button></div>}</div>
+        {filtered.length===0&&<div className="empty"><div>⌕</div><h3>No restaurants found</h3><p>Try another city, cuisine or search term.</p><button type="button" onClick={()=>{setSearch("");setCategory("All");setCity("All")}}>Clear filters</button></div>}</div>
       </>}
     </section>
 
