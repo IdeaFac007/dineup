@@ -227,9 +227,9 @@ export default function MarketplacePage(){
 
     <section className="controls" id="restaurants"><div className="controlInner"><div><span className="sectionKicker">EXPLORE</span><h2>Find your next restaurant</h2></div><div className="filters"><select value={city} onChange={e=>setCity(e.target.value)}>{cities.map(c=><option key={c}>{c}</option>)}</select><select value={category} onChange={e=>setCategory(e.target.value)}>{categories.map(c=><option key={c}>{c}</option>)}</select><select value={sort} onChange={e=>setSort(e.target.value)}><option value="recommended">Recommended</option><option value="bid">Most visible</option><option value="name">A–Z</option></select><label className="check"><input type="checkbox" checked={verifiedOnly} onChange={e=>setVerifiedOnly(e.target.checked)}/> Verified only</label></div></div></section>
 
-    {error&&<div className="error">{error}</div>}
+    {error&&<div className="error" role="alert" aria-live="assertive">{error}</div>}
     <section className="content">
-      {loading?<div className="loading">Finding restaurants...</div>:<>
+      {loading?<div className="loading" role="status" aria-live="polite">Finding restaurants...</div>:<>
         {top.length>0&&<><div className="featuredHead"><div><span className="sectionKicker">TRENDING ON DINEUP</span><h2>Places getting attention</h2></div><span className="count">{sorted.length} places</span></div>
         <div className="cards">{top.map((r,i)=>{
           const links=externalLinks(r);
