@@ -43,7 +43,7 @@ function normalizeOptionalText(value:string|null|undefined){
 }
 function normalizeClaimStatus(value:unknown){
  const clean=String(value??"").trim().toLowerCase();
- return clean==="verified"||clean==="verification_pending"||clean==="unclaimed"||clean==="claimed"?clean:"unclaimed";
+ return clean==="verified"||clean==="verification_pending"||clean==="unclaimed"||clean==="claimed"?clean:"";
 }
 function normalizeOpeningHours(value:Record<string,string>|null|undefined){
  const normalized:Record<string,string>={};
