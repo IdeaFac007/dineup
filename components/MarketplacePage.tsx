@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createClient } from "../lib/supabase/client";
 import { trackMarketingEvent } from "../lib/marketing-attribution";
 import { googleMapsSearchUrl, safeGoogleMapsUrl } from "../lib/google-maps";
+import { safeExternalUrl } from "../lib/external-url";
 
 type Profile={phone:string|null;whatsapp:string|null;website_url:string|null;google_maps_url:string|null;description:string|null;price_range:string|null;menu_url:string|null;cover_image_url:string|null;logo_image_url:string|null;cuisine_tags:string[]|null};
 type Restaurant={id:number;name:string;city:string;category:string;address:string|null;current_bid:number|null;is_claimed:boolean|null;claim_status:string;profile?:Profile|null};
@@ -223,8 +224,8 @@ export default function MarketplacePage(){
             {r.profile?.phone&&<a href={`tel:${r.profile.phone}`} onClick={e=>{e.stopPropagation();action(r,"call")}}>☎ Call</a>}
             {whatsapp(r)&&<a href={`https://wa.me/${whatsapp(r)}?text=${encodeURIComponent(`Hi, I found ${r.name} on DineUp. I would like to know more.`) }`} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"whatsapp")}}>WhatsApp</a>}
             <a href={directions(r)} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"directions")}}>Directions</a>
-            {r.profile?.menu_url&&<a href={r.profile.menu_url} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"menu")}}>Menu</a>}
-            {r.profile?.website_url&&<a href={r.profile.website_url} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"website")}}>Website</a>}
+            {safeExternalUrl(r.profile?.menu_url)&&<a href={safeExternalUrl(r.profile?.menu_url)} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"menu")}}>Menu</a>}
+            {safeExternalUrl(r.profile?.website_url)&&<a href={safeExternalUrl(r.profile?.website_url)} target="_blank" rel="noopener noreferrer" onClick={e=>{e.stopPropagation();action(r,"website")}}>Website</a>}
           </div></div></article>)}</div></>}
 
         <div className="allHead"><div><span className="sectionKicker">ALL RESTAURANTS</span><h2>Explore the marketplace</h2></div></div>
