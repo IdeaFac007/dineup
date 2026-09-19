@@ -135,12 +135,13 @@ export async function generateMetadata({
     const row = restaurant as RestaurantPageData;
     const profileRow = (profile || {}) as ProfileData;
     const restaurantName = row.name?.trim() || "Restaurant";
+    const category = row.category?.trim() || "restaurant";
     const city = row.city?.trim() || "";
     const title = city ? `${restaurantName} — ${city} | DineUp` : `${restaurantName} | DineUp`;
     const description = cleanDescription(
       profileRow.description,
       city
-        ? `${restaurantName} is a ${row.category || "restaurant"} in ${city}. Discover the profile, menu, contact details and more on DineUp.`
+        ? `${restaurantName} is a ${category} in ${city}. Discover the profile, menu, contact details and more on DineUp.`
         : `Discover ${restaurantName} on DineUp. View the profile, menu, contact details and more.`
     );
     const canonical = `https://dineupindia.com/restaurant/${row.id}`;
