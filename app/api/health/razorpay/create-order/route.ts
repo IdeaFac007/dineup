@@ -20,15 +20,15 @@ export async function POST(request: Request) {
     const source=utmCookie(request,"utm_source"),medium=utmCookie(request,"utm_medium"),campaign=utmCookie(request,"utm_campaign"),content=utmCookie(request,"utm_content"),term=utmCookie(request,"utm_term");
     if(session)void supabase.rpc("track_marketing_event",{p_session_id:session,p_event_type:"bid_start",p_source:source,p_medium:medium,p_campaign:campaign,p_content:content,p_term:term,p_landing_path:"/restaurant/bid",p_referrer:null,p_restaurant_id:restaurantId,p_metadata:{amount}});
     const {data:bid,error:bidError}=await supabase.rpc("create_pending_bid",{p_restaurant_id:restaurantId,p_amount:amount});
-    if(bidError||!bid)return NextResponse.json({error:"Unable to create bid.",code:bidError?.code||null,message:bidError?.message||"Supabase could not create the pending bid."},{status:400});
+    if(bidError||!bid)return NextResponse.json({error:"Unable to create bid."},{status:400});
     if(session)void supabase.rpc("track_marketing_event",{p_session_id:session,p_event_type:"bid_created",p_source:source,p_medium:medium,p_campaign:campaign,p_content:content,p_term:term,p_landing_path:"/restaurant/bid",p_referrer:null,p_restaurant_id:restaurantId,p_metadata:{bid_id:bid.id,amount}});
     const razorpayKeyId=process.env.RAZORPAY_KEY_ID,razorpayKeySecret=process.env.RAZORPAY_KEY_SECRET;
     if(!razorpayKeyId||!razorpayKeySecret)return NextResponse.json({error:"Razorpay is not configured on the server."},{status:500});
     const razorpay=new Razorpay({key_id:razorpayKeyId,key_secret:razorpayKeySecret});
     const order=await razorpay.orders.create({amount:Math.round(amount*100),currency:"INR",receipt:`dineup_bid_${bid.id}`,notes:{bid_id:String(bid.id),restaurant_id:String(restaurant.id),restaurant_name:restaurant.name,user_id:user.id}});
     const {data:updatedBid,error:attachError}=await supabase.rpc("attach_razorpay_order_to_bid",{p_bid_id:bid.id,p_razorpay_order_id:order.id});
-    if(attachError||!updatedBid)return NextResponse.json({error:"Unable to attach Razorpay order to bid.",code:attachError?.code||null,message:attachError?.message||"The bid was created but Razorpay order could not be attached.",bidId:bid.id},{status:500});
+    if(attachError||!updatedBid)return NextResponse.json({error:"Unable to attach Razorpay order to bid.",bidId:bid.id},{status:500});
     if(session)void supabase.rpc("track_marketing_event",{p_session_id:session,p_event_type:"payment_started",p_source:source,p_medium:medium,p_campaign:campaign,p_content:content,p_term:term,p_landing_path:"/restaurant/bid",p_referrer:null,p_restaurant_id:restaurantId,p_metadata:{bid_id:updatedBid.id,order_id:order.id,amount}});
     return NextResponse.json({success:true,keyId:razorpayKeyId,orderId:order.id,amount:order.amount,currency:order.currency,bidId:updatedBid.id,restaurantId:restaurant.id});
-  } catch(error:any){console.error("create-order unexpected error:",error);return NextResponse.json({error:"Unable to create Razorpay order.",message:error?.message||"An unexpected server error occurred."},{status:500});}
+  } catch(error:any){console.error("create-order unexpected error:",error);return NextResponse.json({error:"Unable to create Razorpay order."},{status:500});}
 }
