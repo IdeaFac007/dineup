@@ -14,7 +14,6 @@ type Profile = { phone:string|null; whatsapp:string|null; website_url:string|nul
 type Media = { id:number; media_type:"gallery"|"menu"; public_url:string; title:string|null; caption:string|null; sort_order:number };
 
 function safeRestaurantMediaUrl(value:string|null|undefined){
- const safe=safeExternalUrl(value);(value:string|null|undefined){
  const safe=safeExternalUrl(value);
  if(!safe)return "";
  try{
