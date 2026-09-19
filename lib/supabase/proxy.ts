@@ -37,7 +37,6 @@ export async function updateSession(request: NextRequest) {
   const isRestaurantProtected = pathname.startsWith("/restaurant/dashboard/") || pathname.startsWith("/restaurant/bid/");
   const isCustomerProtected = pathname.startsWith("/account");
 
-  // Admin login remains publicly reachable.
   if (!isAdminPage && !isAdminApi && !isRestaurantProtected && !isCustomerProtected) {
     return supabaseResponse;
   }
@@ -89,12 +88,11 @@ export async function updateSession(request: NextRequest) {
     }
 
     const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = isAdminPage ? "/admin/login" : "/restaurant/login";
+    loginUrl.pathname = isAdminPage ? "/admin/login" : isCustomerProtected ? "/login" : "/restaurant/login";
     loginUrl.search = "";
     return NextResponse.redirect(loginUrl);
   }
 
-  // Never cache authenticated dashboard/admin responses.
   supabaseResponse.headers.set("Cache-Control", "private, no-store");
 
   return supabaseResponse;
