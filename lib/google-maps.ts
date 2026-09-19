@@ -19,3 +19,19 @@ export function safeGoogleMapsUrl(value: string | null | undefined) {
     return "";
   }
 }
+
+export function googleMapsSearchUrl(
+  restaurantName: string | null | undefined,
+  address: string | null | undefined,
+  city: string | null | undefined,
+) {
+  const name = restaurantName?.replace(/\s+/g, " ").trim() || "";
+  const context = [address, city]
+    .map((value) => value?.replace(/\s+/g, " ").trim() || "")
+    .filter(Boolean)
+    .join(", ");
+  const query = context ? [name, context].filter(Boolean).join(", ") : name;
+  return query
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
+    : "https://www.google.com/maps";
+}
