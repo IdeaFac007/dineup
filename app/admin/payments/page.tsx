@@ -30,7 +30,7 @@ export default function AdminPaymentsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "captured" | "refunded" | "partial" | "pending">("all");
+  const [filter, setFilter] = useState<"all" | "captured" | "pending">("all");
 
   async function load(showRefresh = false) {
     if (showRefresh) setRefreshing(true);
@@ -106,8 +106,6 @@ export default function AdminPaymentsPage() {
       const matchesFilter =
         filter === "all" ||
         (filter === "captured" && b.payment_status === "captured" && !partiallyRefunded) ||
-        (filter === "refunded" && fullyRefunded) ||
-        (filter === "partial" && partiallyRefunded) ||
         (filter === "pending" && !["captured", "refunded"].includes(b.payment_status));
       if (!matchesFilter) return false;
       if (!q) return true;
@@ -149,9 +147,9 @@ export default function AdminPaymentsPage() {
       <section className="panel">
         <div className="toolbar">
           <div className="filters">
-            {(["all", "captured", "refunded", "partial", "pending"] as const).map((item) => (
+            {(["all", "captured", "pending"] as const).map((item) => (
               <button key={item} className={filter === item ? "filter active" : "filter"} onClick={() => setFilter(item)}>
-                {item === "all" ? "All" : item === "partial" ? "Partial refund" : item[0].toUpperCase() + item.slice(1)}
+                {item === "all" ? "All" : item[0].toUpperCase() + item.slice(1)}
               </button>
             ))}
           </div>
