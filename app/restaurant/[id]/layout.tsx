@@ -152,7 +152,7 @@ export async function generateMetadata({
     return {
       title: "Restaurant — DineUp",
       description: "Discover restaurants on DineUp.",
-      robots: { index: true, follow: true },
+      robots: { index: false, follow: false },
     };
   }
 }
