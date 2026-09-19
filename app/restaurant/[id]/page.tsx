@@ -37,6 +37,16 @@ function normalizeCuisineTags(value:string[]|null|undefined){
  for(const tag of value||[]){const clean=tag.trim(); const key=clean.toLocaleLowerCase("en-IN"); if(!clean||seen.has(key))continue; seen.add(key); tags.push(clean); if(tags.length===12)break;}
  return tags;
 }
+function normalizeOpeningHours(value:Record<string,string>|null|undefined){
+ const normalized:Record<string,string>={};
+ for(const [day,hours] of Object.entries(value||{})){
+   const key=day.trim().toLowerCase();
+   const clean=typeof hours==="string"?hours.trim():"";
+   if(!DAYS.some(([dayKey])=>dayKey===key)||!clean||normalized[key])continue;
+   normalized[key]=clean;
+ }
+ return normalized;
+}
 const DAYS = [["monday","Monday"],["tuesday","Tuesday"],["wednesday","Wednesday"],["thursday","Thursday"],["friday","Friday"],["saturday","Saturday"],["sunday","Sunday"]] as const;
 
 export default function PublicRestaurantProfile(){
@@ -64,7 +74,7 @@ export default function PublicRestaurantProfile(){
  useEffect(()=>{ let cancelled=false; async function load(){ actionTrackRef.current={}; setLoading(true); setRestaurant(null); setProfile(null); setGallery([]); setRank(null); setBrokenCover(false); setBrokenLogo(false); setBrokenGallery([]); setError(""); setShareMessage(""); setAddressMessage(""); setPhoneMessage(""); if(!Number.isFinite(id)||id<=0){if(!cancelled){setError("Restaurant not found.");setLoading(false);}return;} setTodayKey(new Intl.DateTimeFormat("en-IN",{weekday:"long",timeZone:"Asia/Kolkata"}).format(new Date()).toLowerCase()); try{
    const {data:r,error:re}=await supabase.from("restaurants").select("id,name,city,category,address,current_bid,is_claimed,claim_status").eq("id",id).eq("is_active",true).maybeSingle(); if(re)throw re; if(cancelled)return; if(!r){setError("This restaurant is not available on DineUp.");setLoading(false);return;}
    setRestaurant({...r,id:Number(r.id),name:String(r.name||"").trim()||"Restaurant",city:String(r.city||"").trim(),category:String(r.category||"").trim()||"Restaurant",address:typeof r.address==="string"?r.address.trim()||null:null,current_bid:Number(r.current_bid||0)});
-   const [{data:p,error:pe},{data:media,error:me}]=await Promise.all([supabase.from("restaurant_profiles").select("phone,whatsapp,website_url,description,price_range,menu_url,cover_image_url,logo_image_url,opening_hours,instagram_url,google_maps_url,cuisine_tags").eq("restaurant_id",id).maybeSingle(),supabase.from("restaurant_media").select("id,media_type,public_url,title,caption,sort_order").eq("restaurant_id",id).eq("media_type","gallery").eq("is_active",true).order("sort_order",{ascending:true}).order("created_at",{ascending:true})]); if(pe)throw pe; if(me)throw me; if(cancelled)return; const normalizedProfile=p?{...p,cover_image_url:safeRestaurantMediaUrl(p.cover_image_url)||null,logo_image_url:safeRestaurantMediaUrl(p.logo_image_url)||null,cuisine_tags:normalizeCuisineTags(p.cuisine_tags)}:null; const normalizedGallery=(media||[]).map(item=>({...item,public_url:safeRestaurantMediaUrl(item.public_url)})).filter(item=>Boolean(item.public_url)); setProfile(normalizedProfile as Profile|null); setGallery(normalizedGallery as Media[]);
+   const [{data:p,error:pe},{data:media,error:me}]=await Promise.all([supabase.from("restaurant_profiles").select("phone,whatsapp,website_url,description,price_range,menu_url,cover_image_url,logo_image_url,opening_hours,instagram_url,google_maps_url,cuisine_tags").eq("restaurant_id",id).maybeSingle(),supabase.from("restaurant_media").select("id,media_type,public_url,title,caption,sort_order").eq("restaurant_id",id).eq("media_type","gallery").eq("is_active",true).order("sort_order",{ascending:true}).order("created_at",{ascending:true})]); if(pe)throw pe; if(me)throw me; if(cancelled)return; const normalizedProfile=p?{...p,cover_image_url:safeRestaurantMediaUrl(p.cover_image_url)||null,logo_image_url:safeRestaurantMediaUrl(p.logo_image_url)||null,cuisine_tags:normalizeCuisineTags(p.cuisine_tags),opening_hours:normalizeOpeningHours(p.opening_hours)}:null; const normalizedGallery=(media||[]).map(item=>({...item,public_url:safeRestaurantMediaUrl(item.public_url)})).filter(item=>Boolean(item.public_url)); setProfile(normalizedProfile as Profile|null); setGallery(normalizedGallery as Media[]);
    const {data:cityList,error:ce}=await supabase.from("restaurants").select("id,current_bid").eq("city",r.city).eq("is_active",true).order("current_bid",{ascending:false,nullsFirst:false}).order("id",{ascending:true});
    if(!cancelled){
      if(ce){console.warn("Restaurant ranking lookup failed:",ce.message);setRank(null);}else{const position=(cityList||[]).findIndex(x=>Number(x.id)===id);setRank(position>=0?position+1:null);}
