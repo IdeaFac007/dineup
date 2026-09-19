@@ -10,6 +10,10 @@ function basicAuth(keyId: string, keySecret: string) {
 
 export async function POST(request: Request) {
   try {
+    const contentLength = Number(request.headers.get("content-length") || "0");
+    if (contentLength > 16_384) {
+      return NextResponse.json({ error: "Request payload is too large." }, { status: 413 });
+    }
     const supabase = await createClient();
     const {
       data: { user },
