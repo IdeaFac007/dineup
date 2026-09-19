@@ -46,7 +46,8 @@ export default function PublicRestaurantProfile(){
  const normalizeWhatsApp=(value:string)=>{let digits=value.replace(/\D/g,""); if(digits.startsWith("00"))digits=digits.slice(2); if(digits.length===10)digits="91"+digits; return digits.length>=8&&digits.length<=15?digits:"";};
  const whatsappNumber=normalizeWhatsApp(whatsapp);
  const whatsappMessage=encodeURIComponent(`Hi, I found ${restaurant.name} on DineUp. I would like to know more.`);
- const maps=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([restaurant.name,restaurant.address,restaurant.city].filter(Boolean).join(", "))}`;
+ const fallbackMaps=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([restaurant.name,restaurant.address,restaurant.city].filter(Boolean).join(", "))}`;
+ const maps=profile?.google_maps_url||fallbackMaps;
  const shareProfile=async()=>{
    if(typeof window==="undefined"||!restaurant)return;
    const url=window.location.href;
