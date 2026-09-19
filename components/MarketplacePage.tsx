@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "../lib/supabase/client";
 import { trackMarketingEvent } from "../lib/marketing-attribution";
-import { safeGoogleMapsUrl } from "../lib/google-maps";
+import { googleMapsSearchUrl, safeGoogleMapsUrl } from "../lib/google-maps";
 
 type Profile={phone:string|null;whatsapp:string|null;website_url:string|null;google_maps_url:string|null;description:string|null;price_range:string|null;menu_url:string|null;cover_image_url:string|null;logo_image_url:string|null;cuisine_tags:string[]|null};
 type Restaurant={id:number;name:string;city:string;category:string;address:string|null;current_bid:number|null;is_claimed:boolean|null;claim_status:string;profile?:Profile|null};
@@ -89,10 +89,7 @@ export default function MarketplacePage(){
   const top=sorted.slice(0,3);
   const directions=(r:Restaurant)=>{
     const configured=safeGoogleMapsUrl(r.profile?.google_maps_url);
-    if(configured)return configured;
-    const mapsContext=[r.address?.trim(),r.city?.trim()].filter(Boolean).join(", ");
-    const mapsQuery=mapsContext?`${r.name.trim()}, ${mapsContext}`:"";
-    return mapsQuery?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`:"https://www.google.com/maps";
+    return configured || googleMapsSearchUrl(r.name, r.address, r.city);
   };
   const whatsapp=(r:Restaurant)=>{
     const raw=r.profile?.whatsapp||r.profile?.phone||"";
@@ -197,8 +194,7 @@ export default function MarketplacePage(){
         </div>
         <div className="cityGrid">
           {Array.from(new Set(restaurants.map(r=>r.city).filter(Boolean))).slice(0,8).map(c=>{
-            const count=restaurants.filter(r=>r.city===c).length;
-            return <button key={c} className="cityCard" onClick={()=>{setCity(c);document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}}>
+            const count=restaurants.filter(r=>r.city===c).length;            return <button key={c} className="cityCard" onClick={()=>{setCity(c);document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}}>
               <div><span>⌖</span><strong>{c}</strong><small>{count} {count===1?"restaurant":"restaurants"}</small></div>
               <b>→</b>
             </button>
