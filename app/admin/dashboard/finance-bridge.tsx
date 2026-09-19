@@ -4,26 +4,15 @@ import { useEffect } from "react";
 
 export default function FinanceDashboardBridge() {
   useEffect(() => {
-    const injectFinanceAndRefunds = () => {
+    const injectFinance = () => {
       const navigation = document.querySelector(".navigation");
-      if (navigation) {
-        if (!navigation.querySelector('[data-admin-finance="true"]')) {
-          const financeButton = document.createElement("button");
-          financeButton.type = "button";
-          financeButton.className = "navItem";
-          financeButton.setAttribute("data-admin-finance", "true");
-          financeButton.innerHTML = '<span class="navIcon">₹</span><span>Finance</span>';
-          navigation.appendChild(financeButton);
-        }
-
-        if (!navigation.querySelector('[data-admin-refunds="true"]')) {
-          const refundsButton = document.createElement("button");
-          refundsButton.type = "button";
-          refundsButton.className = "navItem";
-          refundsButton.setAttribute("data-admin-refunds", "true");
-          refundsButton.innerHTML = '<span class="navIcon">↩</span><span>Refunds</span>';
-          navigation.appendChild(refundsButton);
-        }
+      if (navigation && !navigation.querySelector('[data-admin-finance="true"]')) {
+        const financeButton = document.createElement("button");
+        financeButton.type = "button";
+        financeButton.className = "navItem";
+        financeButton.setAttribute("data-admin-finance", "true");
+        financeButton.innerHTML = '<span class="navIcon">₹</span><span>Finance</span>';
+        navigation.appendChild(financeButton);
       }
 
       const quickGrid = document.querySelector(".quickGrid");
@@ -32,7 +21,7 @@ export default function FinanceDashboardBridge() {
         financeQuick.type = "button";
         financeQuick.className = "quickAction";
         financeQuick.setAttribute("data-admin-finance-quick", "true");
-        financeQuick.innerHTML = '<div class="quickIcon">₹</div><strong>Finance</strong><span>Gross, refunds & net collections</span>';
+        financeQuick.innerHTML = '<div class="quickIcon">₹</div><strong>Finance</strong><span>Gross & net collections</span>';
         quickGrid.appendChild(financeQuick);
       }
     };
@@ -49,14 +38,6 @@ export default function FinanceDashboardBridge() {
         return;
       }
 
-      const refundsButton = target.closest('[data-admin-refunds="true"]');
-      if (refundsButton) {
-        event.preventDefault();
-        event.stopPropagation();
-        window.location.assign("/admin/refunds");
-        return;
-      }
-
       const navigationButton = target.closest(".navigation button") as HTMLElement | null;
       if (!navigationButton) return;
 
@@ -70,9 +51,9 @@ export default function FinanceDashboardBridge() {
 
     document.addEventListener("click", handleNavigation, true);
 
-    const observer = new MutationObserver(injectFinanceAndRefunds);
+    const observer = new MutationObserver(injectFinance);
     observer.observe(document.body, { childList: true, subtree: true });
-    injectFinanceAndRefunds();
+    injectFinance();
 
     return () => {
       document.removeEventListener("click", handleNavigation, true);
