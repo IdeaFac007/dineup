@@ -31,3 +31,5 @@ This package intentionally does NOT pretend to take real money yet. Do not expos
 - campaign start/end rules
 - payment reconciliation
 - rate limiting and audit logs
+
+Deployment pipeline verification: September 20, 2026.
