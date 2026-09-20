@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
 import { createClient } from "../../../../../lib/supabase/server";
+import { createAdminClient } from "../../../../../lib/supabase/admin";
 
 export async function POST(request: Request) {
   try {
@@ -56,7 +57,8 @@ export async function POST(request: Request) {
       },
     });
 
-    const { data: saved, error: saveError } = await supabase
+    const admin = createAdminClient();
+    const { data: saved, error: saveError } = await admin
       .from("orders")
       .update({ razorpay_order_id: razorpayOrder.id, payment_error: null })
       .eq("id", order.id)
