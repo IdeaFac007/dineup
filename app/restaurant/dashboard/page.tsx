@@ -189,7 +189,7 @@ export default function RestaurantDashboard() {
   const nextOnboardingStep = onboarding.find((item: any) => !item.completed) || null;
 
   return <main className="page"><style jsx>{styles}</style>
-    <header className="nav"><Link href="/" className="brand">Dine<span>Up</span></Link><div className="navRight"><span className="pill">Restaurant Partner</span><Link href="/marketplace" className="text">Marketplace</Link><button type="button" className="secondary" onClick={handleLogout} disabled={loggingOut}>{loggingOut ? "Logging out..." : "Logout"}</button></div></header>
+    <header className="nav"><Link href="/" className="brand">Dine<span>Up</span></Link><div className="navRight"><span className="pill">Restaurant Partner</span><Link href="/restaurant/dashboard/orders" className="text">Orders</Link><Link href="/marketplace" className="text">Marketplace</Link><button type="button" className="secondary" onClick={handleLogout} disabled={loggingOut}>{loggingOut ? "Logging out..." : "Logout"}</button></div></header>
     <div className="shell">
       <div className="heading"><div><div className="eyebrow">RESTAURANT DASHBOARD</div><h1>{restaurant.name}</h1><p className="muted">{restaurant.city} • {restaurant.category}{restaurant.address ? ` • ${restaurant.address}` : ""}</p></div><div className="actions"><button type="button" className="secondary" onClick={() => loadDashboard(true)} disabled={refreshing}>{refreshing ? "Refreshing..." : "↻ Refresh"}</button><Link href={`/restaurant/dashboard/verification`} className="secondary">Verify business</Link><Link href={`/restaurant/bid?id=${restaurant.id}`} className="primary">Increase visibility ↑</Link></div></div>
       {message && <div className="panel alert"><p className="muted">{message}</p></div>}
