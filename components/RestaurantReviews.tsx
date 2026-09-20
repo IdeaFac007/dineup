@@ -17,7 +17,9 @@ export default function RestaurantReviews({restaurantId}:{restaurantId:number}){
  const [message,setMessage]=useState("");
  const [rating,setRating]=useState(5);
  const [title,setTitle]=useState("");
- const [body,setBody]=useState("");\n const [reporting,setReporting]=useState<number|null>(null);\n const [reported,setReported]=useState<Set<number>>(new Set());
+ const [body,setBody]=useState("");
+ const [reporting,setReporting]=useState<number|null>(null);
+ const [reported,setReported]=useState<Set<number>>(new Set());
 
  async function load(){
   setLoading(true);setError("");
@@ -39,7 +41,11 @@ export default function RestaurantReviews({restaurantId}:{restaurantId:number}){
 
  const average=useMemo(()=>reviews.length?reviews.reduce((sum,x)=>sum+x.rating,0)/reviews.length:0,[reviews]);
  const stars=(n:number)=>"★".repeat(n)+"☆".repeat(5-n);
- async function reportReview(reviewId:number){\n  if(reporting)return; setReporting(reviewId); setError(""); setMessage("");\n  try{ const {data:{user}}=await supabase.auth.getUser(); if(!user){setError("Please sign in to report a review.");return} const {error:e}=await supabase.from("restaurant_review_reports").insert({review_id:reviewId,reporter_id:user.id,reason:"other"}); if(e){ if(e.code==="23505") throw new Error("You have already reported this review."); throw e } setReported(prev=>new Set(prev).add(reviewId)); setMessage("Thanks. The review has been submitted for moderation."); }catch(e:any){setError(e.message||"Unable to report review.")}finally{setReporting(null)}\n }\n async function submit(){
+ async function reportReview(reviewId:number){
+  if(reporting)return; setReporting(reviewId); setError(""); setMessage("");
+  try{ const {data:{user}}=await supabase.auth.getUser(); if(!user){setError("Please sign in to report a review.");return} const {error:e}=await supabase.from("restaurant_review_reports").insert({review_id:reviewId,reporter_id:user.id,reason:"other"}); if(e){ if(e.code==="23505") throw new Error("You have already reported this review."); throw e } setReported(prev=>new Set(prev).add(reviewId)); setMessage("Thanks. The review has been submitted for moderation."); }catch(e:any){setError(e.message||"Unable to report review.")}finally{setReporting(null)}
+ }
+ async function submit(){
   if(!order||saving)return;
   setSaving(true);setError("");setMessage("");
   try{
