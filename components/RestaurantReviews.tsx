@@ -20,6 +20,7 @@ export default function RestaurantReviews({restaurantId}:{restaurantId:number}){
  const [body,setBody]=useState("");
  const [reporting,setReporting]=useState<number|null>(null);
  const [reported,setReported]=useState<Set<number>>(new Set());
+ const [editing,setEditing]=useState<number|null>(null);
 
  async function load(){
   setLoading(true);setError("");
