@@ -224,6 +224,25 @@ export default function RestaurantOrdersPage() {
     setUpdating(order.id);
 
     try {
+      if (nextStatus === "cancelled") {
+        const response = await fetch("/api/orders/cancel", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ orderId: order.id, reason: "Cancelled by restaurant" }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.error || "Unable to cancel order.");
+        setMessage(
+          data.refund?.status === "processed"
+            ? `Order ${order.order_number} cancelled and refund processed.`
+            : data.refund
+              ? `Order ${order.order_number} cancelled; refund requested.`
+              : `Order ${order.order_number} cancelled.`
+        );
+        await loadOrders(true);
+        return;
+      }
+
       if (nextStatus === "accepted" && order.payment_status !== "paid") {
         throw new Error("This order cannot be accepted until payment is confirmed.");
       }
