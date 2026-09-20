@@ -1,7 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
-export const viewport: Viewport = {\n  themeColor: "#171717",\n  width: "device-width",\n  initialScale: 1,\n};\n\nexport const metadata: Metadata = {
+export const viewport: Viewport = {
+  themeColor: "#171717",
+  width: "device-width",
+  initialScale: 1,
+};
+
+export const metadata: Metadata = {
   metadataBase: new URL("https://dineupindia.com"),
   title: "DineUp — Where Restaurants Rise",
   description: "Restaurant visibility marketplace for diners and restaurant partners.",
@@ -13,7 +19,16 @@ export const viewport: Viewport = {\n  themeColor: "#171717",\n  width: "device-
     siteName: "DineUp",
     type: "website",
   },
-  robots: { index: true, follow: true },\n  icons: {\n    icon: "/icon.svg",\n    apple: "/icon.svg",\n  },\n  appleWebApp: {\n    capable: true,\n    title: "DineUp",\n    statusBarStyle: "black-translucent",\n  },
+  robots: { index: true, follow: true },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
+  appleWebApp: {
+    capable: true,
+    title: "DineUp",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 const siteSchema = {
