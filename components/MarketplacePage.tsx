@@ -14,6 +14,7 @@ type Restaurant={id:number;name:string;city:string;category:string;address:strin
 
 const money=(n:number|null)=>`₹${Number(n||0).toLocaleString("en-IN")}`;
 const normalize=(v:string)=>v.toLowerCase().replace(/dinning/g,"dining").trim();
+const citySlug=(v:string)=>v.toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");
 const popularCities=["Lucknow","Delhi","Mumbai","Bengaluru","Hyderabad","Pune","Jaipur","Ahmedabad","Kolkata","Chennai","Chandigarh","Patna","Noida","Gurugram","Indore","Varanasi","Kanpur","Prayagraj","Gorakhpur","Agra","Surat"];
 
 export default function MarketplacePage(){
@@ -235,10 +236,10 @@ export default function MarketplacePage(){
         </div>
         <div className="cityGrid">
           {Array.from(new Set(restaurants.map(r=>r.city).filter(Boolean))).slice(0,8).map(c=>{
-            const count=restaurants.filter(r=>r.city===c).length;            return <button type="button" key={c} className="cityCard" onClick={()=>{setCity(c);document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}}>
+            const count=restaurants.filter(r=>r.city===c).length;            return <Link href={"/city/"+citySlug(c)} key={c} className="cityCard" aria-label={"Explore restaurants in "+c}>
               <div><span>⌖</span><strong>{c}</strong><small>{count} {count===1?"restaurant":"restaurants"}</small></div>
               <b>→</b>
-            </button>
+            </Link>
           })}
           {!restaurants.length&&!loading&&<div className="cityEmpty">Cities will appear here as restaurants join DineUp.</div>}
         </div>
