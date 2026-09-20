@@ -45,7 +45,7 @@ export default function AccountPage(){
        <div><strong>{recentCity||"—"}</strong><span>Latest city</span></div>
      </div>
    </section>
-   <section className="grid">
+   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,margin:"0 0 18px"}}><span style={{fontSize:12,color:"#777"}}>Track your food orders and payment status.</span><Link href="/account/orders" className="action" style={{marginTop:0}}>View orders →</Link></div><section className="grid">
      <div className="panel wide"><i>♥</i><h2>Your favourites <small className="count">({favorites.length})</small></h2>
        {favorites.length?<div className="savedList">{favorites.map((r:any)=><div className="savedItem" key={r.id}><Link href={"/restaurant/"+r.id}><div><b>{r.name}</b><span>{r.city} · {r.category}</span></div><span>→</span></Link><button onClick={async()=>{const {error}=await supabase.from("customer_favorites").delete().eq("user_id",user.id).eq("restaurant_id",r.id);if(!error)setFavorites(prev=>prev.filter(x=>x.id!==r.id))}} aria-label={"Remove "+r.name+" from favourites"}>♥</button></div>)}</div>:<p>Save restaurants you want to revisit. Your favourites will appear here.</p>}
        <Link href="/" className="action">Discover restaurants →</Link>
