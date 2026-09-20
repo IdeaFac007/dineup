@@ -170,8 +170,8 @@ export default function MarketplacePage(){
         <div className="foodCopy">Good<br/>Food<br/>Brighter<br/>Days</div>
         <div className="heroPanel">
           <div className="panelTop"><span>🔥 Trending near you</span><b>{restaurants.length || "—"} places</b></div>
-          {top.slice(0,2).map((r)=>{const coverImageUrl=imageUrl(r.profile?.cover_image_url);return <Link className="heroRestaurant" key={r.id} href={`/restaurant/${r.id}`} aria-label={`View ${r.name}`} onClick={()=>trackRestaurantView(r)}>
-            {coverImageUrl?<img src={coverImageUrl} alt="" fetchPriority="high"/>:<div className="heroThumb">{r.name.slice(0,1).toUpperCase()}</div>}
+          {top.slice(0,2).map((r,heroIndex)=>{const coverImageUrl=imageUrl(r.profile?.cover_image_url);return <Link className="heroRestaurant" key={r.id} href={`/restaurant/${r.id}`} aria-label={`View ${r.name}`} onClick={()=>trackRestaurantView(r)}>
+            {coverImageUrl?<img src={coverImageUrl} alt="" fetchPriority={heroIndex === 0 ? "high" : "auto"} decoding="async"/>:<div className="heroThumb">{r.name.slice(0,1).toUpperCase()}</div>}
             <div><strong>{r.name}</strong><span>{r.city} · {r.category}</span><small>{r.claim_status==="verified"?"✓ Verified":"Open for bidding"} <b>→</b></small></div>
           </Link>})}
           {top.length===0&&!loading&&<div className="heroEmpty">Restaurants will appear here as they go live.</div>}
