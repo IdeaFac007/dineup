@@ -43,3 +43,18 @@ export function googleMapsSearchUrl(
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
     : "https://www.google.com/maps";
 }
+export function googleMapsDirectionsUrl(
+  restaurantName: string | null | undefined,
+  address: string | null | undefined,
+  city: string | null | undefined,
+) {
+  const normalize = (value: string | null | undefined) =>
+    value?.replace(/\\s+/g, " ").trim() || "";
+  const destination = [restaurantName, address, city]
+    .map(normalize)
+    .filter(Boolean)
+    .join(", ");
+  return destination
+    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`
+    : "https://www.google.com/maps";
+}
