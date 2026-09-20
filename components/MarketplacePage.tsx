@@ -33,7 +33,7 @@ export default function MarketplacePage(){
   async function loadRestaurants(){
     setLoading(true);setError("");
     try{
-      const {data,error:restaurantError}=await supabase.from("restaurants").select("id,name,city,category,address,current_bid,is_claimed,claim_status,is_active").eq("is_active",true).order("current_bid",{ascending:false,nullsFirst:false});
+      const {data,error:restaurantError}=await supabase.from("restaurants").select("id,name,city,category,address,current_bid,claim_status").eq("is_active",true).order("current_bid",{ascending:false,nullsFirst:false});
       if(restaurantError) throw restaurantError;
       const rows=(data||[]).map((r:any)=>({...r,id:Number(r.id),current_bid:Number(r.current_bid||0)})) as Restaurant[];
       if(rows.length){
