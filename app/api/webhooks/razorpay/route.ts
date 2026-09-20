@@ -40,6 +40,76 @@ export async function POST(request: Request) {
     const event = JSON.parse(rawBody);
     const admin = createAdminClient();
 
+    // Customer food-order payments are reconciled independently from restaurant bid payments.
+    if (event?.event === "payment.captured" || event?.event === "payment.failed") {
+      const payment = event?.payload?.payment?.entity;
+      const paymentId = String(payment?.id || "");
+      const orderId = String(payment?.order_id || "");
+      const amountPaise = Number(payment?.amount);
+      const currency = String(payment?.currency || "");
+      if (!paymentId || !orderId) return NextResponse.json({ error: "Invalid payment payload." }, { status: 400 });
+
+      const { data: customerOrder, error: customerOrderError } = await admin
+        .from("orders")
+        .select("id,total_amount,payment_status,razorpay_order_id,razorpay_payment_id")
+        .eq("razorpay_order_id", orderId)
+        .maybeSingle();
+
+      if (customerOrderError) {
+        console.error("Customer order webhook lookup error:", customerOrderError);
+        return NextResponse.json({ error: "Unable to reconcile customer order payment." }, { status: 500 });
+      }
+
+      if (customerOrder) {
+        if (event.event === "payment.failed") {
+          if (customerOrder.payment_status === "paid") {
+            return NextResponse.json({ received: true, alreadyProcessed: true });
+          }
+          await admin.from("orders").update({
+            payment_status: "failed",
+            razorpay_payment_id: paymentId,
+            payment_error: String(payment?.error_description || payment?.error_code || "Payment failed").slice(0, 500),
+          }).eq("id", customerOrder.id);
+          return NextResponse.json({ received: true, customerOrderFailureRecorded: true });
+        }
+
+        if (!Number.isFinite(amountPaise) || currency !== "INR" || Math.round(Number(customerOrder.total_amount) * 100) !== Math.round(amountPaise)) {
+          return NextResponse.json({ error: "Customer order payment amount mismatch." }, { status: 400 });
+        }
+
+        if (customerOrder.payment_status === "paid" && customerOrder.razorpay_payment_id === paymentId) {
+          return NextResponse.json({ received: true, alreadyProcessed: true });
+        }
+
+        const razorpayKeyId = process.env.RAZORPAY_KEY_ID;
+        const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;
+        if (!razorpayKeyId || !razorpayKeySecret) {
+          return NextResponse.json({ error: "Razorpay server configuration is missing." }, { status: 500 });
+        }
+
+        const razorpay = new Razorpay({ key_id: razorpayKeyId, key_secret: razorpayKeySecret });
+        const verifiedPayment = await razorpay.payments.fetch(paymentId);
+        if (!verifiedPayment || verifiedPayment.order_id !== orderId || verifiedPayment.status !== "captured" ||
+            Number(verifiedPayment.amount) !== Math.round(Number(customerOrder.total_amount) * 100) ||
+            String(verifiedPayment.currency || "") !== "INR") {
+          return NextResponse.json({ error: "Customer order payment validation failed." }, { status: 400 });
+        }
+
+        const { error: customerPaidError } = await admin.from("orders").update({
+          payment_status: "paid",
+          razorpay_payment_id: paymentId,
+          paid_at: new Date().toISOString(),
+          payment_error: null,
+        }).eq("id", customerOrder.id).eq("payment_status", "pending");
+
+        if (customerPaidError) {
+          console.error("Customer order payment update error:", customerPaidError);
+          return NextResponse.json({ error: "Unable to confirm customer order payment." }, { status: 500 });
+        }
+        return NextResponse.json({ received: true, customerOrderPaid: true });
+      }
+    }
+
     if (event?.event === "payment.failed") {
       const payment = event?.payload?.payment?.entity;
       const paymentId = String(payment?.id || "");
