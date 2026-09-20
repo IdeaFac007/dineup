@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createClient } from "../lib/supabase/client";
 
 type MenuItem = {
@@ -187,7 +188,7 @@ export default function RestaurantMenuOrder({ restaurantId }: { restaurantId: nu
           <div><b>{cartCount} item{cartCount === 1 ? "" : "s"}</b><span>₹{cartTotal.toLocaleString("en-IN")}</span></div>
           <div className="cartActions">
             <button type="button" className="clearCart" onClick={() => cart.forEach(x => void remove(x.menu_item_id))} disabled={cartLoading}>Clear</button>
-            <button type="button" className="checkoutPreview" onClick={() => setMessage("Checkout is coming in the next DineUp order phase.")}>View cart →</button>
+            <button type="button" className="checkoutPreview" onClick={() => router.push("/checkout/" + restaurantId)}>View cart →</button>
           </div>
         </div>
       )}
