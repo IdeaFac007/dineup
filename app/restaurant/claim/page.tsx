@@ -28,7 +28,7 @@ export default function ClaimFinder(){
     <nav><Link href="/" className="brand">Dine<span>Up</span></Link><Link href="/restaurant/signup">List a new restaurant →</Link></nav>
     <section className="hero"><small>FOR RESTAURANT OWNERS & MANAGERS</small><h1>Is your restaurant already listed on DineUp?</h1><p>Search your restaurant, open its claim link, sign in and submit ownership details. After review, the verified owner gets access to the restaurant dashboard.</p></section>
     <section className="box">
-      <div className="search"><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Restaurant name, area or address"/><select value={city} onChange={e=>setCity(e.target.value)}><option value="">All cities</option>{cities.map(c=><option key={c}>{c}</option>)}</select></div>
+      <div className="search"><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Restaurant name, area or address"/><select value={city} onChange={e=>setCity(e.target.value)}><option value="">All cities</option>{cities.map(c=><option key={c}>{c}</option>)}</select></div><label className="mapsField">Found it on Google Maps? Paste the Google Maps listing link (optional)<input value={googleMapsUrl} onChange={e=>setGoogleMapsUrl(e.target.value)} placeholder="https://maps.google.com/..."/></label>
       {error&&<div className="error">{error}</div>}
       {loading?<div className="empty">Loading listings…</div>:filtered.length?<div className="list">{filtered.map(r=>{
         const unavailable=r.claim_status!=="unclaimed"||Boolean(r.owner_id);
