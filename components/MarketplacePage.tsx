@@ -303,7 +303,7 @@ export default function MarketplacePage(){
     </section>
 
     <section className="how" id="how"><div><span className="sectionKicker">WHY DINEUP</span><h2>A better way to<br/>discover dining.</h2></div><div className="howGrid"><div><span>01</span><h3>Discover</h3><p>Find restaurants by city, cuisine and marketplace activity.</p></div><div><span>02</span><h3>Connect</h3><p>Call, WhatsApp, view menus or get directions directly.</p></div><div><span>03</span><h3>Experience</h3><p>See live bids and discover places gaining attention.</p></div></div></section>
-    <footer className="siteFooter">
+    <footer id="about" className="siteFooter">
   <div className="footerTop">
     <div className="footerBrand">
       <div className="brand"><span className="brandmark">D</span><span>DINE<span>UP</span></span></div>
