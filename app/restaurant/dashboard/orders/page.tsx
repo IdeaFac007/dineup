@@ -15,6 +15,8 @@ type Order = {
   customer_note: string | null;
   created_at: string;
   updated_at: string;
+  refund_status: string | null;
+  refund_amount: number;
 };
 
 type OrderItem = {
@@ -114,6 +116,7 @@ export default function RestaurantOrdersPage() {
         ...order,
         id: Number(order.id),
         total_amount: Number(order.total_amount || 0),
+        refund_amount: Number(order.refund_amount || 0),
       })) as Order[];
 
       setOrders(normalizedOrders);
