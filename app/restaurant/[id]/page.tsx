@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 import { safeExternalUrl } from "../../../lib/external-url";
-import { googleMapsSearchUrl, safeGoogleMapsUrl } from "../../../lib/google-maps";
+import { googleMapsDirectionsUrl, safeGoogleMapsUrl } from "../../../lib/google-maps";
 
 type ClaimStatus = ""|"verified"|"verification_pending"|"unclaimed"|"claimed";
 type Restaurant = { id:number; name:string; city:string; category:string; address:string|null; current_bid:number; is_claimed:boolean; claim_status:ClaimStatus };
@@ -106,8 +106,7 @@ export default function PublicRestaurantProfile(){
  const formatHours=(value:unknown)=>typeof value==="string"&&value.trim()?value.trim():"Hours not provided";
  const whatsappNumber=normalizeWhatsApp(whatsapp);
  const whatsappMessage=encodeURIComponent(`Hi, I found ${restaurant.name} on DineUp. I would like to know more.`);
- const mapsContext=[restaurant.address?.trim(),restaurant.city?.trim()].filter(Boolean).join(", ");
- const mapsQuery=mapsContext?`${restaurant.name?.trim()}, ${mapsContext}`: ""; const fallbackMaps=mapsQuery?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`:"https://www.google.com/maps";
+ const fallbackMaps=googleMapsDirectionsUrl(restaurant.name,restaurant.address,restaurant.city);
  const maps=safeGoogleMapsUrl(profile?.google_maps_url)||fallbackMaps;
  const menuUrl=safeExternalUrl(profile?.menu_url);
  const websiteUrl=safeExternalUrl(profile?.website_url);
