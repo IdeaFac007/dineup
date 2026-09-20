@@ -60,7 +60,7 @@ const nextActions: Record<string, { status: string; label: string }[]> = {
 };
 
 export default function RestaurantOrdersPage() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const [restaurant, setRestaurant] = useState<{ id: number; name: string } | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
