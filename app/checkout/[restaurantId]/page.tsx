@@ -6,12 +6,16 @@ import { useParams, useRouter } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 
 type Item={id:number;name:string;price:number;quantity:number;lineTotal:number};
+type Offer={id:number;code:string;title:string;description:string|null;discount_type:"percent"|"fixed";discount_value:number;min_order_amount:number;max_discount_amount:number|null};
+
 export default function CheckoutPage(){
  const params=useParams<{restaurantId:string}>(),router=useRouter(),supabase=createClient();
  const restaurantId=Number(params.restaurantId);
  const [restaurant,setRestaurant]=useState<{name:string;city:string}|null>(null);
- const [items,setItems]=useState<Item[]>([]),[type,setType]=useState("pickup"),[note,setNote]=useState("");
+ const [items,setItems]=useState<Item[]>([]),[offers,setOffers]=useState<Offer[]>([]),[type,setType]=useState("pickup"),[note,setNote]=useState("");
+ const [offerCode,setOfferCode]=useState(""),[appliedOffer,setAppliedOffer]=useState<Offer|null>(null),[offerMessage,setOfferMessage]=useState("");
  const [loading,setLoading]=useState(true),[placing,setPlacing]=useState(false),[error,setError]=useState("");
+
  useEffect(()=>{if(document.getElementById("razorpay-checkout-script"))return;const s=document.createElement("script");s.id="razorpay-checkout-script";s.src="https://checkout.razorpay.com/v1/checkout.js";s.async=true;document.body.appendChild(s)},[]);
  useEffect(()=>{let cancelled=false;(async()=>{
    const [{data:r},{data:{user}}]=await Promise.all([
@@ -21,7 +25,11 @@ export default function CheckoutPage(){
    if(cancelled)return;
    if(!user){router.replace("/login?next="+encodeURIComponent(window.location.pathname));return;}
    setRestaurant(r);
-   const {data:cart}=await supabase.from("customer_carts").select("id").eq("user_id",user.id).eq("restaurant_id",restaurantId).maybeSingle();
+   const [{data:cart},{data:activeOffers}]=await Promise.all([
+    supabase.from("customer_carts").select("id").eq("user_id",user.id).eq("restaurant_id",restaurantId).maybeSingle(),
+    supabase.from("restaurant_offers").select("id,code,title,description,discount_type,discount_value,min_order_amount,max_discount_amount").eq("restaurant_id",restaurantId).order("created_at",{ascending:false})
+   ]);
+   setOffers((activeOffers||[]).map((x:any)=>({...x,id:Number(x.id),discount_value:Number(x.discount_value),min_order_amount:Number(x.min_order_amount||0),max_discount_amount:x.max_discount_amount==null?null:Number(x.max_discount_amount)})));
    if(cart){
     const {data:lines}=await supabase.from("customer_cart_items").select("menu_item_id,quantity").eq("cart_id",cart.id);
     const ids=(lines||[]).map((x:any)=>Number(x.menu_item_id));
@@ -33,61 +41,63 @@ export default function CheckoutPage(){
    }
    setLoading(false);
  })();return()=>{cancelled=true}},[restaurantId]);
+
  const subtotal=items.reduce((s,x)=>s+x.lineTotal,0);
+ const calculatedDiscount=appliedOffer&&subtotal>=appliedOffer.min_order_amount
+  ? Math.min(appliedOffer.discount_type==="percent"?subtotal*appliedOffer.discount_value/100:appliedOffer.discount_value,appliedOffer.max_discount_amount??Infinity,subtotal)
+  : 0;
+ const total=Math.max(0,subtotal-calculatedDiscount);
+
+ function applyOffer(){
+  const code=offerCode.trim().toUpperCase();setOfferMessage("");setAppliedOffer(null);
+  if(!code){setOfferMessage("Enter an offer code.");return}
+  const offer=offers.find(x=>x.code.toUpperCase()===code);
+  if(!offer){setOfferMessage("That offer code is invalid or expired.");return}
+  if(subtotal<offer.min_order_amount){setOfferMessage("Add ₹"+(offer.min_order_amount-subtotal).toLocaleString("en-IN")+" more to use this offer.");return}
+  setAppliedOffer(offer);setOfferCode(offer.code);
+  setOfferMessage(offer.code+" applied — you save ₹"+Math.min(offer.discount_type==="percent"?subtotal*offer.discount_value/100:offer.discount_value,offer.max_discount_amount??Infinity,subtotal).toLocaleString("en-IN")+".");
+ }
+
  async function placeOrder(){
   setError("");setPlacing(true);
   try{
    if(!window.Razorpay)throw new Error("Razorpay Checkout is still loading. Please wait a moment and try again.");
-
-   const orderResponse=await fetch("/api/orders/create",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({restaurantId,fulfillmentType:type,customerNote:note})});
+   const orderResponse=await fetch("/api/orders/create",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({restaurantId,fulfillmentType:type,customerNote:note,offerCode:appliedOffer?.code||null})});
    const orderData=await orderResponse.json();
    if(!orderResponse.ok||!orderData.order)throw new Error(orderData.error||"Unable to place order.");
-
    const paymentResponse=await fetch("/api/orders/razorpay/create-order",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({orderId:orderData.order.id})});
    const paymentData=await paymentResponse.json();
    if(!paymentResponse.ok||!paymentData.success)throw new Error(paymentData.error||"Unable to start payment.");
-
-   const options={
-    key:paymentData.keyId,
-    amount:paymentData.amount,
-    currency:paymentData.currency,
-    name:"DineUp",
-    description:"Food order payment",
-    order_id:paymentData.orderId,
-    notes:{dineup_order_id:String(paymentData.customerOrderId),order_number:String(paymentData.orderNumber)},
-    theme:{color:"#111111"},
+   const options={key:paymentData.keyId,amount:paymentData.amount,currency:paymentData.currency,name:"DineUp",description:appliedOffer?"Food order • "+appliedOffer.code:"Food order payment",order_id:paymentData.orderId,notes:{dineup_order_id:String(paymentData.customerOrderId),order_number:String(paymentData.orderNumber)},theme:{color:"#111111"},
     modal:{ondismiss:()=>{setPlacing(false);setError("Payment cancelled. You can try again from your order.");}},
     handler:async(response:any)=>{
      try{
       setError("");
-      const verifyResponse=await fetch("/api/orders/razorpay/verify-payment",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
-       orderId:paymentData.customerOrderId,
-       razorpay_order_id:response.razorpay_order_id,
-       razorpay_payment_id:response.razorpay_payment_id,
-       razorpay_signature:response.razorpay_signature
-      })});
+      const verifyResponse=await fetch("/api/orders/razorpay/verify-payment",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({orderId:paymentData.customerOrderId,razorpay_order_id:response.razorpay_order_id,razorpay_payment_id:response.razorpay_payment_id,razorpay_signature:response.razorpay_signature})});
       const verifyData=await verifyResponse.json();
       if(!verifyResponse.ok||!verifyData.success)throw new Error(verifyData.error||"Payment verification failed.");
       router.replace("/account?order="+encodeURIComponent(verifyData.orderNumber||paymentData.orderNumber));
-     }catch(e:any){
-      setError(e.message||"Payment verification failed. If money was deducted, please wait while we reconcile the payment.");
-      setPlacing(false);
-     }
+     }catch(e:any){setError(e.message||"Payment verification failed. If money was deducted, please wait while we reconcile the payment.");setPlacing(false);}
     }
    };
-
    const razorpay=new window.Razorpay(options);
-   razorpay.on("payment.failed",(response:any)=>{
-    setError(response?.error?.description||"Payment failed. Please try again.");
-    setPlacing(false);
-   });
+   razorpay.on("payment.failed",(response:any)=>{setError(response?.error?.description||"Payment failed. Please try again.");setPlacing(false)});
    razorpay.open();
   }catch(e:any){setError(e.message||"Unable to start payment.");setPlacing(false)}
  }
  if(loading)return <main className="checkout"><div className="shell">Loading checkout…</div><style jsx>{css}</style></main>;
  if(!restaurant||!items.length)return <main className="checkout"><div className="shell card"><h1>Your cart is empty.</h1><p>Add items from the restaurant menu before checkout.</p><Link href={Number.isFinite(restaurantId)?"/restaurant/"+restaurantId:"/marketplace"}>← Back to restaurant</Link></div><style jsx>{css}</style></main>;
- return <main className="checkout"><div className="shell"><Link href={"/restaurant/"+restaurantId} className="back">← Back to {restaurant.name}</Link><div className="layout"><section className="card"><small>DINEUP CHECKOUT</small><h1>Confirm your order</h1><p className="muted">{restaurant.name} · {restaurant.city}</p><h2>Order type</h2><div className="types">{[["pickup","Pickup"],["dine_in","Dine-in"],["delivery","Delivery"]].map(([v,l])=><button key={v} className={type===v?"selected":""} onClick={()=>setType(v)} type="button">{l}</button>)}</div><h2>Items</h2>{items.map(x=><div className="line" key={x.id}><div><b>{x.name}</b><span>₹{x.price.toLocaleString("en-IN")} × {x.quantity}</span></div><strong>₹{x.lineTotal.toLocaleString("en-IN")}</strong></div>)}<label>Note for restaurant<textarea value={note} onChange={e=>setNote(e.target.value)} maxLength={500} placeholder="Optional instructions"/></label>{error&&<div className="error" role="alert">{error}</div>}</section><aside className="card summary"><small>ORDER SUMMARY</small><div className="sum"><span>Subtotal</span><b>₹{subtotal.toLocaleString("en-IN")}</b></div><div className="sum"><span>Discount</span><b>₹0</b></div><div className="total"><span>Total</span><strong>₹{subtotal.toLocaleString("en-IN")}</strong></div><button className="place" onClick={()=>void placeOrder()} disabled={placing}>{placing?"Placing order…":"Place order →"}</button><p className="secure">Secure payment via Razorpay. Your order is confirmed after payment verification.</p></aside></div></div><style jsx>{css}</style></main>;
+ return <main className="checkout"><div className="shell"><Link href={"/restaurant/"+restaurantId} className="back">← Back to {restaurant.name}</Link><div className="layout">
+  <section className="card"><small>DINEUP CHECKOUT</small><h1>Confirm your order</h1><p className="muted">{restaurant.name} · {restaurant.city}</p>
+   <h2>Order type</h2><div className="types">{[["pickup","Pickup"],["dine_in","Dine-in"],["delivery","Delivery"]].map(([v,l])=><button key={v} className={type===v?"selected":""} onClick={()=>setType(v)} type="button">{l}</button>)}</div>
+   <h2>Items</h2>{items.map(x=><div className="line" key={x.id}><div><b>{x.name}</b><span>₹{x.price.toLocaleString("en-IN")} × {x.quantity}</span></div><strong>₹{x.lineTotal.toLocaleString("en-IN")}</strong></div>)}
+   {offers.length>0&&<div className="offers"><h2>Offers</h2><div className="offerList">{offers.slice(0,4).map(o=><button type="button" key={o.id} className={appliedOffer?.id===o.id?"offer selectedOffer":"offer"} onClick={()=>{setOfferCode(o.code);setAppliedOffer(o);setOfferMessage("")}}><b>{o.title}</b><span>{o.code} · {o.discount_type==="percent"?o.discount_value+"% off":"₹"+o.discount_value+" off"}{o.min_order_amount?" · Min ₹"+o.min_order_amount.toLocaleString("en-IN"):""}</span></button>)}</div>
+   <div className="coupon"><input value={offerCode} onChange={e=>setOfferCode(e.target.value)} placeholder="Enter promo code" maxLength={40}/><button type="button" onClick={applyOffer}>Apply</button></div>{offerMessage&&<div className="offerMessage">{offerMessage}</div>}</div>}
+   <label>Note for restaurant<textarea value={note} onChange={e=>setNote(e.target.value)} maxLength={500} placeholder="Optional instructions"/></label>{error&&<div className="error" role="alert">{error}</div>}
+  </section>
+  <aside className="card summary"><small>ORDER SUMMARY</small><div className="sum"><span>Subtotal</span><b>₹{subtotal.toLocaleString("en-IN")}</b></div><div className="sum"><span>Discount</span><b>{calculatedDiscount?"− ₹"+calculatedDiscount.toLocaleString("en-IN"):"₹0"}</b></div><div className="total"><span>Total</span><strong>₹{total.toLocaleString("en-IN")}</strong></div><button className="place" onClick={()=>void placeOrder()} disabled={placing}>{placing?"Placing order…":"Place order →"}</button><p className="secure">Secure payment via Razorpay. Your order is confirmed after payment verification.</p></aside>
+ </div></div><style jsx>{css}</style></main>;
 }
 const css=`
-*{box-sizing:border-box}.checkout{min-height:100vh;background:#f5f6f7;color:#111;font-family:Arial,sans-serif;padding:34px 18px}.shell{width:min(100%,980px);margin:auto}.back{color:#555;text-decoration:none;font-size:12px;font-weight:800}.layout{display:grid;grid-template-columns:1fr 330px;gap:18px;margin-top:18px}.card{background:#fff;border:1px solid #e5e5e5;border-radius:20px;padding:25px}.card>small{font-size:9px;letter-spacing:2px;font-weight:900;color:#777}.card h1{font-size:34px;letter-spacing:-1px;margin:8px 0}.card h2{font-size:15px;margin:25px 0 10px}.muted{color:#777;font-size:13px}.types{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.types button{padding:12px;border:1px solid #ddd;border-radius:10px;background:#fff;font-weight:800;cursor:pointer}.types .selected{background:#111;color:#fff;border-color:#111}.line{display:flex;justify-content:space-between;gap:15px;padding:13px 0;border-bottom:1px solid #eee}.line div{display:grid;gap:4px}.line span{color:#777;font-size:11px}.line strong{font-size:13px}label{display:grid;gap:7px;margin-top:22px;font-size:11px;font-weight:800;color:#555}textarea{min-height:90px;border:1px solid #ddd;border-radius:10px;padding:11px;resize:vertical;font:inherit;font-size:12px}.sum{display:flex;justify-content:space-between;padding:13px 0;border-bottom:1px solid #eee;font-size:13px}.sum span{color:#777}.total{display:flex;justify-content:space-between;padding:20px 0;font-size:15px}.total strong{font-size:24px}.place{width:100%;height:48px;border:0;border-radius:10px;background:#111;color:#fff;font-weight:900;cursor:pointer}.place:disabled{opacity:.5}.secure{font-size:10px;color:#888;line-height:1.5}.error{margin-top:15px;padding:10px;border-radius:9px;background:#fff0f0;color:#a22;font-size:11px}@media(max-width:760px){.layout{grid-template-columns:1fr}.summary{order:-1}.types{grid-template-columns:1fr}.card h1{font-size:28px}}
+*{box-sizing:border-box}.checkout{min-height:100vh;background:#f5f6f7;color:#111;font-family:Arial,sans-serif;padding:34px 18px}.shell{width:min(100%,980px);margin:auto}.back{color:#555;text-decoration:none;font-size:12px;font-weight:800}.layout{display:grid;grid-template-columns:1fr 330px;gap:18px;margin-top:18px}.card{background:#fff;border:1px solid #e5e5e5;border-radius:20px;padding:25px}.card>small{font-size:9px;letter-spacing:2px;font-weight:900;color:#777}.card h1{font-size:34px;letter-spacing:-1px;margin:8px 0}.card h2{font-size:15px;margin:25px 0 10px}.muted{color:#777;font-size:13px}.types{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.types button{padding:12px;border:1px solid #ddd;border-radius:10px;background:#fff;font-weight:800;cursor:pointer}.types .selected{background:#111;color:#fff;border-color:#111}.line{display:flex;justify-content:space-between;gap:15px;padding:13px 0;border-bottom:1px solid #eee}.line div{display:grid;gap:4px}.line span{color:#777;font-size:11px}.line strong{font-size:13px}.offers{margin-top:8px}.offerList{display:grid;gap:8px}.offer{display:grid;gap:3px;text-align:left;padding:11px;border:1px solid #ddd;border-radius:10px;background:#fff;cursor:pointer}.offer span{font-size:10px;color:#777}.selectedOffer{border-color:#111;background:#fafafa}.coupon{display:flex;gap:8px;margin-top:9px}.coupon input{flex:1;border:1px solid #ddd;border-radius:10px;padding:11px;font:inherit;font-size:12px;text-transform:uppercase}.coupon button{border:0;border-radius:10px;background:#111;color:#fff;padding:0 16px;font-weight:800}.offerMessage{margin-top:7px;font-size:10px;color:#555}.sum{display:flex;justify-content:space-between;padding:13px 0;border-bottom:1px solid #eee;font-size:13px}.sum span{color:#777}.total{display:flex;justify-content:space-between;padding:20px 0;font-size:15px}.total strong{font-size:24px}.place{width:100%;height:48px;border:0;border-radius:10px;background:#111;color:#fff;font-weight:900;cursor:pointer}.place:disabled{opacity:.5}.secure{font-size:10px;color:#888;line-height:1.5}label{display:grid;gap:7px;margin-top:22px;font-size:11px;font-weight:800;color:#555}textarea{min-height:90px;border:1px solid #ddd;border-radius:10px;padding:11px;resize:vertical;font:inherit;font-size:12px}.error{margin-top:15px;padding:10px;border-radius:9px;background:#fff0f0;color:#a22;font-size:11px}@media(max-width:760px){.layout{grid-template-columns:1fr}.summary{order:-1}.types{grid-template-columns:1fr}.card h1{font-size:28px}}
 `;
