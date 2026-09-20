@@ -31,7 +31,7 @@ export default async function CityPage({params}:{params:Promise<{city:string}>})
    </section>
    <section className="cities"><div className="wrap"><span className="kicker">MORE CITIES</span><h2>Explore DineUp across India</h2><div className="cityLinks">{popularCities.filter(c=>slugify(c)!==slugify(cityName)).map(c=><Link key={c} href={"/city/"+slugify(c)}>{c}<span>→</span></Link>)}</div></div></section>
    <footer>DineUp · Discover restaurants across India</footer>
-   <style jsx>{css}</style>
+   <style dangerouslySetInnerHTML={{__html:css}} />
  </main>
 }
 
