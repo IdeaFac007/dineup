@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DineUp — Where Restaurants Rise</title>
+  <meta name="description" content="DineUp restaurant discovery and visibility marketplace.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <!-- Vercel Speed Insights -->
+  <script>
+    window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
+  </script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+  <style>
+    :root{--ink:#171513;--muted:#716c66;--paper:#fbfaf7;--card:#fff;--line:#e9e4dc;--accent:#e85d2a;--soft:#fff0e8;--gold:#b9852b;--green:#167b57}
+    *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:"DM Sans",sans-serif}
+    a{text-decoration:none;color:inherit}.container{max-width:1160px;margin:auto;padding:0 24px}
+    header{position:sticky;top:0;z-index:10;background:rgba(251,250,247,.94);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+    nav{height:72px;display:flex;align-items:center;justify-content:space-between}.logo{font-size:25px;font-weight:700;letter-spacing:-1px}.logo span{color:var(--accent)}
+    .navlinks{display:flex;gap:28px;color:#5d5852;font-size:14px}.navcta,.primary{background:var(--ink);color:white;border:0;border-radius:12px;padding:12px 18px;font-weight:700;cursor:pointer}
+    .hero{padding:82px 0 58px;text-align:center;background:radial-gradient(circle at 50% 0,#fff0e8 0,transparent 48%)}
+    .eyebrow{display:inline-flex;gap:8px;align-items:center;background:var(--soft);color:#b44318;border:1px solid #ffd8c8;padding:7px 11px;border-radius:999px;font-size:12px;font-weight:700}
+    h1{font-family:"Playfair Display",serif;font-size:clamp(48px,7vw,82px);line-height:.95;letter-spacing:-3px;margin:22px auto 20px;max-width:850px}
+    .hero p{color:var(--muted);font-size:18px;max-width:600px;margin:0 auto 30px;line-height:1.6}.search{display:flex;max-width:650px;margin:auto;background:white;border:1px solid var(--line);padding:7px;border-radius:15px;box-shadow:0 12px 40px rgba(31,25,20,.07)}
+    .search input{flex:1;border:0;outline:0;padding:13px;font:inherit}.search button{border-radius:10px}
+    section{padding:64px 0}.sectionhead{display:flex;justify-content:space-between;align-items:end;margin-bottom:24px}.sectionhead h2{font-family:"Playfair Display",serif;font-size:34px;margin:0}.sectionhead p{color:var(--muted);margin:6px 0 0}.view{font-size:13px;font-weight:700}
+    .board{background:#171513;border-radius:22px;padding:10px;color:white;overflow:hidden}.row{display:grid;grid-template-columns:55px 1fr 130px 120px 115px;align-items:center;gap:12px;padding:17px 18px;border-bottom:1px solid #34312e}.row:last-child{border:0}.row.header{color:#9d9891;font-size:11px;text-transform:uppercase;letter-spacing:1px}.rank{font-size:20px;font-weight:700}.restaurant{display:flex;align-items:center;gap:14px}.avatar{width:48px;height:48px;border-radius:12px;display:grid;place-items:center;background:#2d2925;font-size:21px}.name{font-weight:700}.meta{font-size:12px;color:#a9a39d;margin-top:3px}.bid{font-weight:700}.change{font-size:12px;color:#8fd4b8}.sponsor{font-size:10px;color:#f2a078;text-transform:uppercase;letter-spacing:1px;margin-top:3px}.outbid{background:white;color:var(--ink);border:0;border-radius:9px;padding:9px 12px;font-weight:700;cursor:pointer}
+    .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden}.photo{height:145px;background:linear-gradient(135deg,#ded6ca,#f4eee6);display:grid;place-items:center;font-size:48px}.cardbody{padding:16px}.card h3{margin:0 0 6px;font-size:16px}.rating{font-size:13px}.rating b{color:var(--gold)}.muted{color:var(--muted);font-size:12px}
+    .owner{background:#f0ece5;border-radius:26px;padding:46px;display:grid;grid-template-columns:1.4fr .8fr;gap:30px;align-items:center}.owner h2{font-family:"Playfair Display",serif;font-size:42px;line-height:1;margin:0 0 14px}.owner p{color:var(--muted);line-height:1.6}.stats{background:white;border:1px solid var(--line);border-radius:18px;padding:22px}.stat{display:flex;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--line)}.stat:last-child{border:0}.stat strong{font-size:20px}
+    footer{border-top:1px solid var(--line);padding:30px 0;color:var(--muted);font-size:12px}
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:30;padding:20px}.modal.open{display:flex}.dialog{background:white;border-radius:20px;width:min(480px,100%);padding:28px}.dialog h3{font-family:"Playfair Display",serif;font-size:30px;margin:0 0 8px}.dialog p{color:var(--muted);font-size:14px}.field{margin:15px 0}.field label{display:block;font-size:12px;font-weight:700;margin-bottom:7px}.field input{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font:inherit}.amount{font-size:28px;font-weight:700}.actions{display:flex;gap:10px;margin-top:20px}.secondary{background:#f3f0eb;border:0;border-radius:10px;padding:12px 16px;font-weight:700;cursor:pointer}
+    @media(max-width:800px){.navlinks{display:none}.cards{grid-template-columns:repeat(2,1fr)}.row{grid-template-columns:40px 1fr 90px}.row>*:nth-child(4),.row>*:nth-child(5),.row.header>*:nth-child(4),.row.header>*:nth-child(5){display:none}.owner{grid-template-columns:1fr;padding:30px}.hero{padding-top:60px}}
+    @media(max-width:500px){.cards{grid-template-columns:1fr}.search{flex-direction:column}.search button{width:100%}h1{letter-spacing:-2px}}
+  </style>
+</head>
+<body>
+<header><div class="container"><nav>
+  <div class="logo">Dine<span>Up</span></div>
+  <div class="navlinks"><a href="#top">Discover</a><a href="#leaderboard">Leaderboard</a><a href="#categories">Categories</a><a href="#owners">For Restaurants</a></div>
+  <button class="navcta" onclick="openOwner()">List your restaurant</button>
+</nav></div></header>
+
+<main id="top">
+<section class="hero"><div class="container">
+  <div class="eyebrow">🔥 LIVE IN LUCKNOW</div>
+  <h1>Discover where restaurants rise.</h1>
+  <p>DineUp helps diners find what's hot — and gives restaurants a new way to compete for attention.</p>
+  <div class="search"><input id="search" placeholder="Search restaurants, cuisines or areas..." oninput="filterRestaurants()"><button class="primary" onclick="document.querySelector('#leaderboard').scrollIntoView({behavior:'smooth'})">Explore Lucknow</button></div>
+</div></section>
+
+<section id="leaderboard"><div class="container">
+  <div class="sectionhead"><div><h2>Top restaurants today</h2><p>Sponsored positions are clearly marked.</p></div><a class="view" href="#leaderboard">View all →</a></div>
+  <div class="board" id="board"></div>
+</div></section>
+
+<section id="categories"><div class="container">
+  <div class="sectionhead"><div><h2>Explore by mood</h2><p>Find your next table.</p></div></div>
+  <div class="cards" id="cards"></div>
+</div></section>
+
+<section id="owners"><div class="container"><div class="owner">
+  <div><h2>Own a restaurant?<br>Rise on DineUp.</h2><p>Launch a campaign, choose your budget and get your restaurant in front of diners actively deciding where to eat.</p><button class="primary" onclick="openOwner()">Promote your restaurant →</button></div>
+  <div class="stats"><div class="stat"><span>Current #1 bid</span><strong id="heroBid">₹5,500</strong></div><div class="stat"><span>Restaurants live</span><strong>48</strong></div><div class="stat"><span>Customer visits today</span><strong>12.8K</strong></div></div>
+</div></div></section>
+</main>
+
+<footer><div class="container">© 2026 DineUp · Where Restaurants Rise.</div></footer>
+
+<div class="modal" id="bidModal"><div class="dialog">
+  <h3 id="modalTitle">Move to #1</h3><p id="modalText">Current top bid: ₹5,500. Your minimum bid is:</p>
+  <div class="field"><label>Your bid</label><input id="bidInput" type="number" min="5100" step="100" value="5600"></div>
+  <div class="amount" id="minimum">₹5,600</div>
+  <div class="actions"><button class="secondary" onclick="closeModal()">Cancel</button><button class="primary" onclick="placeBid()">Continue to payment</button></div>
+</div></div>
+
+<div class="modal" id="ownerModal"><div class="dialog">
+  <h3>Put your restaurant on DineUp</h3><p>Create a launch campaign for the Lucknow leaderboard.</p>
+  <div class="field"><label>Restaurant name</label><input id="ownerName" placeholder="e.g. The Terrace"></div>
+  <div class="field"><label>Starting campaign budget</label><input id="ownerBudget" type="number" value="499" min="499"></div>
+  <div class="actions"><button class="secondary" onclick="closeOwner()">Cancel</button><button class="primary" onclick="startCampaign()">Create campaign</button></div>
+</div></div>
+
+<script>
+const restaurants=[
+ {name:"The Terrace",cuisine:"North Indian · Gomti Nagar",bid:5500,emoji:"🍽️",change:"+₹700",sponsored:true},
+ {name:"Tunday Kababi",cuisine:"Awadhi · Hazratganj",bid:4200,emoji:"🥘",change:"+₹500",sponsored:true},
+ {name:"Dastarkhwan",cuisine:"Mughlai · Kaiserbagh",bid:3100,emoji:"🍛",change:"+₹300",sponsored:true},
+ {name:"The Urban Brasserie",cuisine:"Cafe · Gomti Nagar",bid:2000,emoji:"☕",change:"+₹200",sponsored:false},
+ {name:"Moti Mahal",cuisine:"Indian · Aliganj",bid:1600,emoji:"🍲",change:"+₹150",sponsored:false},
+ {name:"Molecule",cuisine:"Bar & Kitchen · Gomti Nagar",bid:1200,emoji:"🍸",change:"+₹100",sponsored:false}
+];
+const cards=[
+ ["Cafe","☕","Coffee & brunch"],["Awadhi","🥘","Local favourites"],["Fine Dining","🥂","For special nights"],["Family","🍽️","Everyone's table"]
+];
+let selected=null;
+function money(n){return "₹"+Number(n).toLocaleString("en-IN")}
+function render(list=restaurants){
+ const b=document.getElementById("board");
+ b.innerHTML='<div class="row header"><div>Rank</div><div>Restaurant</div><div>Current bid</div><div>Momentum</div><div></div></div>'+
+ list.map((r,i)=>`<div class="row"><div class="rank">#${i+1}</div><div class="restaurant"><div class="avatar">${r.emoji}</div><div><div class="name">${r.name}</div><div class="meta">${r.cuisine}</div>${r.sponsored?'<div class="sponsor">Sponsored</div>':''}</div></div><div class="bid">${money(r.bid)}</div><div class="change">${r.change}</div><div>${i<3?`<button class="outbid" onclick="openBid(${i})">Outbid</button>`:""}</div></div>`).join("");
+ document.getElementById("heroBid").textContent=money(restaurants[0].bid);
+}
+function renderCards(){
+ document.getElementById("cards").innerHTML=cards.map(x=>`<div class="card"><div class="photo">${x[1]}</div><div class="cardbody"><h3>${x[0]}</h3><div class="muted">${x[2]}</div></div></div>`).join("");
+}
+function filterRestaurants(){
+ const q=document.getElementById("search").value.toLowerCase();
+ render(restaurants.filter(r=>(r.name+" "+r.cuisine).toLowerCase().includes(q)));
+}
+function openBid(i){
+ selected=i;
+ const min=restaurants[0].bid+100;
+ document.getElementById("modalTitle").textContent=`Move ${restaurants[i].name} to #1`;
+ document.getElementById("modalText").textContent=`Current top bid: ${money(restaurants[0].bid)}. Minimum bid to take #1:`;
+ document.getElementById("bidInput").min=min;document.getElementById("bidInput").value=min;
+ document.getElementById("minimum").textContent=money(min);
+ document.getElementById("bidModal").classList.add("open");
+}
+document.getElementById("bidInput").addEventListener("input",e=>document.getElementById("minimum").textContent=money(e.target.value||0));
+function closeModal(){document.getElementById("bidModal").classList.remove("open")}
+function placeBid(){const amount=Number(document.getElementById("bidInput").value),min=restaurants[0].bid+100;if(amount<min){alert("Minimum bid is "+money(min));return}alert("Demo only: payment checkout would open here for "+money(amount)+".");closeModal()}
+function openOwner(){document.getElementById("ownerModal").classList.add("open")}
+function closeOwner(){document.getElementById("ownerModal").classList.remove("open")}
+function startCampaign(){const name=document.getElementById("ownerName").value.trim();const budget=Number(document.getElementById("ownerBudget").value);if(!name||budget<499){alert("Enter a restaurant name and a budget of at least ₹499.");return}alert(`Demo campaign created for ${name} with ₹${budget.toLocaleString("en-IN")} budget. Payment integration comes next.`);closeOwner()}
+render();renderCards();
+</script>
+</body>
+</html>
