@@ -98,7 +98,7 @@ export default function RestaurantSignupPage() {
           <button className="submit" disabled={loading || !captchaToken}>{loading?"Creating...":"Create account →"}</button>
         </div>
       </form>}
-      <div className="login">Already have a restaurant account? <Link href="/restaurant/login">Sign in</Link></div>
+      <div className="claimLink"><span>Already listed on DineUp?</span> <Link href="/restaurant/claim">Find your restaurant and claim it →</Link></div><div className="login">Already have a restaurant account? <Link href="/restaurant/login">Sign in</Link></div>
     </div>
   </section><style jsx global>{styles}</style></main>;
 }
