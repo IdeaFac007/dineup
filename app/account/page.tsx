@@ -1,3 +1,8 @@
+"use client";
+import { useEffect,useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClient } from "../../lib/supabase/client";
 export default function AccountPage(){
  const router=useRouter(),supabase=createClient();
  const[user,setUser]=useState<any>(null),[loading,setLoading]=useState(true),[favorites,setFavorites]=useState<any[]>([]),[recent,setRecent]=useState<any[]>([]);
