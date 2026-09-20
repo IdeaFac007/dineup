@@ -27,8 +27,5 @@ with check (
       and o.restaurant_id=restaurant_id and o.status='completed' and o.payment_status='paid'
   )
 );
-create policy "reviews owner response" on public.restaurant_reviews for update to authenticated
-using (exists (select 1 from public.restaurants r where r.id=restaurant_id and r.owner_id=(select auth.uid())))
-with check (exists (select 1 from public.restaurants r where r.id=restaurant_id and r.owner_id=(select auth.uid())));
 grant select on public.restaurant_reviews to anon, authenticated;
-grant insert, update on public.restaurant_reviews to authenticated;
+grant insert on public.restaurant_reviews to authenticated;
