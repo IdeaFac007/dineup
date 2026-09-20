@@ -1,0 +1,24 @@
+-- 10.0.10.3 Production RLS performance hardening.
+-- Cache auth.uid() per statement via an initPlan and pin the trigger function search_path.
+alter policy "cart items own" on public.customer_cart_items using ((exists (select 1 from public.customer_carts c where c.id = customer_cart_items.cart_id and c.user_id = (select auth.uid())))) with check ((exists (select 1 from public.customer_carts c where c.id = customer_cart_items.cart_id and c.user_id = (select auth.uid()))));
+alter policy "carts own" on public.customer_carts using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+alter policy "growth_message_log_admin_all" on public.growth_message_log using ((exists (select 1 from public.admin_users a where a.user_id = (select auth.uid())))) with check ((exists (select 1 from public.admin_users a where a.user_id = (select auth.uid()))));
+alter policy "growth_templates_admin_all" on public.growth_message_templates using ((exists (select 1 from public.admin_users a where a.user_id = (select auth.uid())))) with check ((exists (select 1 from public.admin_users a where a.user_id = (select auth.uid()))));
+alter policy "order items customer create" on public.order_items with check ((exists (select 1 from public.orders o where o.id = order_items.order_id and o.customer_id = (select auth.uid()))));
+alter policy "order items participant read" on public.order_items using ((exists (select 1 from public.orders o where o.id = order_items.order_id and ((o.customer_id = (select auth.uid())) or (exists (select 1 from public.restaurants r where r.id = o.restaurant_id and r.owner_id = (select auth.uid())))))));
+alter policy "orders customer create" on public.orders with check (customer_id = (select auth.uid()));
+alter policy "orders customer read" on public.orders using (customer_id = (select auth.uid()));
+alter policy "orders restaurant read" on public.orders using ((exists (select 1 from public.restaurants r where r.id = orders.restaurant_id and r.owner_id = (select auth.uid()))));
+alter policy "orders restaurant status update" on public.orders using ((exists (select 1 from public.restaurants r where r.id = orders.restaurant_id and r.owner_id = (select auth.uid())))) with check ((exists (select 1 from public.restaurants r where r.id = orders.restaurant_id and r.owner_id = (select auth.uid()))));
+alter policy "referral_links_admin_insert" on public.referral_links with check ((exists (select 1 from public.admin_users a where a.user_id = (select auth.uid()))));
+alter policy "referral_links_admin_select" on public.referral_links using ((exists (select 1 from public.admin_users a where a.user_id = (select auth.uid()))));
+alter policy "referral_links_admin_update" on public.referral_links using ((exists (select 1 from public.admin_users a where a.user_id = (select auth.uid())))) with check ((exists (select 1 from public.admin_users a where a.user_id = (select auth.uid()))));
+alter policy "restaurant_leads_admin_insert" on public.restaurant_leads with check ((exists (select 1 from public.admin_users a where a.user_id = (select auth.uid()))));
+alter policy "restaurant_leads_admin_select" on public.restaurant_leads using ((exists (select 1 from public.admin_users a where a.user_id = (select auth.uid()))));
+alter policy "restaurant_leads_admin_update" on public.restaurant_leads using ((exists (select 1 from public.admin_users a where a.user_id = (select auth.uid())))) with check ((exists (select 1 from public.admin_users a where a.user_id = (select auth.uid()))));
+alter policy "menu items owner manage" on public.restaurant_menu_items using ((exists (select 1 from public.restaurants r where r.id = restaurant_menu_items.restaurant_id and r.owner_id = (select auth.uid())))) with check ((exists (select 1 from public.restaurants r where r.id = restaurant_menu_items.restaurant_id and r.owner_id = (select auth.uid()))));
+alter policy "restaurant owners manage offers" on public.restaurant_offers using ((exists (select 1 from public.restaurants r where r.id = restaurant_offers.restaurant_id and r.owner_id = (select auth.uid())))) with check ((exists (select 1 from public.restaurants r where r.id = restaurant_offers.restaurant_id and r.owner_id = (select auth.uid()))));
+alter policy "onboarding_admin_insert" on public.restaurant_onboarding_steps with check ((exists (select 1 from public.admin_users a where a.user_id = (select auth.uid()))));
+alter policy "onboarding_admin_select" on public.restaurant_onboarding_steps using ((exists (select 1 from public.admin_users a where a.user_id = (select auth.uid()))));
+alter policy "onboarding_admin_update" on public.restaurant_onboarding_steps using ((exists (select 1 from public.admin_users a where a.user_id = (select auth.uid())))) with check ((exists (select 1 from public.admin_users a where a.user_id = (select auth.uid()))));
+alter function public.touch_order_cart_updated_at() set search_path = public;
