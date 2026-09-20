@@ -21,6 +21,7 @@ export default function MarketplacePage(){
   const supabase=useMemo(()=>createClient(),[]);
   const [user,setUser]=useState<any>(null);
   const [favoriteIds,setFavoriteIds]=useState<Set<number>>(new Set());
+  const [recentIds,setRecentIds]=useState<number[]>([]);
   const [restaurants,setRestaurants]=useState<Restaurant[]>([]);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
@@ -51,6 +52,7 @@ export default function MarketplacePage(){
   useEffect(()=>{
     void loadRestaurants();
     void trackMarketingEvent("landing_view");
+    try{setRecentIds(JSON.parse(localStorage.getItem("dineup_recently_viewed")||"[]") as number[])}catch{}
     (async()=>{
       const {data:{user}}=await supabase.auth.getUser();
       setUser(user||null);
@@ -86,8 +88,6 @@ export default function MarketplacePage(){
     if(sort==="bid") rows.sort((a,b)=>Number(b.current_bid||0)-Number(a.current_bid||0));
     else if(sort==="name") rows.sort((a,b)=>a.name.localeCompare(b.name));
     else {
-      let recentIds:number[]=[];
-      try{ recentIds=JSON.parse(localStorage.getItem("dineup_recently_viewed")||"[]") as number[]; }catch{}
       const recentRank=new Map(recentIds.map((id,index)=>[Number(id),recentIds.length-index]));
       const favoriteRank=new Map([...favoriteIds].map(id=>[Number(id),1]));
       rows.sort((a,b)=>{
@@ -101,7 +101,7 @@ export default function MarketplacePage(){
       });
     }
     return rows;
-  },[filtered,sort,favoriteIds]);
+  },[filtered,sort,favoriteIds,recentIds]);
 
   const top=sorted.slice(0,3);
   const featured=sorted.slice(0,6);
