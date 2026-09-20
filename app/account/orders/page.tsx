@@ -15,7 +15,7 @@ const steps=["pending","accepted","preparing","ready","completed"];
 export default function CustomerOrdersPage(){
  const router=useRouter(),supabase=createClient();
  const [orders,setOrders]=useState<Order[]>([]),[items,setItems]=useState<Item[]>([]),[restaurants,setRestaurants]=useState<Record<number,Restaurant>>({});
- const [loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[paying,setPaying]=useState<number|null>(null),[error,setError]=useState(""),[message,setMessage]=useState(""),[live,setLive]=useState(false);
+ const [loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[paying,setPaying]=useState<number|null>(null),[error,setError]=useState(""),[message,setMessage]=useState(""),[live,setLive]=useState(false),[alerts,setAlerts]=useState(false);
  const load=useCallback(async(refresh=false)=>{
   if(refresh)setRefreshing(true);else setLoading(true);
   setError("");
@@ -46,10 +46,18 @@ export default function CustomerOrdersPage(){
    const {data:{user}}=await supabase.auth.getUser();
    if(cancelled||!user)return;
    channel=supabase.channel("customer-order-updates")
-    .on("postgres_changes",{event:"UPDATE",schema:"public",table:"orders",filter:"customer_id=eq."+user.id},()=>{
+    .on("postgres_changes",{event:"UPDATE",schema:"public",table:"orders",filter:"customer_id=eq."+user.id},(payload:any)=>{
+      const orderNumber=payload.new?.order_number;
+      const status=payload.new?.status;
+      const text=status ? `Order ${orderNumber||""} is now ${labels[status]||status}.` : "Your order was updated.";
+      setMessage(text);
+      if (document.hidden && Notification.permission==="granted") new Notification("DineUp order update",{body:text});
       void load(true);
     })
-    .on("postgres_changes",{event:"INSERT",schema:"public",table:"orders",filter:"customer_id=eq."+user.id},()=>{
+    .on("postgres_changes",{event:"INSERT",schema:"public",table:"orders",filter:"customer_id=eq."+user.id},(payload:any)=>{
+      const text=`Order ${payload.new?.order_number||""} was placed successfully.`;
+      setMessage(text);
+      if (document.hidden && Notification.permission==="granted") new Notification("DineUp order placed",{body:text});
       void load(true);
     })
     .subscribe((status:string)=>{if(!cancelled)setLive(status==="SUBSCRIBED")});
@@ -71,10 +79,17 @@ export default function CustomerOrdersPage(){
  const formatMoney=(n:number)=>`₹${Number(n||0).toLocaleString("en-IN")}`;
  const formatDate=(v:string)=>new Date(v).toLocaleString("en-IN",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
  const itemMap=useMemo(()=>{const m=new Map<number,Item[]>();for(const x of items){const a=m.get(x.order_id)||[];a.push(x);m.set(x.order_id,a)}return m},[items]);
+ useEffect(()=>{if(typeof Notification!=="undefined"&&Notification.permission==="granted")setAlerts(true)},[]);
+ useEffect(()=>{if(!message)return;const t=window.setTimeout(()=>setMessage(""),6000);return()=>window.clearTimeout(t)},[message]);
+ async function enableAlerts(){
+  if(typeof Notification==="undefined")return;
+  const permission=await Notification.requestPermission();
+  setAlerts(permission==="granted");
+ }
  useEffect(()=>{if(!document.getElementById("razorpay-orders-script")){const s=document.createElement("script");s.id="razorpay-orders-script";s.src="https://checkout.razorpay.com/v1/checkout.js";s.async=true;document.body.appendChild(s)}},[]);
  if(loading)return <main className="page"><div className="loading">Loading your orders…</div><style jsx>{css}</style></main>;
  return <main className="page"><style jsx>{css}</style>
-  <header><Link href="/account" className="brand">Dine<span>Up</span></Link><div className="navRight"><span className={live?"live":"live off"}>● {live?"Live updates":"Connecting…"}</span><Link href="/marketplace" className="secondary">Marketplace</Link><button className="secondary" onClick={()=>void load(true)} disabled={refreshing}>{refreshing?"Refreshing…":"↻ Refresh"}</button></div></header>
+  <header><Link href="/account" className="brand">Dine<span>Up</span></Link><div className="navRight"><span className={live?"live":"live off"}>● {live?"Live updates":"Connecting…"}</span>{!alerts&&<button className="secondary" onClick={()=>void enableAlerts()}>Enable alerts</button>}<Link href="/marketplace" className="secondary">Marketplace</Link><button className="secondary" onClick={()=>void load(true)} disabled={refreshing}>{refreshing?"Refreshing…":"↻ Refresh"}</button></div></header>
   <div className="shell"><div className="heading"><div><small>YOUR DINEUP ORDERS</small><h1>Order history</h1><p>Track your orders, payment status and what happens next.</p></div><Link href="/account" className="secondary">← Account</Link></div>
    {error&&<div className="alert error">{error}</div>}{message&&<div className="alert success">{message}</div>}
    {!orders.length?<section className="empty"><div>🍽️</div><h2>No orders yet</h2><p>Your paid DineUp orders will appear here.</p><Link href="/marketplace" className="primary">Discover restaurants →</Link></section>:
