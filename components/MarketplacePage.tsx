@@ -1,3 +1,4 @@
+import Image from "next/image";
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -171,7 +172,7 @@ export default function MarketplacePage(){
         <div className="heroPanel">
           <div className="panelTop"><span>🔥 Trending near you</span><b>{restaurants.length || "—"} places</b></div>
           {top.slice(0,2).map((r,heroIndex)=>{const coverImageUrl=imageUrl(r.profile?.cover_image_url);return <Link className="heroRestaurant" key={r.id} href={`/restaurant/${r.id}`} aria-label={`View ${r.name}`} onClick={()=>trackRestaurantView(r)}>
-            {coverImageUrl?<img src={coverImageUrl} alt="" fetchPriority={heroIndex === 0 ? "high" : "auto"} decoding="async"/>:<div className="heroThumb">{r.name.slice(0,1).toUpperCase()}</div>}
+            {coverImageUrl?<Image src={coverImageUrl} alt="" width={720} height={480} sizes="(max-width: 900px) 100vw, 50vw" priority={heroIndex === 0} />:<div className="heroThumb">{r.name.slice(0,1).toUpperCase()}</div>}
             <div><strong>{r.name}</strong><span>{r.city} · {r.category}</span><small>{r.claim_status==="verified"?"✓ Verified":"Open for bidding"} <b>→</b></small></div>
           </Link>})}
           {top.length===0&&!loading&&<div className="heroEmpty">Restaurants will appear here as they go live.</div>}
@@ -192,7 +193,7 @@ export default function MarketplacePage(){
         <div className="sectionHeader"><div><span className="sectionKicker">POPULAR IN TOP CITIES</span><h2>Restaurants worth discovering</h2><p>Explore sample marketplace listings across India and see where owner bidding is open.</p></div><button type="button" className="textLink" onClick={()=>document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}>See all <span>→</span></button></div>
         <div className="popularGrid">{featured.map((r,i)=>{const coverImageUrl=imageUrl(r.profile?.cover_image_url);return <article className="popularCard" key={r.id}>
           <Link className="popularCardMain" aria-label={`View ${r.name}`} href={`/restaurant/${r.id}`} onClick={()=>trackRestaurantView(r)}>
-            {coverImageUrl?<img src={coverImageUrl} alt="" loading="lazy" decoding="async"/>:<div className="popularPlaceholder">{r.name.slice(0,1).toUpperCase()}</div>}
+            {coverImageUrl?<Image src={coverImageUrl} alt="" width={720} height={480} sizes="(max-width: 900px) 100vw, 33vw" loading="lazy" />:<div className="popularPlaceholder">{r.name.slice(0,1).toUpperCase()}</div>}
             <div className="popularOverlay"></div><div className="popularInfo"><div className="popularTag">{r.claim_status==="verified"?"✓ VERIFIED":"OPEN FOR BIDDING"}</div><strong>{r.name}</strong><span>{r.city} · {r.category}</span></div><b className="popularArrow">↗</b>
           </Link>
           <button type="button" className={`favoriteBtn ${favoriteIds.has(r.id)?"saved":""}`} aria-label={favoriteIds.has(r.id)?"Remove from favourites":"Save restaurant"} onClick={()=>void toggleFavorite(r)}>{favoriteIds.has(r.id)?"♥":"♡"}</button>
@@ -257,7 +258,7 @@ export default function MarketplacePage(){
           </div></div></article>})}</div></>}
 
         <div className="allHead"><div><span className="sectionKicker">ALL RESTAURANTS</span><h2>Explore the marketplace</h2></div></div>
-        <div className="list">{sorted.slice(3).map(r=>{const logoImageUrl=imageUrl(r.profile?.logo_image_url);return <Link className="listItem" key={r.id} href={`/restaurant/${r.id}`} onClick={()=>trackRestaurantView(r)}><div className="miniLogo">{logoImageUrl?<img src={logoImageUrl} alt="" loading="lazy" decoding="async"/>:r.name.slice(0,1)}</div><div className="listInfo"><strong>{r.name}</strong><span>{r.city} · {r.category}</span></div><div className="listBid"><span>Live bid</span><b>{money(r.current_bid)}</b></div><span className="arrow">→</span></Link>})}
+        <div className="list">{sorted.slice(3).map(r=>{const logoImageUrl=imageUrl(r.profile?.logo_image_url);return <Link className="listItem" key={r.id} href={`/restaurant/${r.id}`} onClick={()=>trackRestaurantView(r)}><div className="miniLogo">{logoImageUrl?<Image src={logoImageUrl} alt="" width={48} height={48} sizes="48px" loading="lazy" />:r.name.slice(0,1)}</div><div className="listInfo"><strong>{r.name}</strong><span>{r.city} · {r.category}</span></div><div className="listBid"><span>Live bid</span><b>{money(r.current_bid)}</b></div><span className="arrow">→</span></Link>})}
         {filtered.length===0&&<div className="empty" role="status" aria-live="polite"><div aria-hidden="true">⌕</div><h3>No restaurants found</h3><p>Try another city, cuisine or search term.</p><button type="button" onClick={()=>{setSearch("");setCategory("All");setCity("All")}}>Clear filters</button></div>}</div>
       </>}
     </section>
