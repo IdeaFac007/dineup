@@ -51,7 +51,7 @@ const statusClass: Record<string, string> = {
 const nextActions: Record<string, { status: string; label: string }[]> = {
   pending: [
     { status: "accepted", label: "Accept order" },
-    { status: "rejected", label: "Reject" },
+    { status: "cancelled", label: "Reject / cancel" },
   ],
   accepted: [
     { status: "preparing", label: "Start preparing" },
@@ -105,7 +105,7 @@ export default function RestaurantOrdersPage() {
 
       const { data: orderData, error: orderError } = await supabase
         .from("orders")
-        .select("id,order_number,status,payment_status,fulfillment_type,total_amount,customer_note,created_at,updated_at")
+        .select("id,order_number,status,payment_status,fulfillment_type,total_amount,customer_note,refund_status,refund_amount,created_at,updated_at")
         .eq("restaurant_id", restaurantId)
         .order("created_at", { ascending: false })
         .limit(50);
