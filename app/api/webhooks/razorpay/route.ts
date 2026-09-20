@@ -174,6 +174,51 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Invalid refund payload." }, { status: 400 });
       }
 
+      const { data: customerOrder, error: customerOrderError } = await admin
+        .from("orders")
+        .select("id,total_amount,payment_status,razorpay_payment_id,razorpay_refund_id")
+        .eq("razorpay_payment_id", paymentId)
+        .maybeSingle();
+
+      if (customerOrderError) {
+        console.error("Customer order refund lookup error:", customerOrderError);
+        return NextResponse.json({ error: "Unable to reconcile customer order refund." }, { status: 500 });
+      }
+
+      if (customerOrder) {
+        const refundAmount = amountPaise / 100;
+        if (refundAmount > Number(customerOrder.total_amount)) {
+          return NextResponse.json({ error: "Refund amount exceeds customer order total." }, { status: 400 });
+        }
+
+        const update: Record<string, unknown> = {
+          razorpay_refund_id: refundId,
+          refund_status: refundStatus === "pending" ? "requested" : refundStatus,
+          refund_amount: refundAmount,
+          refund_error: refundStatus === "failed" ? String(refund?.error_description || refund?.error_reason || "Refund failed").slice(0, 500) : null,
+        };
+
+        if (refundStatus === "processed") {
+          update.payment_status = "refunded";
+          update.refunded_at = new Date().toISOString();
+        } else if (refundStatus === "failed") {
+          update.payment_status = customerOrder.payment_status === "refunded" ? "refunded" : "paid";
+          update.refunded_at = null;
+        }
+
+        const { error: customerRefundError } = await admin
+          .from("orders")
+          .update(update)
+          .eq("id", customerOrder.id);
+
+        if (customerRefundError) {
+          console.error("Customer order refund update error:", customerRefundError);
+          return NextResponse.json({ error: "Unable to record customer order refund." }, { status: 500 });
+        }
+
+        return NextResponse.json({ received: true, customerOrderRefundRecorded: true });
+      }
+
       const { data: bid, error: bidError } = await admin
         .from("bids")
         .select("id, amount, razorpay_payment_id")
