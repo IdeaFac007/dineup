@@ -96,7 +96,7 @@ export default function LeaderboardSection({ restaurants }: Props) {
         </div>
         <div className="leaderboardNote"><span>●</span><p>Rank is calculated consistently by current bid, with restaurant ID used as the tie-breaker. This keeps city and India positions stable.</p></div>
       </div>
-      <style jsx>{`
+      <style>{`
         .leaderboardSection{background:#f8f5ef;border-top:1px solid #eee7dd;border-bottom:1px solid #eee7dd;padding:58px 0 62px}
         .leaderboardWrap{width:min(1240px,calc(100% - 80px));margin:0 auto}
         .leaderboardHeader{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:24px}
