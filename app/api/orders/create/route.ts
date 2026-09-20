@@ -11,15 +11,15 @@ export async function POST(request: Request) {
     const restaurantId = Number(body.restaurantId);
     const fulfillmentType = String(body.fulfillmentType || "pickup");
     const customerNote = typeof body.customerNote === "string" ? body.customerNote.slice(0, 500) : null;
+    const offerCode = typeof body.offerCode === "string" ? body.offerCode.slice(0, 40).trim() : null;
 
-    if (!Number.isInteger(restaurantId) || restaurantId <= 0) {
-      return NextResponse.json({ error: "Invalid restaurant ID." }, { status: 400 });
-    }
+    if (!Number.isInteger(restaurantId) || restaurantId <= 0) return NextResponse.json({ error: "Invalid restaurant ID." }, { status: 400 });
 
     const { data, error } = await supabase.rpc("create_order_from_cart", {
       p_restaurant_id: restaurantId,
       p_fulfillment_type: fulfillmentType,
       p_customer_note: customerNote,
+      p_offer_code: offerCode,
     });
 
     if (error) {
@@ -28,12 +28,11 @@ export async function POST(request: Request) {
         CART_NOT_FOUND: ["Your cart is empty.", 400],
         CART_EMPTY: ["Your cart is empty or its items are unavailable.", 400],
         INVALID_FULFILLMENT_TYPE: ["Invalid order type.", 400],
+        INVALID_OFFER: ["That offer code is invalid or expired.", 400],
+        OFFER_MIN_ORDER_NOT_MET: ["Your order does not meet the minimum amount for this offer.", 400],
       };
       const match = known[error.message];
-      return NextResponse.json(
-        { error: match?.[0] || "Unable to create your order." },
-        { status: match?.[1] || 400 }
-      );
+      return NextResponse.json({ error: match?.[0] || "Unable to create your order." }, { status: match?.[1] || 400 });
     }
 
     const order = Array.isArray(data) ? data[0] : data;
@@ -45,6 +44,8 @@ export async function POST(request: Request) {
         id: Number(order.id),
         orderNumber: order.order_number,
         restaurantId: Number(order.restaurant_id),
+        subtotal: Number(order.subtotal),
+        discountAmount: Number(order.discount_amount),
         totalAmount: Number(order.total_amount),
         status: order.status,
         paymentStatus: order.payment_status,
