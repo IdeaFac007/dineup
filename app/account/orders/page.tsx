@@ -15,7 +15,7 @@ const steps=["pending","accepted","preparing","ready","completed"];
 export default function CustomerOrdersPage(){
  const router=useRouter(),supabase=createClient();
  const [orders,setOrders]=useState<Order[]>([]),[items,setItems]=useState<Item[]>([]),[restaurants,setRestaurants]=useState<Record<number,Restaurant>>({});
- const [loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[paying,setPaying]=useState<number|null>(null),[error,setError]=useState(""),[message,setMessage]=useState("");
+ const [loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[paying,setPaying]=useState<number|null>(null),[error,setError]=useState(""),[message,setMessage]=useState(""),[live,setLive]=useState(false);
  const load=useCallback(async(refresh=false)=>{
   if(refresh)setRefreshing(true);else setLoading(true);
   setError("");
@@ -39,23 +39,33 @@ export default function CustomerOrdersPage(){
  },[router,supabase]);
  useEffect(()=>{void load()},[load]);
 
+ useEffect(()=>{
+  let channel:any;
+  let cancelled=false;
+  (async()=>{
+   const {data:{user}}=await supabase.auth.getUser();
+   if(cancelled||!user)return;
+   channel=supabase.channel("customer-order-updates")
+    .on("postgres_changes",{event:"UPDATE",schema:"public",table:"orders",filter:"customer_id=eq."+user.id},()=>{
+      void load(true);
+    })
+    .on("postgres_changes",{event:"INSERT",schema:"public",table:"orders",filter:"customer_id=eq."+user.id},()=>{
+      void load(true);
+    })
+    .subscribe((status:string)=>{if(!cancelled)setLive(status==="SUBSCRIBED")});
+  })();
+  return()=>{cancelled=true;if(channel)supabase.removeChannel(channel)};
+ },[load,supabase]);
+
  async function payAgain(order:Order){
   setError("");setMessage("");setPaying(order.id);
   try{
    if(!(window as any).Razorpay)throw new Error("Payment checkout is still loading. Please try again.");
    const r=await fetch("/api/orders/razorpay/create-order",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({orderId:order.id})});
    const d=await r.json();if(!r.ok||!d.success)throw new Error(d.error||"Unable to start payment.");
-   const rz=new (window as any).Razorpay({key:d.keyId,amount:d.amount,currency:d.currency,name:"DineUp",description:"Food order payment",order_id:d.orderId,notes:{dineup_order_id:String(d.customerOrderId),order_number:String(d.orderNumber)},theme:{color:"#111111"},
-    modal:{ondismiss:()=>setPaying(null)},
-    handler:async(response:any)=>{
-     try{
-      const vr=await fetch("/api/orders/razorpay/verify-payment",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({orderId:d.customerOrderId,razorpay_order_id:response.razorpay_order_id,razorpay_payment_id:response.razorpay_payment_id,razorpay_signature:response.razorpay_signature})});
-      const vd=await vr.json();if(!vr.ok||!vd.success)throw new Error(vd.error||"Payment verification failed.");
-      setMessage("Payment verified. Your order is confirmed.");await load(true);
-     }catch(e:any){setError(e.message||"Payment verification failed.")}finally{setPaying(null)}
-    }
-   });
-   rz.on("payment.failed",(response:any)=>{setError(response?.error?.description||"Payment failed. Please try again.");setPaying(null)});rz.open();
+   const rz=new (window as any).Razorpay({key:d.keyId,amount:d.amount,currency:d.currency,name:"DineUp",description:"Food order payment",order_id:d.orderId,notes:{dineup_order_id:String(d.customerOrderId),order_number:String(d.orderNumber)},theme:{color:"#111111"},modal:{ondismiss:()=>setPaying(null)},handler:async(response:any)=>{
+    try{const vr=await fetch("/api/orders/razorpay/verify-payment",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({orderId:d.customerOrderId,razorpay_order_id:response.razorpay_order_id,razorpay_payment_id:response.razorpay_payment_id,razorpay_signature:response.razorpay_signature})});const vd=await vr.json();if(!vr.ok||!vd.success)throw new Error(vd.error||"Payment verification failed.");setMessage("Payment verified. Your order is confirmed.");await load(true)}catch(e:any){setError(e.message||"Payment verification failed")}finally{setPaying(null)}}
+   });rz.on("payment.failed",(response:any)=>{setError(response?.error?.description||"Payment failed. Please try again.");setPaying(null)});rz.open();
   }catch(e:any){setError(e.message||"Unable to start payment.");setPaying(null)}
  }
  const formatMoney=(n:number)=>`₹${Number(n||0).toLocaleString("en-IN")}`;
@@ -64,9 +74,8 @@ export default function CustomerOrdersPage(){
  useEffect(()=>{if(!document.getElementById("razorpay-orders-script")){const s=document.createElement("script");s.id="razorpay-orders-script";s.src="https://checkout.razorpay.com/v1/checkout.js";s.async=true;document.body.appendChild(s)}},[]);
  if(loading)return <main className="page"><div className="loading">Loading your orders…</div><style jsx>{css}</style></main>;
  return <main className="page"><style jsx>{css}</style>
-  <header><Link href="/account" className="brand">Dine<span>Up</span></Link><div className="navRight"><Link href="/marketplace" className="secondary">Marketplace</Link><button className="secondary" onClick={()=>void load(true)} disabled={refreshing}>{refreshing?"Refreshing…":"↻ Refresh"}</button></div></header>
-  <div className="shell">
-   <div className="heading"><div><small>YOUR DINEUP ORDERS</small><h1>Order history</h1><p>Track your orders, payment status and what happens next.</p></div><Link href="/account" className="secondary">← Account</Link></div>
+  <header><Link href="/account" className="brand">Dine<span>Up</span></Link><div className="navRight"><span className={live?"live":"live off"}>● {live?"Live updates":"Connecting…"}</span><Link href="/marketplace" className="secondary">Marketplace</Link><button className="secondary" onClick={()=>void load(true)} disabled={refreshing}>{refreshing?"Refreshing…":"↻ Refresh"}</button></div></header>
+  <div className="shell"><div className="heading"><div><small>YOUR DINEUP ORDERS</small><h1>Order history</h1><p>Track your orders, payment status and what happens next.</p></div><Link href="/account" className="secondary">← Account</Link></div>
    {error&&<div className="alert error">{error}</div>}{message&&<div className="alert success">{message}</div>}
    {!orders.length?<section className="empty"><div>🍽️</div><h2>No orders yet</h2><p>Your paid DineUp orders will appear here.</p><Link href="/marketplace" className="primary">Discover restaurants →</Link></section>:
    <div className="orders">{orders.map(order=>{const r=restaurants[order.restaurant_id],its=itemMap.get(order.id)||[],isTerminal=["completed","rejected","cancelled"].includes(order.status),unpaid=order.payment_status!=="paid";const active=Math.max(0,steps.indexOf(order.status));return <article className="order" key={order.id}>
@@ -79,4 +88,6 @@ export default function CustomerOrdersPage(){
   </div>
  </main>
 }
-const css=`*{box-sizing:border-box}.page{min-height:100vh;background:#f7f5f0;color:#171717;padding:28px max(18px,calc((100% - 1120px)/2));font-family:Arial,sans-serif}header{display:flex;justify-content:space-between;align-items:center}.brand{font-size:23px;font-weight:900;color:#171717;text-decoration:none}.brand span{color:#ed650c}.navRight{display:flex;gap:9px}.secondary,.primary{border:1px solid #ddd7ce;background:#fff;color:#222;text-decoration:none;border-radius:10px;padding:10px 14px;font-size:11px;font-weight:800;cursor:pointer}.primary{background:#111;color:#fff;border-color:#111}.secondary:disabled,.primary:disabled{opacity:.5}.shell{max-width:1120px;margin:auto;padding:55px 0 70px}.heading{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-bottom:25px}.heading small{font-size:9px;letter-spacing:.17em;font-weight:900;color:#8a8177}.heading h1{font-size:48px;letter-spacing:-.05em;margin:8px 0}.heading p{color:#777;font-size:13px}.alert{padding:12px;border-radius:10px;margin-bottom:12px;font-size:12px}.error{background:#fff0f0;color:#9d2222}.success{background:#effaf2;color:#176b35}.orders{display:grid;gap:15px}.order{background:#fff;border:1px solid #e4dfd7;border-radius:18px;padding:22px;box-shadow:0 8px 28px rgba(45,30,15,.05)}.orderTop{display:flex;justify-content:space-between;gap:20px}.eyebrow{font-size:10px;font-weight:900;letter-spacing:.12em;color:#888}.order h2{font-size:20px;margin:6px 0}.orderTop small{font-size:11px;color:#777}.amount{display:grid;align-content:start;justify-items:end;gap:7px}.amount strong{font-size:21px}.amount span{font-size:9px;font-weight:900;letter-spacing:.07em;text-transform:uppercase;padding:6px 9px;border-radius:999px}.paid{background:#edf9f1;color:#1b6d39}.unpaid{background:#fff1f1;color:#a42323}.statusTrack{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:23px 0 17px;position:relative}.statusTrack:before{content:"";position:absolute;left:8%;right:8%;top:12px;height:2px;background:#e5e2dc}.trackStep{position:relative;z-index:1;display:grid;justify-items:center;gap:7px;text-align:center}.trackStep i{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;background:#e9e7e2;color:#888;font-style:normal;font-size:10px;font-weight:900}.trackStep.done i{background:#111;color:#fff}.trackStep span{font-size:9px;color:#888}.trackStep.done span{color:#222;font-weight:800}.closed{padding:10px;border-radius:9px;background:#faf1f1;color:#8a3c3c;font-size:11px}.items{border-top:1px solid #eee8df;margin-top:15px}.items>div{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee8df;font-size:11px}.items strong{font-size:12px}.orderBottom{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-top:14px;color:#888;font-size:10px}.empty{background:#fff;border:1px solid #e4dfd7;border-radius:18px;padding:60px 25px;text-align:center}.empty>div{font-size:40px}.empty h2{margin:12px 0 5px}.empty p{color:#777;font-size:12px;margin-bottom:20px}.loading{min-height:80vh;display:grid;place-items:center;color:#777;font-weight:700}@media(max-width:650px){.page{padding:20px 14px}.shell{padding:38px 0}.heading{align-items:flex-start;flex-direction:column}.heading h1{font-size:38px}.order{padding:16px}.orderTop{align-items:flex-start}.amount{justify-items:end}.statusTrack span{font-size:8px}.orderBottom{align-items:flex-start;flex-direction:column}.orderBottom .primary{width:100%}}`;
+const css=`
+*{box-sizing:border-box}.page{min-height:100vh;background:#f5f6f7;color:#111;font-family:Arial,sans-serif;padding:28px 18px}.page header{width:min(100%,1120px);margin:auto;display:flex;justify-content:space-between;align-items:center;gap:15px}.brand{font-size:25px;font-weight:900;color:#111;text-decoration:none}.brand span{color:#777}.navRight{display:flex;align-items:center;gap:9px}.live{font-size:10px;font-weight:800;color:#16834a}.live.off{color:#888}.secondary{border:1px solid #ddd;border-radius:9px;background:#fff;color:#333;padding:9px 12px;text-decoration:none;font-size:11px;font-weight:800;cursor:pointer}.shell{width:min(100%,1120px);margin:35px auto}.heading{display:flex;justify-content:space-between;align-items:end;gap:15px;margin-bottom:18px}.heading small{font-size:9px;letter-spacing:2px;font-weight:900;color:#777}.heading h1{font-size:38px;margin:7px 0}.heading p{color:#777;font-size:13px}.alert{padding:11px;border-radius:10px;font-size:11px;margin-bottom:12px}.error{background:#fff0f0;color:#a22}.success{background:#eefaf3;color:#176b3c}.orders{display:grid;gap:14px}.order{background:#fff;border:1px solid #e5e5e5;border-radius:18px;padding:20px}.orderTop{display:flex;justify-content:space-between;gap:15px}.eyebrow{font-size:9px;letter-spacing:1.5px;color:#777;font-weight:900}.order h2{font-size:20px;margin:5px 0}.orderTop small{color:#777;font-size:10px}.amount{text-align:right;display:grid;align-content:start;gap:5px}.amount strong{font-size:20px}.paid,.unpaid{font-size:9px;font-weight:900}.paid{color:#16834a}.unpaid{color:#a66b00}.statusTrack{display:grid;grid-template-columns:repeat(5,1fr);margin:22px 0;gap:5px}.trackStep{text-align:center;color:#999;font-size:9px;font-weight:800}.trackStep i{display:grid;place-items:center;width:25px;height:25px;margin:0 auto 6px;border:1px solid #ddd;border-radius:50%;font-style:normal}.trackStep.done{color:#111}.trackStep.done i{background:#111;color:#fff;border-color:#111}.closed{padding:10px;background:#fff6f6;color:#9b3333;border-radius:8px;font-size:10px}.items{border-top:1px solid #eee}.items>div{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee;font-size:11px}.orderBottom{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:14px;color:#777;font-size:10px}.primary{border:0;border-radius:9px;background:#111;color:#fff;padding:10px 13px;font-weight:900;font-size:10px;cursor:pointer;text-decoration:none}.empty{text-align:center;background:#fff;border:1px solid #e5e5e5;border-radius:18px;padding:60px 20px}.empty>div{font-size:35px}.empty h2{margin:10px 0}.empty p{color:#777;font-size:12px}.empty .primary{display:inline-block;margin-top:10px}@media(max-width:700px){.page{padding:18px 12px}.page header{align-items:flex-start}.navRight{flex-wrap:wrap;justify-content:flex-end}.heading{align-items:flex-start}.heading h1{font-size:30px}.statusTrack{gap:0}.trackStep span{font-size:8px}.orderBottom{align-items:flex-end;flex-direction:column}.primary{width:100%}}
+`;
