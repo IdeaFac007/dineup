@@ -37,11 +37,52 @@ export default function CheckoutPage(){
  async function placeOrder(){
   setError("");setPlacing(true);
   try{
-   const res=await fetch("/api/orders/create",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({restaurantId,fulfillmentType:type,customerNote:note})});
-   const data=await res.json();
-   if(!res.ok)throw new Error(data.error||"Unable to place order.");
-   router.replace("/account?order="+encodeURIComponent(data.order.orderNumber));
-  }catch(e:any){setError(e.message||"Unable to place order.");setPlacing(false)}
+   if(!window.Razorpay)throw new Error("Razorpay Checkout is still loading. Please wait a moment and try again.");
+
+   const orderResponse=await fetch("/api/orders/create",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({restaurantId,fulfillmentType:type,customerNote:note})});
+   const orderData=await orderResponse.json();
+   if(!orderResponse.ok||!orderData.order)throw new Error(orderData.error||"Unable to place order.");
+
+   const paymentResponse=await fetch("/api/orders/razorpay/create-order",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({orderId:orderData.order.id})});
+   const paymentData=await paymentResponse.json();
+   if(!paymentResponse.ok||!paymentData.success)throw new Error(paymentData.error||"Unable to start payment.");
+
+   const options={
+    key:paymentData.keyId,
+    amount:paymentData.amount,
+    currency:paymentData.currency,
+    name:"DineUp",
+    description:"Food order payment",
+    order_id:paymentData.orderId,
+    notes:{dineup_order_id:String(paymentData.customerOrderId),order_number:String(paymentData.orderNumber)},
+    theme:{color:"#111111"},
+    modal:{ondismiss:()=>{setPlacing(false);setError("Payment cancelled. You can try again from your order.");}},
+    handler:async(response:any)=>{
+     try{
+      setError("");
+      const verifyResponse=await fetch("/api/orders/razorpay/verify-payment",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({
+       orderId:paymentData.customerOrderId,
+       razorpay_order_id:response.razorpay_order_id,
+       razorpay_payment_id:response.razorpay_payment_id,
+       razorpay_signature:response.razorpay_signature
+      })});
+      const verifyData=await verifyResponse.json();
+      if(!verifyResponse.ok||!verifyData.success)throw new Error(verifyData.error||"Payment verification failed.");
+      router.replace("/account?order="+encodeURIComponent(verifyData.orderNumber||paymentData.orderNumber));
+     }catch(e:any){
+      setError(e.message||"Payment verification failed. If money was deducted, please wait while we reconcile the payment.");
+      setPlacing(false);
+     }
+    }
+   };
+
+   const razorpay=new window.Razorpay(options);
+   razorpay.on("payment.failed",(response:any)=>{
+    setError(response?.error?.description||"Payment failed. Please try again.");
+    setPlacing(false);
+   });
+   razorpay.open();
+  }catch(e:any){setError(e.message||"Unable to start payment.");setPlacing(false)}
  }
  if(loading)return <main className="checkout"><div className="shell">Loading checkout…</div><style jsx>{css}</style></main>;
  if(!restaurant||!items.length)return <main className="checkout"><div className="shell card"><h1>Your cart is empty.</h1><p>Add items from the restaurant menu before checkout.</p><Link href={Number.isFinite(restaurantId)?"/restaurant/"+restaurantId:"/marketplace"}>← Back to restaurant</Link></div><style jsx>{css}</style></main>;
