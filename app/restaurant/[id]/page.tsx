@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 import { safeExternalUrl } from "../../../lib/external-url";
 import { googleMapsDirectionsUrl, safeGoogleMapsUrl } from "../../../lib/google-maps";
+import RestaurantMenuOrder from "../../../components/RestaurantMenuOrder";
 
 type ClaimStatus = ""|"verified"|"verification_pending"|"unclaimed"|"claimed";
 type Restaurant = { id:number; name:string; city:string; category:string; address:string|null; current_bid:number; is_claimed:boolean; claim_status:ClaimStatus };
