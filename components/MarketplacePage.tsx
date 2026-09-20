@@ -84,9 +84,24 @@ export default function MarketplacePage(){
   const sorted=useMemo(()=>{
     const rows=[...filtered];
     if(sort==="bid") rows.sort((a,b)=>Number(b.current_bid||0)-Number(a.current_bid||0));
-    if(sort==="name") rows.sort((a,b)=>a.name.localeCompare(b.name));
+    else if(sort==="name") rows.sort((a,b)=>a.name.localeCompare(b.name));
+    else {
+      let recentIds:number[]=[];
+      try{ recentIds=JSON.parse(localStorage.getItem("dineup_recently_viewed")||"[]") as number[]; }catch{}
+      const recentRank=new Map(recentIds.map((id,index)=>[Number(id),recentIds.length-index]));
+      const favoriteRank=new Map([...favoriteIds].map(id=>[Number(id),1]));
+      rows.sort((a,b)=>{
+        const score=(r:Restaurant)=>
+          (favoriteRank.get(r.id)||0)*40+
+          (recentRank.get(r.id)||0)*8+
+          (r.claim_status==="verified"?18:0)+
+          Math.min(Number(r.current_bid||0)/100,15);
+        const diff=score(b)-score(a);
+        return diff||a.name.localeCompare(b.name);
+      });
+    }
     return rows;
-  },[filtered,sort]);
+  },[filtered,sort,favoriteIds]);
 
   const top=sorted.slice(0,3);
   const featured=sorted.slice(0,6);
