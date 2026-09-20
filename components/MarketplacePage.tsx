@@ -18,7 +18,7 @@ const popularCities=["Lucknow","Delhi","Mumbai","Bengaluru","Hyderabad","Pune","
 
 export default function MarketplacePage(){
   const router=useRouter();
-  const supabase=createClient();
+  const supabase=useMemo(()=>createClient(),[]);
   const [user,setUser]=useState<any>(null);
   const [favoriteIds,setFavoriteIds]=useState<Set<number>>(new Set());
   const [restaurants,setRestaurants]=useState<Restaurant[]>([]);
