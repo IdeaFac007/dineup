@@ -7,6 +7,7 @@ import { createClient } from "../lib/supabase/client";
 import { trackMarketingEvent } from "../lib/marketing-attribution";
 import { googleMapsSearchUrl, safeGoogleMapsUrl } from "../lib/google-maps";
 import { safeExternalUrl } from "../lib/external-url";
+import LeaderboardSection from "./LeaderboardSection";
 
 type Profile={phone:string|null;whatsapp:string|null;website_url:string|null;google_maps_url:string|null;description:string|null;price_range:string|null;menu_url:string|null;cover_image_url:string|null;logo_image_url:string|null;cuisine_tags:string[]|null};
 type Restaurant={id:number;name:string;city:string;category:string;address:string|null;current_bid:number|null;is_claimed:boolean|null;claim_status:string;profile?:Profile|null};
@@ -205,6 +206,8 @@ export default function MarketplacePage(){
         <div className="cuisineRow">{categories.filter(c=>c!=="All").slice(0,8).map(c=><button type="button" key={c} className="cuisineChip" onClick={()=>{setCategory(c);document.getElementById("restaurants")?.scrollIntoView({behavior:"smooth"})}}><span>{({ "North Indian":"🍛","Chinese":"🥟","Fast Food":"🍔","South Indian":"🥘","Cafe":"☕","Desserts":"🍰","Fine Dining":"🍽️","Continental":"🥗"} as Record<string,string>)[c]||"🍴"}</span><strong>{c}</strong><i>→</i></button>)}</div>
       </div>
     </section>
+
+    <LeaderboardSection restaurants={restaurants} />
 
     <section className="citySection">
       <div className="sectionWrap">
