@@ -55,7 +55,8 @@ export default async function DineUpHub(){
       </div>
       <section className="loyalty"><div><small>DINEUP REWARDS</small><strong>{points.toLocaleString("en-IN")} points</strong><p>Keep your eligible DineUp rewards in one place.</p></div><Link href="/account/loyalty">Open rewards →</Link></section>
       <section className="panel" style={{marginTop:14}}><div className="panelHead"><h2>Saved restaurants</h2><Link href="/account">Manage favourites →</Link></div>{favoriteIds.length?<div className="favorites">{favoriteIds.slice(0,6).map(id=>{const x=restaurantMap.get(id);return x?<Link className="favorite" key={id} href={`/restaurant/${id}`}><b>{x.name}</b><span>{x.city} · {x.category}</span></Link>:null})}</div>:<div className="empty">Save restaurants from the marketplace and they will appear here.</div>}</section>
-      <div className="bottom"><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/restaurant/apply">Partner with DineUp</Link></div>\n      <nav className="mobileNav" aria-label="DineUp mobile navigation"><Link href="/marketplace">⌂<br/>Discover</Link><Link href="/account/orders">▣<br/>Orders</Link><Link href="/account/reservations">◷<br/>Bookings</Link><Link href="/account">●<br/>Account</Link></nav>
+      <div className="bottom"><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/restaurant/apply">Partner with DineUp</Link></div>
+      <nav className="mobileNav" aria-label="DineUp mobile navigation"><Link href="/marketplace">⌂<br/>Discover</Link><Link href="/account/orders">▣<br/>Orders</Link><Link href="/account/reservations">◷<br/>Bookings</Link><Link href="/account">●<br/>Account</Link></nav>
     </div>
   </main>;
 }
