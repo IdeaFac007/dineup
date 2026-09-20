@@ -8,6 +8,7 @@ import { createClient } from "../../../lib/supabase/client";
 import { safeExternalUrl } from "../../../lib/external-url";
 import { googleMapsDirectionsUrl, safeGoogleMapsUrl } from "../../../lib/google-maps";
 import RestaurantMenuOrder from "../../../components/RestaurantMenuOrder";
+import RestaurantReservation from "../../../components/RestaurantReservation";
 import RestaurantReviews from "../../../components/RestaurantReviews";
 
 type ClaimStatus = ""|"verified"|"verification_pending"|"unclaimed"|"claimed";
