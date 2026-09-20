@@ -6,7 +6,6 @@ import { useParams, useRouter } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 
 type Item={id:number;name:string;price:number;quantity:number;lineTotal:number};
-declare global { interface Window { Razorpay?: new (options: Record<string, unknown>) => { open: () => void }; } }
 export default function CheckoutPage(){
  const params=useParams<{restaurantId:string}>(),router=useRouter(),supabase=createClient();
  const restaurantId=Number(params.restaurantId);
