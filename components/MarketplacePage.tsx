@@ -286,8 +286,8 @@ export default function MarketplacePage(){
           <h2>Put your restaurant<br/><em>in front of hungry diners.</em></h2>
           <p>Join DineUp, showcase your restaurant, and connect directly with customers looking for their next favourite place.</p>
           <div className="ownerCtaActions">
-            <Link href="/restaurant/apply" className="ownerPrimary">List your restaurant <span>→</span></Link>
-            <a href="#how" className="ownerSecondary">See how DineUp works</a>
+            <Link href="/restaurant/claim" className="ownerPrimary">Already listed? Claim it <span>→</span></Link>
+            <Link href="/restaurant/apply" className="ownerSecondary">List a new restaurant →</Link>
           </div>
         </div>
         <div className="ownerCtaVisual">
