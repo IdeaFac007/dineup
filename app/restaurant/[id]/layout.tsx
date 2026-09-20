@@ -103,12 +103,19 @@ export async function generateMetadata({
 
   try {
     const supabase = await createClient();
-    const { data: restaurant } = await supabase
-      .from("restaurants")
-      .select("id,name,city,category,address")
-      .eq("id", restaurantId)
-      .eq("is_active", true)
-      .maybeSingle();
+    const [{ data: restaurant }, { data: profile }] = await Promise.all([
+      supabase
+        .from("restaurants")
+        .select("id,name,city,category,address")
+        .eq("id", restaurantId)
+        .eq("is_active", true)
+        .maybeSingle(),
+      supabase
+        .from("restaurant_profiles")
+        .select("description,cover_image_url,logo_image_url,phone,website_url,menu_url,google_maps_url,instagram_url,price_range,cuisine_tags,opening_hours")
+        .eq("restaurant_id", restaurantId)
+        .maybeSingle(),
+    ]);
 
     if (!restaurant) {
       return {
@@ -117,12 +124,6 @@ export async function generateMetadata({
         robots: { index: false, follow: false },
       };
     }
-
-    const { data: profile } = await supabase
-      .from("restaurant_profiles")
-      .select("description,cover_image_url,logo_image_url,phone,website_url,menu_url,google_maps_url,instagram_url,price_range,cuisine_tags,opening_hours")
-      .eq("restaurant_id", restaurantId)
-      .maybeSingle();
 
     const row = restaurant as RestaurantPageData;
     const profileRow = (profile || {}) as ProfileData;
