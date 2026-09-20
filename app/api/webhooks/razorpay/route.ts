@@ -65,11 +65,15 @@ export async function POST(request: Request) {
           if (customerOrder.payment_status === "paid") {
             return NextResponse.json({ received: true, alreadyProcessed: true });
           }
-          await admin.from("orders").update({
+          const { error: failureUpdateError } = await admin.from("orders").update({
             payment_status: "failed",
             razorpay_payment_id: paymentId,
             payment_error: String(payment?.error_description || payment?.error_code || "Payment failed").slice(0, 500),
           }).eq("id", customerOrder.id);
+          if (failureUpdateError) {
+            console.error("Customer order payment failure update error:", failureUpdateError);
+            return NextResponse.json({ error: "Unable to record customer order payment failure." }, { status: 500 });
+          }
           return NextResponse.json({ received: true, customerOrderFailureRecorded: true });
         }
 
@@ -100,7 +104,7 @@ export async function POST(request: Request) {
           razorpay_payment_id: paymentId,
           paid_at: new Date().toISOString(),
           payment_error: null,
-        }).eq("id", customerOrder.id).eq("payment_status", "pending");
+        }).eq("id", customerOrder.id).in("payment_status", ["pending", "failed"]);
 
         if (customerPaidError) {
           console.error("Customer order payment update error:", customerPaidError);
