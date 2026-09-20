@@ -12,9 +12,9 @@ export default function ClaimRestaurantPage(){
   const id=Number(params?.id); const supabase=createClient();
   const [restaurant,setRestaurant]=useState<Restaurant|null>(null);
   const [user,setUser]=useState<any>(null); const [ownerName,setOwnerName]=useState(""); const [phone,setPhone]=useState("");
-  const [message,setMessage]=useState(""); const [loading,setLoading]=useState(true); const [submitting,setSubmitting]=useState(false); const [error,setError]=useState(""); const [success,setSuccess]=useState(false);
+  const [message,setMessage]=useState(""); const [googleMapsUrl,setGoogleMapsUrl]=useState(""); const [loading,setLoading]=useState(true); const [submitting,setSubmitting]=useState(false); const [error,setError]=useState(""); const [success,setSuccess]=useState(false);
 
-  useEffect(()=>{(async()=>{
+  useEffect(()=>{ try { const value=new URLSearchParams(window.location.search).get("google_maps_url")||""; if(value) setGoogleMapsUrl(value); } catch {} (async()=>{
     if(!Number.isFinite(id)||id<=0){setError("Invalid restaurant.");setLoading(false);return;}
     const [{data:{user:u}},{data:r,error:e}]=await Promise.all([
       supabase.auth.getUser(),
@@ -30,7 +30,7 @@ export default function ClaimRestaurantPage(){
     if(!user){router.push("/restaurant/login?next=/restaurant/claim/"+id);return;}
     if(!ownerName.trim()){setError("Please enter the owner name.");return;}
     setSubmitting(true);
-    const {error:e}=await supabase.rpc("request_restaurant_claim",{p_restaurant_id:id,p_owner_name:ownerName.trim(),p_phone:phone.trim()||null,p_message:message.trim()||null});
+    const maps=googleMapsUrl.trim(); const combinedMessage=[message.trim(),maps?`Google Maps listing: ${maps}`:""].filter(Boolean).join("\n\n"); const {error:e}=await supabase.rpc("request_restaurant_claim",{p_restaurant_id:id,p_owner_name:ownerName.trim(),p_phone:phone.trim()||null,p_message:combinedMessage||null});
     if(e){setError(e.message);setSubmitting(false);return;}
     setSuccess(true); setSubmitting(false);
   }
