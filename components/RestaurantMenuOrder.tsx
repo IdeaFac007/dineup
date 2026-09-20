@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useRouter } from "next/navigation";
 import { createClient } from "../lib/supabase/client";
 
 type MenuItem = {
