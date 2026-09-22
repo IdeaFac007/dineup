@@ -12,6 +12,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: base, changeFrequency: "daily", priority: 1 },
     { url: `${base}/marketplace`, changeFrequency: "daily", priority: 0.9 },
+    { url: `${base}/ai`, changeFrequency: "daily", priority: 0.8 },
+    { url: `${base}/community`, changeFrequency: "daily", priority: 0.7 },
     { url: `${base}/privacy`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/terms`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/refund-policy`, changeFrequency: "yearly", priority: 0.3 },
@@ -31,10 +33,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
 
     const restaurantRoutes: MetadataRoute.Sitemap = (restaurants || [])
-      .map((restaurant) => Number(restaurant.id))
-      .filter((id) => Number.isInteger(id) && id > 0)
-      .map((id) => ({
-        url: `${base}/restaurant/${id}`,
+      .map((restaurant) => ({ id: Number(restaurant.id), city: String(restaurant.city || "") }))
+      .filter((restaurant) => Number.isInteger(restaurant.id) && restaurant.id > 0)
+      .map((restaurant) => ({
+        url: `${base}/restaurant/${restaurant.id}`,
+        lastModified: new Date(),
         changeFrequency: "weekly" as const,
         priority: 0.6,
       }));
