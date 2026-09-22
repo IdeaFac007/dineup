@@ -22,7 +22,44 @@ export default async function CityPage({params}:{params:Promise<{city:string}>})
    if(!exists && !popularCities.some(c=>slugify(c)===slugify(cityName))) notFound();
  }
  const categories=Array.from(new Set(rows.map((r:any)=>String(r.category||"").trim()).filter(Boolean))).slice(0,8);
+ const pageUrl="https://dineupindia.com/city/"+encodeURIComponent(raw);
+ const citySchema={
+   "@context":"https://schema.org",
+   "@graph":[
+     {
+       "@type":"CollectionPage",
+       "@id":pageUrl+"#webpage",
+       url:pageUrl,
+       name:"Restaurants in "+cityName+" | DineUp",
+       description:"Discover restaurants and places to eat in "+cityName+" on DineUp.",
+       isPartOf:{"@id":"https://dineupindia.com/#website"},
+       about:{"@type":"City","name":cityName},
+       inLanguage:"en-IN"
+     },
+     {
+       "@type":"ItemList",
+       "@id":pageUrl+"#restaurants",
+       name:"Restaurants in "+cityName,
+       numberOfItems:rows.length,
+       itemListElement:rows.slice(0,50).map((r:any,index:number)=>({
+         "@type":"ListItem",
+         position:index+1,
+         name:String(r.name||"Restaurant"),
+         url:"https://dineupindia.com/restaurant/"+r.id
+       }))
+     },
+     {
+       "@type":"BreadcrumbList",
+       "@id":pageUrl+"#breadcrumb",
+       itemListElement:[
+         {"@type":"ListItem",position:1,name:"DineUp Marketplace",item:"https://dineupindia.com/marketplace"},
+         {"@type":"ListItem",position:2,name:cityName,item:pageUrl}
+       ]
+     }
+   ]
+ };
  return <main className="cityPage">
+   <script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(citySchema).replace(/</g,"\\u003c")}} />
    <header className="nav"><Link href="/marketplace" className="brand">Dine<span>Up</span></Link><div className="navLinks"><Link href="/marketplace">Marketplace</Link><Link href="/restaurant/apply">List your restaurant</Link><Link href="/account">Account</Link></div></header>
    <section className="hero"><div className="wrap"><div className="crumb"><Link href="/marketplace">DineUp</Link><span>→</span><span>{cityName}</span></div><span className="kicker">DINEUP IN {cityName.toUpperCase()}</span><h1>Restaurants in <em>{cityName}</em></h1><p>Discover restaurants, cuisines and places to eat in {cityName}. Explore live DineUp listings and connect with restaurants directly.</p><div className="heroStats"><span><b>{rows.length}</b> restaurants</span><span><b>{categories.length}</b> cuisines</span><span><b>Direct</b> restaurant contact</span></div></div></section>
    <section className="content wrap">
