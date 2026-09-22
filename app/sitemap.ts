@@ -22,9 +22,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     const supabase = await createClient();
-    const [{ data: restaurants, error: restaurantError }, { data: cityRows, error: cityError }] = await Promise.all([
+    const [{ data: restaurants, error: restaurantError }, { data: cityRows, error: cityError }, { data: profiles, error: profileError }] = await Promise.all([
       supabase.from("restaurants").select("id,city").eq("is_active", true),
       supabase.from("restaurants").select("city").eq("is_active", true),
+      supabase.from("restaurant_profiles").select("cuisine_tags,restaurant_id"),
     ]);
 
     if (restaurantError) {
@@ -33,11 +34,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
 
     const restaurantRoutes: MetadataRoute.Sitemap = (restaurants || [])
-      .map((restaurant) => ({ id: Number(restaurant.id), city: String(restaurant.city || "") }))
-      .filter((restaurant) => Number.isInteger(restaurant.id) && restaurant.id > 0)
-      .map((restaurant) => ({
-        url: `${base}/restaurant/${restaurant.id}`,
-        lastModified: new Date(),
+      .map((restaurant) => Number(restaurant.id))
+      .filter((id) => Number.isInteger(id) && id > 0)
+      .map((id) => ({
+        url: `${base}/restaurant/${id}`,
         changeFrequency: "weekly" as const,
         priority: 0.6,
       }));
@@ -53,8 +53,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.75,
     }));
 
+    const activeIds = new Set((restaurants || []).map((r) => Number(r.id)));
+    const cuisineSlugs = Array.from(new Set(
+      (profiles || [])
+        .filter((p:any) => activeIds.has(Number(p.restaurant_id)))
+        .flatMap((p:any) => Array.isArray(p.cuisine_tags) ? p.cuisine_tags : [])
+        .map((tag:any) => citySlug(String(tag || "")))
+        .filter(Boolean)
+    ));
+    const cuisineRoutes: MetadataRoute.Sitemap = cuisineSlugs.map((slug) => ({
+      url: `${base}/cuisine/${slug}`,
+      changeFrequency: "weekly" as const,
+      priority: 0.65,
+    }));
+
     if (cityError) console.error("Sitemap city query failed:", cityError);
-    return [...staticRoutes, ...cityRoutes, ...restaurantRoutes];
+    if (profileError) console.error("Sitemap profile query failed:", profileError);
+    return [...staticRoutes, ...cityRoutes, ...cuisineRoutes, ...restaurantRoutes];
   } catch (error) {
     console.error("Sitemap generation failed:", error);
     return staticRoutes;
