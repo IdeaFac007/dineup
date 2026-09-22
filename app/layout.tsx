@@ -9,17 +9,40 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://dineupindia.com"),
-  title: "DineUp — Where Restaurants Rise",
-  description: "Restaurant visibility marketplace for diners and restaurant partners.",
+  title: "DineUp — Discover Restaurants Across India",
+  description: "Discover restaurants, cuisines and places to eat across India. Explore local dining options and restaurant listings on DineUp.",
+  keywords: [
+    "DineUp",
+    "restaurants in India",
+    "restaurant discovery",
+    "restaurants near me",
+    "restaurants in Lucknow",
+    "restaurant marketplace",
+    "find restaurants",
+  ],
+  category: "Food & Dining",
+  applicationName: "DineUp",
+  creator: "DineUp",
+  publisher: "DineUp",
   alternates: { canonical: "/" },
   openGraph: {
-    title: "DineUp — Where Restaurants Rise",
-    description: "Restaurant visibility marketplace for diners and restaurant partners.",
+    title: "DineUp — Discover Restaurants Across India",
+    description: "Discover restaurants, cuisines and places to eat across India. Explore local dining options and restaurant listings on DineUp.",
     url: "https://dineupindia.com",
     siteName: "DineUp",
     type: "website",
   },
-  robots: { index: true, follow: true },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-video-preview": -1,
+      "max-snippet": -1,
+    },
+  },
   icons: {
     icon: "/icon.svg",
     apple: "/icon.svg",
@@ -33,12 +56,24 @@ export const metadata: Metadata = {
 
 const siteSchema = {
   "@context": "https://schema.org",
-  "@type": "WebSite",
+  "@graph": [
+    {
+      "@type": "WebSite",
   "@id": "https://dineupindia.com/#website",
   name: "DineUp",
   url: "https://dineupindia.com/",
   description: "Restaurant visibility marketplace for diners and restaurant partners.",
-  inLanguage: "en-IN",
+      inLanguage: "en-IN",
+      publisher: { "@id": "https://dineupindia.com/#organization" },
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://dineupindia.com/#organization",
+      name: "DineUp",
+      url: "https://dineupindia.com/",
+      logo: "https://dineupindia.com/icon.svg",
+    },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
